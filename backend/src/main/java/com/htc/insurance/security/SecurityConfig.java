@@ -1,6 +1,7 @@
 
 package com.htc.insurance.security;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.context.annotation.Bean;
@@ -25,25 +26,21 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
     @Bean
-    public SecurityFilterChain securityFilterChain(
-            HttpSecurity http) throws Exception {
+    public SecurityFilterChain securityFilterChain(HttpSecurity http)
+            throws Exception {
 
         http
             .csrf(csrf -> csrf.disable())
             .cors(cors -> {})
             .sessionManagement(session ->
-                session.sessionCreationPolicy(
-                    SessionCreationPolicy.STATELESS
-                )
+                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
             )
             .authorizeHttpRequests(auth -> auth
-
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 .requestMatchers(
@@ -59,9 +56,7 @@ public class SecurityConfig {
                     "/v3/api-docs/**"
                 ).permitAll()
 
-                .requestMatchers(
-                    HttpMethod.POST, "/user/save"
-                ).permitAll()
+                .requestMatchers(HttpMethod.POST, "/user/save").permitAll()
 
                 .requestMatchers(
                     "/",
@@ -101,46 +96,34 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
+        List<String> allowedOrigins = new ArrayList<>(List.of(
+            "https://insurex-insurace-ibdr.vercel.app",
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:5500",
+            "http://127.0.0.1:5500",
+            "http://localhost:5501",
+            "http://127.0.0.1:5501",
+            "http://localhost:8080",
+            "http://127.0.0.1:8080"
+        ));
+
+        String renderFrontendUrl = System.getenv("FRONTEND_URL");
+
+        if (renderFrontendUrl != null && !renderFrontendUrl.isBlank()) {
+            allowedOrigins.add(renderFrontendUrl.trim().replaceAll("/+$", ""));
+        }
+
         CorsConfiguration configuration = new CorsConfiguration();
-
-        configuration.setAllowedOrigins(
-            List.of(
-                // Deployed React frontend
-                "https://insurex-insurace-ibdr.vercel.app",
-
-                // Local development
-                "http://127.0.0.1:5500",
-                "http://localhost:5500",
-                "http://127.0.0.1:5501",
-                "http://localhost:5501",
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-                "http://localhost:8080",
-                "http://127.0.0.1:8080"
-            )
-        );
-
-        configuration.setAllowedMethods(
-            List.of(
-                "GET",
-                "POST",
-                "PUT",
-                "DELETE",
-                "PATCH",
-                "OPTIONS"
-            )
-        );
-
-        configuration.setAllowedHeaders(
-            List.of(
-                "Authorization",
-                "Content-Type",
-                "Accept",
-                "Origin"
-            )
-        );
-
+        configuration.setAllowedOrigins(allowedOrigins);
+        configuration.setAllowedMethods(List.of(
+            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+        ));
+        configuration.setAllowedHeaders(List.of(
+            "Authorization", "Content-Type", "Accept", "Origin"
+        ));
         configuration.setAllowCredentials(true);
+        configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
             new UrlBasedCorsConfigurationSource();
@@ -157,8 +140,7 @@ public class SecurityConfig {
 
     @Bean
     public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration)
-            throws Exception {
+            AuthenticationConfiguration configuration) throws Exception {
         return configuration.getAuthenticationManager();
     }
 }
