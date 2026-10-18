@@ -1,4 +1,3 @@
-
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
@@ -39,30 +38,49 @@ function loadRazorpay() {
       return
     }
 
+    const scriptUrl =
+      'https://checkout.razorpay.com/v1/checkout.js'
+
     const existingScript = document.querySelector(
-      'script[src="https://checkout.razorpay.com/v1/checkout.js"]',
+      `script[src="${scriptUrl}"]`,
     )
 
     if (existingScript) {
-      existingScript.addEventListener('load', () => {
-        if (window.Razorpay) resolve(window.Razorpay)
-        else reject(new Error('Payment window failed to load.'))
-      }, { once: true })
+      existingScript.addEventListener(
+        'load',
+        () => {
+          if (window.Razorpay) {
+            resolve(window.Razorpay)
+          } else {
+            reject(new Error('Payment window failed to load.'))
+          }
+        },
+        { once: true },
+      )
 
-      existingScript.addEventListener('error', () => {
-        reject(new Error('Could not load the Razorpay payment window.'))
-      }, { once: true })
+      existingScript.addEventListener(
+        'error',
+        () => {
+          reject(
+            new Error('Could not load the Razorpay payment window.'),
+          )
+        },
+        { once: true },
+      )
 
       return
     }
 
     const script = document.createElement('script')
-    script.src = 'https://checkout.razorpay.com/v1/checkout.js'
+    script.src = scriptUrl
     script.async = true
 
     script.onload = () => {
-      if (window.Razorpay) resolve(window.Razorpay)
-      else reject(new Error('Payment window failed to load.'))
+      if (window.Razorpay) {
+        resolve(window.Razorpay)
+      } else {
+        reject(new Error('Payment window failed to load.'))
+      }
     }
 
     script.onerror = () => {
@@ -83,6 +101,7 @@ function normalizePlans(data) {
   if (Array.isArray(data?.data)) return data.data
   if (Array.isArray(data?.data?.content)) return data.data.content
   if (Array.isArray(data?.plans)) return data.plans
+
   return []
 }
 
@@ -99,29 +118,41 @@ function isActivePlan(plan) {
 function calculatePremium(plan, coverage, years) {
   const basePremium = Number(plan?.basePremium)
   const baseCoverage = Number(plan?.baseCoverage)
+  const requestedCoverage = Number(coverage)
+  const duration = Number(years)
 
   if (
     !Number.isFinite(basePremium) ||
     basePremium <= 0 ||
     !Number.isFinite(baseCoverage) ||
-    baseCoverage <= 0
+    baseCoverage <= 0 ||
+    !Number.isFinite(requestedCoverage) ||
+    requestedCoverage <= 0 ||
+    !Number.isInteger(duration) ||
+    duration < 1 ||
+    duration > 5
   ) {
     return null
   }
 
-  const base = basePremium * (Number(coverage) / baseCoverage) * Number(years)
-  const roundedBase = Math.round((base + Number.EPSILON) * 100) / 100
-  const discount = years >= 2
-    ? Math.round((roundedBase * 0.05 + Number.EPSILON) * 100) / 100
-    : 0
-  const taxable = Math.round((roundedBase - discount + Number.EPSILON) * 100) / 100
+  const roundMoney = (amount) =>
+    Math.round((amount + Number.EPSILON) * 100) / 100
+
+  const base = roundMoney(
+    basePremium * (requestedCoverage / baseCoverage) * duration,
+  )
+
+  const discount =
+    duration >= 2 ? roundMoney(base * 0.05) : 0
+
+  const taxable = roundMoney(base - discount)
 
   // Current InsureX backend configuration uses 0% GST.
   const gst = 0
-  const total = Math.round((taxable + gst + Number.EPSILON) * 100) / 100
+  const total = roundMoney(taxable + gst)
 
   return {
-    base: roundedBase,
+    base,
     discount,
     taxable,
     gst,
@@ -130,9 +161,10 @@ function calculatePremium(plan, coverage, years) {
 }
 
 export default function BuyPolicy() {
-  // The existing route parameter name is retained for compatibility.
-  // Its value now represents the catalogue plan ID.
+  // The existing route parameter is retained for compatibility.
+  // Its value represents the catalogue plan ID.
   const { policyNumber: planIdParam } = useParams()
+
   const { user } = useAuth()
   const nav = useNavigate()
   const qc = useQueryClient()
@@ -158,22 +190,28 @@ export default function BuyPolicy() {
   )
 
   const [step, setStep] = useState(0)
+
   const [val, setVal] = useState({
     coverage: 2_500_000,
     years: 1,
   })
+
   const [nominee, setNominee] = useState({
     name: '',
     relation: '',
     contact: '',
   })
+
   const [errors, setErrors] = useState({})
   const [paying, setPaying] = useState(false)
   const [error, setError] = useState('')
   const [done, setDone] = useState(null)
 
   const coveredType =
-    policy?.coveredType || policy?.planName || policy?.planCode || 'Insurance'
+    policy?.coveredType ||
+    policy?.planName ||
+    policy?.planCode ||
+    'Insurance'
 
   const planDetails = useMemo(
     () => (policy ? planFor(coveredType) : null),
@@ -181,7 +219,10 @@ export default function BuyPolicy() {
   )
 
   const est = useMemo(
-    () => (policy ? calculatePremium(policy, val.coverage, val.years) : null),
+    () =>
+      policy
+        ? calculatePremium(policy, val.coverage, val.years)
+        : null,
     [policy, val.coverage, val.years],
   )
 
@@ -190,8 +231,16 @@ export default function BuyPolicy() {
     Number(val.coverage) >= COVERAGE_MIN &&
     Number(val.coverage) <= COVERAGE_MAX
 
+  const durationIsValid =
+    Number.isInteger(Number(val.years)) &&
+    Number(val.years) >= 1 &&
+    Number(val.years) <= 5
+
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: 'smooth' })
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth',
+    })
   }, [step])
 
   function validateNominee() {
@@ -211,6 +260,7 @@ export default function BuyPolicy() {
     }
 
     setErrors(nextErrors)
+
     return Object.keys(nextErrors).length === 0
   }
 
@@ -219,8 +269,10 @@ export default function BuyPolicy() {
 
     setError('')
 
-    if (!policy || !est || !coverageIsValid) {
-      setError('The selected plan or coverage amount is invalid.')
+    if (!policy || !est || !coverageIsValid || !durationIsValid) {
+      setError(
+        'The selected plan, coverage amount, or policy duration is invalid.',
+      )
       return
     }
 
@@ -236,19 +288,34 @@ export default function BuyPolicy() {
 
     setPaying(true)
 
-    let razorpayResponse
+    let razorpayResponse = null
 
     try {
-      // The backend currently accepts the amount supplied here.
-      // The purchase endpoint separately checks the signed order
-      // and its amount against the server-calculated premium.
+      /*
+       * SECURE ORDER CREATION
+       *
+       * Do not send the frontend-calculated premium as the
+       * authoritative amount. The backend loads the active plan
+       * and calculates the amount itself.
+       */
       const order = await payment.createOrder({
-        amount: est.total,
+        planId: Number(policy.planId),
+        coverageAmount: Number(val.coverage),
+        durationYears: Number(val.years),
         currency: 'INR',
       })
 
-      if (!order?.orderId || !order?.keyId || !order?.amount) {
-        throw new Error('The server returned incomplete payment order details.')
+      const orderAmount = Number(order?.amount)
+
+      if (
+        !order?.orderId ||
+        !order?.keyId ||
+        !Number.isFinite(orderAmount) ||
+        orderAmount <= 0
+      ) {
+        throw new Error(
+          'The server returned incomplete payment order details.',
+        )
       }
 
       const Razorpay = await loadRazorpay()
@@ -257,19 +324,29 @@ export default function BuyPolicy() {
         const checkout = new Razorpay({
           key: order.keyId,
           order_id: order.orderId,
-          amount: Math.round(Number(order.amount) * 100),
+
+          // Razorpay checkout expects the amount in paise.
+          amount: Math.round(orderAmount * 100),
+
           currency: order.currency || 'INR',
           name: 'InsureX',
-          description: `${coveredType} · ${inrShort(val.coverage)} · ${val.years} yr`,
+
+          description: `${coveredType} · ${inrShort(
+            val.coverage,
+          )} · ${val.years} yr`,
+
           prefill: {
-            name: user?.username,
-            email: user?.email,
-            contact: user?.contactNumber,
+            name: user?.username || '',
+            email: user?.email || '',
+            contact: user?.contactNumber || '',
           },
+
           theme: {
             color: '#0F3D3E',
           },
+
           handler: (response) => resolve(response),
+
           modal: {
             ondismiss: () => reject(new Error('CANCELLED')),
           },
@@ -296,14 +373,19 @@ export default function BuyPolicy() {
         )
       }
 
+      /*
+       * PURCHASE
+       *
+       * The backend must independently:
+       * 1. Load the selected active plan.
+       * 2. Recalculate the premium.
+       * 3. Verify the Razorpay signature and exact expected amount.
+       * 4. Save the policy and purchase only after verification.
+       */
       try {
         const saved = await purchases.purchase({
           planId: Number(policy.planId),
-
-          // Retained for compatibility with existing DTO fields.
-          // The backend should use planId as the authoritative source.
           coveredTypes: coveredType,
-
           durationYears: Number(val.years),
           coverageAmount: Number(val.coverage),
 
@@ -312,9 +394,15 @@ export default function BuyPolicy() {
           nomineeContact: nominee.contact.trim(),
 
           paymentMethod: 'RAZORPAY',
-          razorpayOrderId: razorpayResponse.razorpay_order_id,
-          razorpayPaymentId: razorpayResponse.razorpay_payment_id,
-          razorpaySignature: razorpayResponse.razorpay_signature,
+
+          razorpayOrderId:
+            razorpayResponse.razorpay_order_id,
+
+          razorpayPaymentId:
+            razorpayResponse.razorpay_payment_id,
+
+          razorpaySignature:
+            razorpayResponse.razorpay_signature,
         })
 
         setDone(saved)
@@ -324,7 +412,9 @@ export default function BuyPolicy() {
           `${errorMessage(
             purchaseError,
             'We could not record your purchase.',
-          )} If Razorpay charged you, do not retry immediately. Keep payment ID ${razorpayResponse.razorpay_payment_id} and contact InsureX support.`,
+          )} If Razorpay charged you, do not retry immediately. Keep payment ID ${
+            razorpayResponse.razorpay_payment_id
+          } and contact InsureX support.`,
         )
       }
     } catch (paymentError) {
@@ -403,7 +493,9 @@ export default function BuyPolicy() {
         title="Buy insurance"
         subtitle={
           policy
-            ? `${policy.planName || coveredType} · ${policy.planCode || `Plan #${policy.planId}`}`
+            ? `${policy.planName || coveredType} · ${
+                policy.planCode || `Plan #${policy.planId}`
+              }`
             : undefined
         }
       >
@@ -421,8 +513,8 @@ export default function BuyPolicy() {
             </div>
           ) : !est ? (
             <div className="alert warn" role="alert">
-              This plan does not have valid pricing configured. Please contact
-              support before purchasing.
+              This plan does not have valid pricing configured. Please
+              contact support before purchasing.
             </div>
           ) : (
             <>
@@ -436,7 +528,10 @@ export default function BuyPolicy() {
                 </div>
               )}
 
-              <ol className="steps" style={{ listStyle: 'none', padding: 0 }}>
+              <ol
+                className="steps"
+                style={{ listStyle: 'none', padding: 0 }}
+              >
                 {STEPS.map((label, index) => (
                   <li
                     key={label}
@@ -459,8 +554,13 @@ export default function BuyPolicy() {
               <div className="wizard">
                 <div>
                   {step === 0 && (
-                    <Panel title={`${planDetails?.label || coveredType} cover`}>
-                      <p className="muted" style={{ marginBottom: 16 }}>
+                    <Panel
+                      title={`${planDetails?.label || coveredType} cover`}
+                    >
+                      <p
+                        className="muted"
+                        style={{ marginBottom: 16 }}
+                      >
                         {policy.description ||
                           planDetails?.blurb ||
                           'Insurance coverage designed around your needs.'}
@@ -493,8 +593,8 @@ export default function BuyPolicy() {
                       </dl>
 
                       <p className="faint" style={{ marginTop: 16 }}>
-                        Adjust the coverage and term to update your estimated
-                        premium.
+                        Adjust the coverage and term to update your
+                        estimated premium.
                       </p>
 
                       <dl className="kv">
@@ -522,7 +622,11 @@ export default function BuyPolicy() {
                                 ...nominee,
                                 name: event.target.value,
                               })
-                              setErrors({ ...errors, name: '' })
+
+                              setErrors({
+                                ...errors,
+                                name: '',
+                              })
                             }}
                             error={errors.name}
                             autoFocus
@@ -537,7 +641,11 @@ export default function BuyPolicy() {
                               ...nominee,
                               relation: event.target.value,
                             })
-                            setErrors({ ...errors, relation: '' })
+
+                            setErrors({
+                              ...errors,
+                              relation: '',
+                            })
                           }}
                           options={RELATIONS}
                           placeholder="Choose…"
@@ -554,8 +662,15 @@ export default function BuyPolicy() {
                               .replace(/\D/g, '')
                               .slice(0, 10)
 
-                            setNominee({ ...nominee, contact })
-                            setErrors({ ...errors, contact: '' })
+                            setNominee({
+                              ...nominee,
+                              contact,
+                            })
+
+                            setErrors({
+                              ...errors,
+                              contact: '',
+                            })
                           }}
                           error={errors.contact}
                         />
@@ -602,12 +717,15 @@ export default function BuyPolicy() {
                         <dd>{inr(est.total)}</dd>
                       </dl>
 
-                      <div className="alert info" style={{ marginTop: 16 }}>
-                        Payment is processed through Razorpay. Please check
-                        your plan, coverage, and nominee details before paying.
-                        Do not make another payment if a previous payment
-                        appears successful but your policy has not been
-                        recorded.
+                      <div
+                        className="alert info"
+                        style={{ marginTop: 16 }}
+                      >
+                        Payment is processed through Razorpay. Please
+                        check your plan, coverage, and nominee details
+                        before paying. Do not make another payment if a
+                        previous payment appears successful but your
+                        policy has not been recorded.
                       </div>
                     </Panel>
                   )}
@@ -629,8 +747,13 @@ export default function BuyPolicy() {
                           setError('')
 
                           if (step === 0) {
-                            if (!coverageIsValid) {
-                              setError('Choose a valid coverage amount.')
+                            if (
+                              !coverageIsValid ||
+                              !durationIsValid
+                            ) {
+                              setError(
+                                'Choose a valid coverage amount and policy duration.',
+                              )
                               return
                             }
 
@@ -651,7 +774,12 @@ export default function BuyPolicy() {
                         variant="primary"
                         size="lg"
                         loading={paying}
-                        disabled={paying || !coverageIsValid || !est}
+                        disabled={
+                          paying ||
+                          !coverageIsValid ||
+                          !durationIsValid ||
+                          !est
+                        }
                         onClick={pay}
                       >
                         Pay {inr(est.total)}
@@ -663,7 +791,12 @@ export default function BuyPolicy() {
                 <CoverageDial
                   value={val}
                   onChange={setVal}
-                  planKey={planDetails?.key || String(policy.planCode || 'insurance').toLowerCase()}
+                  planKey={
+                    planDetails?.key ||
+                    String(
+                      policy.planCode || 'insurance',
+                    ).toLowerCase()
+                  }
                   lockedPlan
                 />
               </div>
