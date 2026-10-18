@@ -1,11 +1,9 @@
+
 package com.htc.insurance.dto;
 
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
 
-import lombok.Data;
-
-@Data
 public class ResetPasswordRequest {
 
     @NotBlank(message = "Username, email or mobile number is required")
@@ -24,4 +22,31 @@ public class ResetPasswordRequest {
         message = "Password must be at least 8 characters and contain uppercase, lowercase, number and special character"
     )
     private String newPassword;
+
+    public ResetPasswordRequest() {
+    }
+
+    public String getIdentifier() {
+        return identifier;
+    }
+
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
+    }
+
+    public String getOtp() {
+        return otp;
+    }
+
+    public void setOtp(String otp) {
+        this.otp = otp;
+    }
+
+    public String getNewPassword() {
+        return newPassword;
+    }
+
+    public void setNewPassword(String newPassword) {
+        this.newPassword = newPassword;
+    }
 }
