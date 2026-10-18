@@ -1,15 +1,31 @@
+
 import axios from 'axios'
 
 const TOKEN_KEY = 'insurex_token'
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
 
-export const API_URL =
+const normalizeApiUrl = (url) => {
+  if (!url) return ''
+
+  return url.replace(/\/+$/, '')
+}
+
+/*
+ * API configuration:
+ * - Local development defaults to localhost:8080.
+ * - Production uses VITE_API_URL when configured.
+ * - Production falls back to the deployed InsureX backend.
+ */
+export const API_URL = normalizeApiUrl(
   configuredApiUrl ||
-  (import.meta.env.DEV ? 'http://localhost:8080' : '')
+    (import.meta.env.DEV
+      ? 'http://localhost:8080'
+      : 'https://insurance-management-ke8b.onrender.com'),
+)
 
 export const tokenStore = {
-  get: () => {
+  get() {
     try {
       return localStorage.getItem(TOKEN_KEY)
     } catch {
@@ -17,59 +33,62 @@ export const tokenStore = {
     }
   },
 
-  set: (token) => {
+  set(token) {
     try {
-      localStorage.setItem(TOKEN_KEY, token)
+      if (token) {
+        localStorage.setItem(TOKEN_KEY, token)
+      }
     } catch {
-      // Ignore unavailable localStorage
+      // Storage may be unavailable in restricted browser contexts.
     }
   },
 
-  clear: () => {
+  clear() {
     try {
       localStorage.removeItem(TOKEN_KEY)
     } catch {
-      // Ignore unavailable localStorage
+      // Storage may be unavailable in restricted browser contexts.
     }
   },
 }
 
 export const api = axios.create({
   baseURL: API_URL,
+  timeout: 30000,
+  headers: {
+    Accept: 'application/json',
+  },
 })
 
-api.interceptors.request.use((config) => {
-  if (!API_URL) {
-    return Promise.reject(
-      new Error(
-        'API URL is missing. Configure VITE_API_URL in Vercel and redeploy.',
-      ),
-    )
-  }
+api.interceptors.request.use(
+  (config) => {
+    const token = tokenStore.get()
 
-  const token = tokenStore.get()
+    if (token) {
+      config.headers = config.headers || {}
+      config.headers.Authorization = `Bearer ${token}`
+    }
 
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
-  }
-
-  return config
-})
+    return config
+  },
+  (error) => Promise.reject(error),
+)
 
 // Handle unauthorized sessions.
 let onUnauthorized = () => {}
 
 export const setUnauthorizedHandler = (fn) => {
-  onUnauthorized = fn
+  onUnauthorized = typeof fn === 'function' ? fn : () => {}
 }
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     const url = error.config?.url || ''
+    const status = error.response?.status
 
     if (
-      error.response?.status === 401 &&
+      status === 401 &&
       !url.includes('/api/auth/')
     ) {
       onUnauthorized()
@@ -86,13 +105,19 @@ export function errorMessage(
 ) {
   if (!error) return fallback
 
+  if (error.code === 'ECONNABORTED') {
+    return 'The server took too long to respond. Please try again.'
+  }
+
   const data = error.response?.data
 
   if (typeof data === 'string' && data.trim()) {
     return data
   }
 
-  if (data?.message) return data.message
+  if (data?.message) {
+    return data.message
+  }
 
   if (typeof data?.error === 'string') {
     return data.error
@@ -100,18 +125,22 @@ export function errorMessage(
 
   if (data && typeof data === 'object') {
     const first = Object.values(data).find(
-      (value) => typeof value === 'string',
+      (value) => typeof value === 'string' && value.trim(),
     )
 
     if (first) return first
   }
 
-  if (error.code === 'ERR_NETWORK') {
-    return 'Cannot reach the server. Check the API URL, backend status, and CORS configuration.'
+  if (error.code === 'ERR_NETWORK' || !error.response) {
+    return 'Cannot reach the InsureX server. Check the backend URL, backend status, and CORS configuration.'
   }
 
-  if (error.response?.status === 403) {
+  if (error.response.status === 403) {
     return 'You do not have permission to do that.'
+  }
+
+  if (error.response.status === 404) {
+    return 'The requested API endpoint was not found.'
   }
 
   return error.message || fallback
