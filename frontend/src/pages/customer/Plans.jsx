@@ -6,132 +6,209 @@ import { DataState, PageHeader, StatusBadge } from "../../components/ui";
 import { planFor } from "../../lib/premium";
 import { inr, today } from "../../lib/format";
 
+function isFalse(value) {
+  return (
+    value === false ||
+    value === 0 ||
+    ["false", "0", "no", "inactive", "disabled"].includes(
+      String(value ?? "").trim().toLowerCase()
+    )
+  );
+}
+
 function getPolicyStatus(policy) {
-  if (policy.status) {
-    return String(policy.status).toUpperCase();
-  }
-
-  if (policy.expiryDate && policy.expiryDate <= today()) {
-    return "EXPIRED";
-  }
-
-  return policy.isActive ? "ACTIVE" : "INACTIVE";
-}
-
-// Treat "Health" and "Health Insurance" as the same cover type.
-function normalizeCoverType(value) {
-  return String(value || "")
+  const explicitStatus = String(policy?.status ?? "")
     .trim()
-    .replace(/\s+insurance\s*$/i, "")
-    .replace(/\s+/g, " ")
-    .toLowerCase();
+    .toUpperCase();
+
+  if (explicitStatus) {
+    return explicitStatus;
+  }
+
+  if (policy?.expiryDate) {
+    const expiry = new Date(policy.expiryDate);
+    const current = new Date(`${today()}T00:00:00`);
+
+    if (!Number.isNaN(expiry.getTime()) && expiry < current) {
+      return "EXPIRED";
+    }
+  }
+
+  // Handle boolean, numeric and string database values.
+  if (isFalse(policy?.isActive)) {
+    return "INACTIVE";
+  }
+
+  // /policy/available is expected to return purchasable policies.
+  // Don't hide records just because isActive is absent in the response.
+  return "ACTIVE";
 }
 
-// Show only one available plan for each cover type.
-function getUniquePlans(rows) {
-  const seen = new Set();
+function isPurchasable(policy) {
+  const status = getPolicyStatus(policy);
 
-  return rows.filter((policy) => {
-    if (getPolicyStatus(policy) !== "ACTIVE") {
-      return false;
-    }
+  return (
+    status === "ACTIVE" &&
+    Boolean(policy?.policyNumber) &&
+    !isFalse(policy?.isActive)
+  );
+}
 
-    const key = normalizeCoverType(policy.coveredTypes);
+function normalizePolicies(data) {
+  // Support either a direct array or common paginated/API response shapes.
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.content)) return data.content;
+  if (Array.isArray(data?.data)) return data.data;
+  if (Array.isArray(data?.data?.content)) return data.data.content;
+  if (Array.isArray(data?.policies)) return data.policies;
 
-    if (!key || seen.has(key)) {
-      return false;
-    }
-
-    seen.add(key);
-    return true;
-  });
+  return [];
 }
 
 export default function Plans() {
   const q = useQuery({
     queryKey: ["available-policies"],
     queryFn: policies.available,
+    staleTime: 30_000,
+    retry: 1,
   });
+
+  const rows = normalizePolicies(q.data);
 
   return (
     <>
       <PageHeader
         title="Buy insurance"
-        subtitle="Choose a plan, then set your cover amount and term. You see the exact premium before you pay."
+        subtitle="Explore available insurance plans and choose the cover that suits your needs."
       />
 
-      <DataState
-        query={q}
-        empty={{
-          title: "No plans open right now",
-          text: "New plans appear here as soon as the administrator publishes them.",
-        }}
-      >
-        {(rows) => {
-          const availablePlans = getUniquePlans(rows || []);
+      {q.isPending ? (
+        <div className="empty" role="status">
+          <p>Loading available insurance plans...</p>
+        </div>
+      ) : q.isError ? (
+        <div className="empty" role="alert">
+          <h4>Unable to load insurance plans</h4>
+          <p className="muted">
+            Check your connection and try again. If the problem continues,
+            verify the deployed API URL and backend availability.
+          </p>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => q.refetch()}
+          >
+            Try again
+          </button>
+        </div>
+      ) : rows.length === 0 ? (
+        <div className="empty">
+          <h4>No insurance plans found</h4>
+          <p className="muted">
+            The server returned no policy records. Confirm that your cloud
+            database contains policies and that GET /policy/available
+            returns them.
+          </p>
+          <button
+            type="button"
+            className="btn primary"
+            onClick={() => q.refetch()}
+          >
+            Refresh plans
+          </button>
+        </div>
+      ) : (
+        <>
+          <p className="muted">
+            {rows.length} {rows.length === 1 ? "plan" : "plans"} found
+          </p>
 
-          return availablePlans.length === 0 ? (
-            <div className="empty">
-              <h4>No plans open right now</h4>
-              <p className="muted">
-                New plans appear here as soon as the administrator publishes them.
-              </p>
-            </div>
-          ) : (
-            <div className="plan-grid">
-              {availablePlans.map((p) => {
-                const plan = planFor(p.coveredTypes);
+          <div className="plan-grid">
+            {rows.map((policy, index) => {
+              const plan = planFor(policy.coveredTypes);
+              const status = getPolicyStatus(policy);
+              const canBuy = isPurchasable(policy);
 
-                return (
-                  <article
-                    className="panel plan-card"
-                    key={p.policyNumber}
-                  >
-                    <div className="row spread">
-                      <h3>{p.coveredTypes}</h3>
-                      <StatusBadge value={getPolicyStatus(p)} />
+              const key =
+                policy.policyNumber ??
+                policy.policyId ??
+                policy.id ??
+                `${policy.coveredTypes ?? "policy"}-${index}`;
+
+              return (
+                <article className="panel plan-card" key={key}>
+                  <div className="row spread">
+                    <h3>
+                      {policy.coveredTypes ||
+                        policy.policyName ||
+                        "Insurance plan"}
+                    </h3>
+                    <StatusBadge value={status} />
+                  </div>
+
+                  <p className="muted">
+                    {plan?.blurb || "Insurance coverage for your needs."}
+                  </p>
+
+                  {policy.policyNumber && (
+                    <p className="faint">
+                      Policy number: {policy.policyNumber}
+                    </p>
+                  )}
+
+                  {policy.expiryDate && (
+                    <p className="faint">
+                      Expiry date: {policy.expiryDate}
+                    </p>
+                  )}
+
+                  <div>
+                    <div className="faint" style={{ fontSize: 13 }}>
+                      Starting premium
                     </div>
 
-                    <p className="muted">
-                      {plan?.blurb || "Insurance plan"}
-                    </p>
+                    <b
+                      style={{
+                        fontSize: 24,
+                        letterSpacing: "-0.02em",
+                      }}
+                    >
+                      {plan ? inr(plan.yearly) : "View premium at checkout"}
+                    </b>
 
-                    <div>
-                      <div
-                        className="faint"
-                        style={{ fontSize: 13 }}
-                      >
-                        Starting at
-                      </div>
-
-                      <b
-                        style={{
-                          fontSize: 24,
-                          letterSpacing: "-0.02em",
-                        }}
-                      >
-                        {plan ? inr(plan.yearly) : "—"}
-                      </b>
-
+                    {plan && (
                       <span className="muted">
                         {" "}/ year for ₹10 L cover
                       </span>
-                    </div>
+                    )}
+                  </div>
 
+                  {canBuy ? (
                     <Link
                       className="btn primary"
-                      to={`/app/plans/${p.policyNumber}/buy`}
-                      state={{ policy: p }}
+                      to={`/app/plans/${encodeURIComponent(
+                        policy.policyNumber
+                      )}/buy`}
+                      state={{ policy }}
                     >
                       Choose this plan
                     </Link>
-                  </article>
-                );
-              })}
-            </div>
-          );
-        }}
-      </DataState>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn"
+                      disabled
+                      title="This policy is not currently available for purchase."
+                    >
+                      Currently unavailable
+                    </button>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        </>
+      )}
     </>
   );
 }
