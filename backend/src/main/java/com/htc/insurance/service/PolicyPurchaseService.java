@@ -1,4 +1,3 @@
-
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -6,7 +5,6 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Locale;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -85,7 +83,7 @@ public class PolicyPurchaseService {
 
         Long planId = purchaseDto.getPlanId();
 
-        if (planId == null) {
+        if (planId == null || planId <= 0) {
             throw new IllegalArgumentException(
                     "A valid insurance plan ID is required.");
         }
@@ -259,6 +257,11 @@ public class PolicyPurchaseService {
                 .add(gstAmount)
                 .setScale(2, RoundingMode.HALF_UP);
 
+        if (totalPremium.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new IllegalArgumentException(
+                    "The calculated premium must be greater than zero.");
+        }
+
         // -------------------------------------------------
         // VERIFY RAZORPAY SIGNATURE AND EXPECTED AMOUNT
         // -------------------------------------------------
@@ -299,7 +302,7 @@ public class PolicyPurchaseService {
 
         Policy policy = new Policy();
 
-        // Always use the canonical plan type from the database.
+        // Always use the canonical coverage type from the database.
         policy.setCoveredTypes(coveredType.trim());
         policy.setIsActive(true);
         policy.setStartDate(startDate);
@@ -316,6 +319,7 @@ public class PolicyPurchaseService {
         PolicyPurchase purchase = new PolicyPurchase();
 
         purchase.setPolicy(savedPolicy);
+
         purchase.setCoverageAmount(
                 coverageAmount.setScale(2, RoundingMode.HALF_UP));
 
@@ -454,7 +458,8 @@ public class PolicyPurchaseService {
                             purchase.getRefundStatus());
 
             response.setRefundEligible(
-                    !alreadyRefunded && LocalDateTime.now().isBefore(deadline));
+                    !alreadyRefunded
+                            && LocalDateTime.now().isBefore(deadline));
         } else {
             response.setRefundDeadline(null);
             response.setRefundEligible(false);
@@ -487,9 +492,14 @@ public class PolicyPurchaseService {
                     "The selected plan has an invalid base coverage amount.");
         }
 
+        /*
+         * Keep this precision aligned with PaymentService.
+         * Round the final premium to two decimal places only
+         * after multiplying by the base premium and duration.
+         */
         BigDecimal coverageMultiplier = coverageAmount.divide(
                 baseCoverage,
-                8,
+                10,
                 RoundingMode.HALF_UP);
 
         return basePremium
@@ -509,7 +519,10 @@ public class PolicyPurchaseService {
         if (durationYears >= 2) {
             return basePremium
                     .multiply(MULTI_YEAR_DISCOUNT_RATE)
-                    .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                    .divide(
+                            new BigDecimal("100"),
+                            2,
+                            RoundingMode.HALF_UP);
         }
 
         return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
