@@ -55,7 +55,19 @@ export const users = {
 }
 
 // =====================================================
-// POLICIES
+// PERMANENT INSURANCE CATALOGUE
+// Separate from customer-owned policies.
+// =====================================================
+export const plans = {
+  available: () =>
+    d(api.get('/api/plans/available')),
+
+  get: (planId) =>
+    d(api.get(`/api/plans/${planId}`)),
+}
+
+// =====================================================
+// CUSTOMER-OWNED POLICIES
 // =====================================================
 export const policies = {
   available: () => d(api.get('/policy/available')),
