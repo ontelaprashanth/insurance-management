@@ -1,9 +1,17 @@
 package com.htc.insurance.dto;
 
-import lombok.Data;
-
-@Data
 public class OtpRequest {
 
     private String identifier;
+
+    public OtpRequest() {
+    }
+
+    public String getIdentifier() {
+        return identifier;
+    }
+
+    public void setIdentifier(String identifier) {
+        this.identifier = identifier;
+    }
 }
