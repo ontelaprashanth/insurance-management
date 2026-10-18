@@ -23,6 +23,7 @@
 
     <properties>
         <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
 
         <lombok.version>1.18.38</lombok.version>
         <org.mapstruct.version>1.6.3</org.mapstruct.version>
@@ -64,7 +65,7 @@
             <optional>true</optional>
         </dependency>
 
-        <!-- MapStruct -->
+        <!-- MapStruct API -->
         <dependency>
             <groupId>org.mapstruct</groupId>
             <artifactId>mapstruct</artifactId>
@@ -134,7 +135,7 @@
     <build>
         <plugins>
 
-            <!-- Spring Boot -->
+            <!-- Spring Boot packaging -->
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -148,30 +149,33 @@
                 </configuration>
             </plugin>
 
-            <!-- Java compiler and annotation processors -->
+            <!-- Java 17 compiler and annotation processors -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+
                 <configuration>
                     <release>${java.version}</release>
+                    <encoding>UTF-8</encoding>
 
                     <annotationProcessorPaths>
 
-                        <!-- Lombok must be available to the compiler -->
+                        <!-- Lombok generates getters, setters and constructors -->
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                             <version>${lombok.version}</version>
                         </path>
 
-                        <!-- Required for Lombok + MapStruct integration -->
+                        <!-- Coordinates Lombok processing with MapStruct -->
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok-mapstruct-binding</artifactId>
                             <version>${lombok-mapstruct-binding.version}</version>
                         </path>
 
-                        <!-- MapStruct annotation processor -->
+                        <!-- Generates MapStruct mapper implementations -->
                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
