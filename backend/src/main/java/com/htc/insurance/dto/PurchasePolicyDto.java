@@ -4,6 +4,8 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+
+
 import lombok.Data;
 
 @Data
@@ -24,6 +26,8 @@ public class PurchasePolicyDto {
     private Integer durationYears;
 
     private BigDecimal coverageAmount;
+    
+    private Long planId;
 
 
     // =========================
@@ -121,4 +125,13 @@ public class PurchasePolicyDto {
     private LocalDateTime refundDeadline;
 
     private Boolean refundEligible;
+
+
+    public Long getPlanId() {
+    return planId;
+}
+
+public void setPlanId(Long planId) {
+    this.planId = planId;
+}
 }
