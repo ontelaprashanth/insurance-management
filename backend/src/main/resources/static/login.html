@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>INSUREX | Login</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body class="login-page">
+
+    <main class="login-wrapper">
+
+        <!-- LEFT BRAND SECTION -->
+        <section class="login-brand">
+
+            <div class="brand-content">
+
+                <div class="brand-logo">
+                    <div class="logo-icon">
+                        <span>✦</span>
+                    </div>
+
+                    <div>
+                        <h1>INSUREX</h1>
+                        <p>Insurance Management</p>
+                    </div>
+                </div>
+
+                <div class="brand-message">
+                    <span class="small-label">SMART • SECURE • SIMPLE</span>
+
+                    <h2>
+                        Protect what
+                        <span>matters most.</span>
+                    </h2>
+
+                    <p>
+                        Manage policies, customers, claims and settlements
+                        from one secure insurance management platform.
+                    </p>
+                </div>
+
+                <div class="brand-features">
+
+                    <div class="feature">
+                        <div class="feature-icon">✓</div>
+                        <div>
+                            <strong>Secure Access</strong>
+                            <span>JWT protected authentication</span>
+                        </div>
+                    </div>
+
+                    <div class="feature">
+                        <div class="feature-icon">✓</div>
+                        <div>
+                            <strong>Easy Management</strong>
+                            <span>Manage your insurance operations</span>
+                        </div>
+                    </div>
+
+                    <div class="feature">
+                        <div class="feature-icon">✓</div>
+                        <div>
+                            <strong>Real-time Insights</strong>
+                            <span>Monitor policies and claims easily</span>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+            <div class="brand-footer">
+                © 2026 INSUREX. All rights reserved.
+            </div>
+
+        </section>
+
+
+        <!-- RIGHT LOGIN SECTION -->
+        <section class="login-section">
+
+            <div class="login-card">
+
+                <div class="mobile-logo">
+                    <div class="logo-icon">
+                        <span>✦</span>
+                    </div>
+                    <h1>INSUREX</h1>
+                </div>
+
+                <div class="login-header">
+                    <span class="welcome-label">WELCOME BACK</span>
+
+                    <h2>Sign in to your account</h2>
+
+                    <p>
+                        Enter your credentials to access your dashboard.
+                    </p>
+                </div>
+
+
+                <form id="loginForm">
+
+                    <!-- USERNAME -->
+                    <div class="input-group">
+
+                        <label for="username">
+                            Username
+                        </label>
+
+                        <div class="input-wrapper">
+
+                            <span class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <path d="M20 21C20 17.6863 17.3137 15 14 15H10C6.68629 15 4 17.6863 4 21"
+                                          stroke="currentColor"
+                                          stroke-width="1.8"
+                                          stroke-linecap="round"/>
+
+                                    <circle cx="12"
+                                            cy="7"
+                                            r="4"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"/>
+                                </svg>
+                            </span>
+
+                            <input
+                                type="text"
+                                id="username"
+                                name="username"
+                                placeholder="Enter your username"
+                                autocomplete="username"
+                                required
+                            >
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- PASSWORD -->
+                    <div class="input-group">
+
+                        <div class="label-row">
+                            <label for="password">
+                                Password
+                            </label>
+
+                            <a href="#" class="forgot-link">
+                                Forgot password?
+                            </a>
+                        </div>
+
+                        <div class="input-wrapper">
+
+                            <span class="input-icon">
+                                <svg viewBox="0 0 24 24" fill="none">
+                                    <rect x="4"
+                                          y="10"
+                                          width="16"
+                                          height="11"
+                                          rx="2"
+                                          stroke="currentColor"
+                                          stroke-width="1.8"/>
+
+                                    <path d="M8 10V7C8 4.79086 9.79086 3 12 3C14.2091 3 16 4.79086 16 7V10"
+                                          stroke="currentColor"
+                                          stroke-width="1.8"
+                                          stroke-linecap="round"/>
+                                </svg>
+                            </span>
+
+                            <input
+                                type="password"
+                                id="password"
+                                name="password"
+                                placeholder="Enter your password"
+                                autocomplete="current-password"
+                                required
+                            >
+
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                id="passwordToggle"
+                                aria-label="Show password"
+                            >
+                                <svg id="eyeIcon" viewBox="0 0 24 24" fill="none">
+                                    <path d="M2 12C2 12 5.5 5 12 5C18.5 5 22 12 22 12C22 12 18.5 19 12 19C5.5 19 2 12 2 12Z"
+                                          stroke="currentColor"
+                                          stroke-width="1.8"/>
+
+                                    <circle cx="12"
+                                            cy="12"
+                                            r="3"
+                                            stroke="currentColor"
+                                            stroke-width="1.8"/>
+                                </svg>
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- REMEMBER -->
+                    <div class="login-options">
+
+                        <label class="remember-me">
+
+                            <input
+                                type="checkbox"
+                                id="rememberMe"
+                            >
+
+                            <span class="custom-checkbox"></span>
+
+                            <span>Remember me</span>
+
+                        </label>
+
+                    </div>
+
+
+                    <!-- ERROR MESSAGE -->
+                    <div
+                        id="loginMessage"
+                        class="login-message"
+                        role="alert"
+                    ></div>
+
+
+                    <!-- LOGIN BUTTON -->
+                    <button
+                        type="submit"
+                        id="loginButton"
+                        class="login-button"
+                    >
+                        <span class="button-text">
+                            Sign In
+                        </span>
+
+                        <span class="button-loader"></span>
+
+                        <span class="button-arrow">
+                            →
+                        </span>
+                    </button>
+
+                </form>
+
+
+                <div class="security-note">
+
+                    <span class="security-icon">🔒</span>
+
+                    <span>
+                        Your connection is secure and protected.
+                    </span>
+
+                </div>
+
+            </div>
+
+        </section>
+
+    </main>
+
+
+    <script src="js/auth.js"></script>
+
+</body>
+</html>
+

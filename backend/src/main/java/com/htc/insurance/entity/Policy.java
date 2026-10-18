@@ -1,0 +1,41 @@
+package com.htc.insurance.entity;
+
+import java.time.LocalDate;
+import java.util.List;
+
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import lombok.Data;
+
+@Entity
+@Table(name = "policy")
+@Data
+public class Policy {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long policyNumber;
+
+    private String coveredTypes;
+
+    private Boolean isActive;
+
+    private LocalDate startDate;
+
+    private Integer durationYears;
+
+    private LocalDate expiryDate;
+
+    @ManyToOne
+    @JoinColumn(name = "policy_holder_id")
+    private PolicyHolder policyHolder;
+
+    @OneToMany(mappedBy = "policy")
+    private List<Claims> claims;
+}
