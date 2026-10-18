@@ -1,10 +1,10 @@
 
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { policies } from "../../api/endpoints";
-import { DataState, PageHeader, StatusBadge } from "../../components/ui";
+import { plans } from "../../api/endpoints";
+import { PageHeader, StatusBadge } from "../../components/ui";
 import { planFor } from "../../lib/premium";
-import { inr, today } from "../../lib/format";
+import { inr } from "../../lib/format";
 
 function isFalse(value) {
   return (
@@ -16,70 +16,41 @@ function isFalse(value) {
   );
 }
 
-function getPolicyStatus(policy) {
-  const explicitStatus = String(policy?.status ?? "")
-    .trim()
-    .toUpperCase();
-
-  if (explicitStatus) {
-    return explicitStatus;
-  }
-
-  if (policy?.expiryDate) {
-    const expiry = new Date(policy.expiryDate);
-    const current = new Date(`${today()}T00:00:00`);
-
-    if (!Number.isNaN(expiry.getTime()) && expiry < current) {
-      return "EXPIRED";
-    }
-  }
-
-  // Handle boolean, numeric and string database values.
-  if (isFalse(policy?.isActive)) {
-    return "INACTIVE";
-  }
-
-  // /policy/available is expected to return purchasable policies.
-  // Don't hide records just because isActive is absent in the response.
-  return "ACTIVE";
-}
-
-function isPurchasable(policy) {
-  const status = getPolicyStatus(policy);
-
-  return (
-    status === "ACTIVE" &&
-    Boolean(policy?.policyNumber) &&
-    !isFalse(policy?.isActive)
-  );
-}
-
-function normalizePolicies(data) {
-  // Support either a direct array or common paginated/API response shapes.
+function normalizePlans(data) {
   if (Array.isArray(data)) return data;
   if (Array.isArray(data?.content)) return data.content;
   if (Array.isArray(data?.data)) return data.data;
   if (Array.isArray(data?.data?.content)) return data.data.content;
-  if (Array.isArray(data?.policies)) return data.policies;
+  if (Array.isArray(data?.plans)) return data.plans;
 
   return [];
 }
 
+function getPlanStatus(plan) {
+  if (isFalse(plan?.isActive)) return "INACTIVE";
+  return "ACTIVE";
+}
+
+function formatAmount(value) {
+  const amount = Number(value);
+  return Number.isFinite(amount) && amount >= 0 ? inr(amount) : null;
+}
+
 export default function Plans() {
   const q = useQuery({
-    queryKey: ["available-policies"],
-    queryFn: policies.available,
-    staleTime: 30_000,
+    queryKey: ["insurance-plans"],
+    queryFn: plans.available,
+    staleTime: 60_000,
     retry: 1,
   });
 
-  const rows = normalizePolicies(q.data);
+  const rows = normalizePlans(q.data);
 
   return (
     <>
       <PageHeader
         title="Buy insurance"
-        subtitle="Explore available insurance plans and choose the cover that suits your needs."
+        subtitle="Explore our insurance plans and choose cover that suits your needs."
       />
 
       {q.isPending ? (
@@ -90,8 +61,9 @@ export default function Plans() {
         <div className="empty" role="alert">
           <h4>Unable to load insurance plans</h4>
           <p className="muted">
-            Check your connection and try again. If the problem continues,
-            verify the deployed API URL and backend availability.
+            Check your connection and try again. If the issue continues,
+            verify that the backend is running and the permanent catalogue
+            endpoint is accessible.
           </p>
           <button
             type="button"
@@ -103,11 +75,11 @@ export default function Plans() {
         </div>
       ) : rows.length === 0 ? (
         <div className="empty">
-          <h4>No insurance plans found</h4>
+          <h4>No insurance plans available</h4>
           <p className="muted">
-            The server returned no policy records. Confirm that your cloud
-            database contains policies and that GET /policy/available
-            returns them.
+            The catalogue returned no plans. Verify that the backend
+            InsurancePlanSeeder has run and that GET /api/plans/available
+            returns the six default plans.
           </p>
           <button
             type="button"
@@ -120,45 +92,47 @@ export default function Plans() {
       ) : (
         <>
           <p className="muted">
-            {rows.length} {rows.length === 1 ? "plan" : "plans"} found
+            {rows.length} {rows.length === 1 ? "plan" : "plans"} available
           </p>
 
           <div className="plan-grid">
-            {rows.map((policy, index) => {
-              const plan = planFor(policy.coveredTypes);
-              const status = getPolicyStatus(policy);
-              const canBuy = isPurchasable(policy);
+            {rows.map((item) => {
+              const planType =
+                item.coveredType ||
+                item.planName ||
+                item.planCode ||
+                "Insurance";
 
-              const key =
-                policy.policyNumber ??
-                policy.policyId ??
-                policy.id ??
-                `${policy.coveredTypes ?? "policy"}-${index}`;
+              const details = planFor(planType);
+              const status = getPlanStatus(item);
+              const canBuy =
+                Boolean(item.planId) && status === "ACTIVE";
+
+              const premium =
+                formatAmount(item.basePremium) ??
+                (details ? formatAmount(details.yearly) : null);
+
+              const coverage = formatAmount(item.baseCoverage);
 
               return (
-                <article className="panel plan-card" key={key}>
+                <article
+                  className="panel plan-card"
+                  key={item.planId ?? item.planCode}
+                >
                   <div className="row spread">
-                    <h3>
-                      {policy.coveredTypes ||
-                        policy.policyName ||
-                        "Insurance plan"}
-                    </h3>
+                    <h3>{item.planName || planType}</h3>
                     <StatusBadge value={status} />
                   </div>
 
                   <p className="muted">
-                    {plan?.blurb || "Insurance coverage for your needs."}
+                    {item.description ||
+                      details?.blurb ||
+                      "Insurance coverage designed around your needs."}
                   </p>
 
-                  {policy.policyNumber && (
+                  {item.planCode && (
                     <p className="faint">
-                      Policy number: {policy.policyNumber}
-                    </p>
-                  )}
-
-                  {policy.expiryDate && (
-                    <p className="faint">
-                      Expiry date: {policy.expiryDate}
+                      Plan code: {item.planCode}
                     </p>
                   )}
 
@@ -173,13 +147,17 @@ export default function Plans() {
                         letterSpacing: "-0.02em",
                       }}
                     >
-                      {plan ? inr(plan.yearly) : "View premium at checkout"}
+                      {premium !== null
+                        ? premium
+                        : "Premium calculated at checkout"}
                     </b>
 
-                    {plan && (
-                      <span className="muted">
-                        {" "}/ year for ₹10 L cover
-                      </span>
+                    {premium !== null && (
+                      <div className="muted">
+                        {coverage
+                          ? `Base premium · ${coverage} cover`
+                          : "Base premium"}
+                      </div>
                     )}
                   </div>
 
@@ -187,9 +165,9 @@ export default function Plans() {
                     <Link
                       className="btn primary"
                       to={`/app/plans/${encodeURIComponent(
-                        policy.policyNumber
+                        item.planId
                       )}/buy`}
-                      state={{ policy }}
+                      state={{ plan: item }}
                     >
                       Choose this plan
                     </Link>
@@ -198,7 +176,7 @@ export default function Plans() {
                       type="button"
                       className="btn"
                       disabled
-                      title="This policy is not currently available for purchase."
+                      title="This insurance plan is currently unavailable."
                     >
                       Currently unavailable
                     </button>
