@@ -1,103 +1,217 @@
-# InsureX — Insurance Management System
+# 🛡️ InsureX — Insurance Management System
 
-A full-stack insurance management application built to streamline insurance policy management, customer registration, policy purchases, payment processing, claims handling, settlements, reviews, and notifications through a modern, responsive web interface.
+**A full-stack insurance management platform built with React, Spring Boot, Java, and MySQL.**
 
-## Overview
+InsureX simplifies insurance management by bringing customers and administrators together on one secure, responsive platform. Customers can explore insurance plans, purchase policies, manage payments, submit claims, track settlements, and receive notifications. Administrators can manage customers, policies, claims, settlements, reviews, and customer communications.
 
-**InsureX** provides separate workspaces for customers and administrators. Customers can explore insurance plans, manage their policies, track claims, view payments, and receive notifications. Administrators can manage customers, policies, claims, settlements, and customer communications.
+---
 
-The application uses a React frontend, a Spring Boot REST API, and a MySQL database.
+## 🌐 Live Demo
 
-## Key Features
+Experience the deployed InsureX application.
 
-### Customer Portal
-- Customer registration and authentication.
-- Login using a username, email, or mobile number, depending on backend support.
+| Service | Link |
+|---|---|
+| **Live Application** | [Open InsureX Website](https://insurance-management-frontend-jsp3.onrender.com) |
+| **Backend API** | [Open InsureX Backend](https://insurance-management-ke8b.onrender.com) |
+| **Swagger API Documentation** | [Open Swagger UI](https://insurance-management-ke8b.onrender.com/swagger-ui/index.html) |
+| **GitHub Repository** | Add your repository URL here |
+
+> These are the configured deployment URLs. Availability of the application, backend, and Swagger documentation depends on the current deployment status and backend configuration.
+
+---
+
+## 📌 Project Overview
+
+InsureX is designed to digitize common insurance operations through an intuitive web interface and RESTful backend services.
+
+The application provides separate customer and administrator workspaces, supports role-based access, and organizes insurance-related activities into a unified management system.
+
+### Project Objectives
+
+- Simplify insurance policy discovery and management.
+- Provide customers with access to their insurance information.
+- Streamline claims review and settlement workflows.
+- Integrate online payment processing.
+- Improve communication through notifications.
+- Provide administrators with centralized management tools.
+- Deliver a responsive interface across desktop, tablet, and mobile devices.
+
+---
+
+## ✨ Key Features
+
+### 👤 Customer Portal
+
+- Customer registration and login.
+- Authentication using a username, email, or mobile number, subject to backend support.
 - Browse available insurance plans.
 - View policy details and purchase insurance.
-- Access purchased policies and payment history.
-- Submit and track insurance claims.
+- Access purchased policies and payment information.
+- Submit insurance claims and track claim status.
 - View settlement information where authorized.
-- Submit reviews and view responses.
+- Submit reviews and view administrator responses.
 - Receive and manage notifications.
-- Update profile information and manage account security.
+- Manage profile information.
+- Access protected customer pages.
 
-### Administrator Console
-- Administrative dashboard and summary information.
-- Customer and account management.
+### 🛠️ Administrator Console
+
+- Administrative dashboard.
+- Customer account management.
+- Activate, deactivate, and manage users.
 - Policy and policy-holder management.
 - Policy purchase management.
-- Claims review and status management.
-- Settlement management and processing.
-- Review management and responses.
-- Broadcast notifications to customers.
+- Review and update insurance claims.
+- Approve or reject claims according to configured rules.
+- Manage insurance settlements.
+- Process or reject settlements.
+- Manage customer reviews and responses.
+- Send broadcast notifications to customers.
+- View relevant operational information.
 
-### Authentication and Security
-- Role-based access for `ADMIN` and `USER`.
+### 🔐 Authentication and Security
+
 - JWT-based authentication.
+- Role-based access for `ADMIN` and `USER`.
 - Protected frontend routes.
-- Session storage for the browser authentication token.
-- Automatic authentication cleanup on applicable unauthorized API responses.
-- Server-side authorization for protected operations.
+- Authentication token stored in browser `sessionStorage`.
+- Session restoration after page refresh.
+- Logout clears the local authentication token and application query cache.
+- Unauthorized API responses trigger authentication cleanup.
+- Backend authorization for protected operations.
 
-> Security note: Actual access control must be enforced by the backend. Frontend route protection alone is not sufficient. Production deployments should also verify token expiry, resource ownership, payment signatures, and secure handling of sensitive customer data.
+> **Security note:** Frontend route protection is not a substitute for backend authorization. Production security also requires token-expiry enforcement, resource-ownership checks, secure handling of personal information, and proper payment verification.
 
-### Payment Processing
-- Payment order creation.
-- Payment verification through the backend.
-- Integration support for Razorpay, subject to the configured credentials and implementation.
-- Payment and purchase management.
+### 💳 Payment Management
 
-### Responsive Interface
-- Separate customer and administrator workspaces.
-- Sidebar navigation.
-- Responsive layouts for desktop, tablet, and mobile devices.
-- Reusable interface components and API helpers.
+- Create payment orders.
+- Verify payments through the backend.
+- Support for Razorpay integration, depending on configured credentials and implementation.
+- Manage purchase and payment records.
+- Provide a foundation for payment history and receipts.
 
-## Technology Stack
+### 📋 Claims and Settlements
+
+- Submit and manage insurance claims.
+- Review claim information.
+- Approve or reject claims, subject to authorization and business rules.
+- Associate settlements with claims.
+- Record settlement amounts and dates.
+- Manage settlement status.
+- Provide a foundation for end-to-end claim and settlement tracking.
+
+### 🔔 Notifications and Reviews
+
+- Customer notification center.
+- Unread notification count.
+- Mark notifications as read.
+- Mark all notifications as read.
+- Remove notifications.
+- Administrator broadcast notifications.
+- Customer reviews and administrator responses.
+
+### 📱 Responsive User Interface
+
+- Separate customer and administrator navigation.
+- Reusable React UI components.
+- Responsive page layouts.
+- Consistent navigation and styling.
+- Mobile-friendly sidebar navigation.
+- Loading, error, and empty-state handling where implemented.
+
+---
+
+## 🖼️ Application Screenshots
+
+Screenshots will be added to the `screenshots/` directory.
+
+### Public Website and Authentication
+
+| Landing Page | Login |
+|---|---|
+| ![InsureX Landing Page](screenshots/landing-page.png) | ![InsureX Login](screenshots/login.png) |
+
+### Customer Portal
+
+| Customer Dashboard | Insurance Plans |
+|---|---|
+| ![Customer Dashboard](screenshots/customer-dashboard.png) | ![Insurance Plans](screenshots/insurance-plans.png) |
+
+| My Policies | Claims Management |
+|---|---|
+| ![My Policies](screenshots/my-policies.png) | ![Claims Management](screenshots/claims.png) |
+
+| Payments | Notifications |
+|---|---|
+| ![Payments](screenshots/payments.png) | ![Notifications](screenshots/notifications.png) |
+
+### Administrator Console
+
+| Admin Dashboard | User Management |
+|---|---|
+| ![Admin Dashboard](screenshots/admin-dashboard.png) | ![User Management](screenshots/admin-users.png) |
+
+| Policy Management | Settlement Management |
+|---|---|
+| ![Policy Management](screenshots/admin-policies.png) | ![Settlement Management](screenshots/admin-settlements.png) |
+
+> Upload the actual screenshots using these filenames, or update the image paths to match your chosen filenames. The screenshot gallery will not display correctly until the corresponding files exist in the repository.
+
+---
+
+## 🧰 Technology Stack
 
 ### Frontend
-- React
-- JavaScript
-- React Router
-- TanStack Query
-- Axios
-- Lucide React
-- Vite
+
+- **React** — component-based user interface.
+- **JavaScript** — application logic.
+- **Vite** — development server and build tooling.
+- **React Router** — client-side routing.
+- **TanStack Query** — server-state and API data management.
+- **Axios** — HTTP communication with the backend.
+- **Lucide React** — interface icons.
+- **CSS** — responsive application styling.
 
 ### Backend
-- Java 17
-- Spring Boot 3.5.x
-- Spring Security
-- Spring Data JPA / Hibernate
-- Maven
-- JWT authentication
-- RESTful APIs
 
-### Database and Deployment
-- MySQL 8
-- Render for deployment
-- GitHub for source-code management
+- **Java 17** — application programming language.
+- **Spring Boot 3.5.x** — backend application framework.
+- **Spring Security** — authentication and authorization.
+- **Spring Data JPA** — database persistence.
+- **Hibernate** — object-relational mapping.
+- **Maven** — dependency management and build automation.
+- **JWT** — token-based authentication.
+- **REST APIs** — communication between frontend and backend.
 
-## Application Architecture
+### Database and Hosting
+
+- **MySQL 8** — relational database.
+- **Render** — application hosting.
+- **GitHub** — source control and project collaboration.
+
+---
+
+## 🏗️ Application Architecture
 
 ```text
-InsureX
+InsureX Insurance Management System
 │
-├── Frontend (React + Vite)
-│   ├── Public pages
+├── React Frontend
+│   ├── Public Website
 │   ├── Authentication
-│   ├── Customer portal
-│   ├── Administrator console
-│   ├── API client
-│   └── Route protection
+│   ├── Customer Portal
+│   ├── Administrator Console
+│   ├── API Client
+│   └── Protected Routes
 │
-├── Backend (Spring Boot)
-│   ├── Authentication and authorization
-│   ├── User management
-│   ├── Insurance plans and policies
-│   ├── Purchases and payments
-│   ├── Claims and settlements
+├── Spring Boot Backend
+│   ├── Authentication and Authorization
+│   ├── User Management
+│   ├── Insurance Plans and Policies
+│   ├── Purchases and Payments
+│   ├── Claims Management
+│   ├── Settlement Management
 │   ├── Reviews
 │   └── Notifications
 │
@@ -106,15 +220,20 @@ InsureX
     ├── Policies
     ├── Claims
     ├── Settlements
-    ├── Payments / purchases
-    └── Reviews and notifications
+    ├── Payments and Purchases
+    ├── Reviews
+    └── Notifications
 ```
 
-The diagram describes the logical architecture. Actual table names and relationships depend on the backend entities and database configuration.
+This is a logical overview of the application's functional layers. Actual entities, database tables, and relationships depend on the implemented backend.
 
-## Project Structure
+---
 
-The frontend structure includes:
+## 📁 Project Structure
+
+### Frontend
+
+The frontend contains the following major areas:
 
 ```text
 src/
@@ -132,23 +251,44 @@ src/
 ├── App.jsx
 ├── main.jsx
 └── styles.css
+
+screenshots/
+README.md
 ```
 
-The backend follows a Spring Boot application structure with packages for controllers, services, repositories or DAOs, entities, DTOs, security, and configuration.
+The actual repository may contain additional pages, components, stylesheets, and configuration files.
 
-## Prerequisites
+### Backend
 
-Install the following before running the application locally:
+The Spring Boot backend is organized around application responsibilities, including:
 
-- Java Development Kit (JDK) 17
-- Maven (or the included Maven Wrapper)
-- MySQL 8
-- Node.js and npm
-- Git
+- Controllers and REST endpoints.
+- Services and business logic.
+- Repositories or data-access objects.
+- Entities and DTOs.
+- Security configuration.
+- Authentication and JWT components.
+- Application properties and integrations.
 
-## Getting Started
+---
 
-### 1. Clone the repository
+## ⚙️ Prerequisites
+
+Install the following software to run the application locally:
+
+| Software | Purpose |
+|---|---|
+| Java JDK 17 | Run the backend |
+| Maven | Build and run the backend |
+| MySQL 8 | Store application data |
+| Node.js and npm | Install and run the frontend |
+| Git | Clone and manage the repository |
+
+---
+
+## 🚀 Getting Started
+
+### 1. Clone the Repository
 
 ```bash
 git clone <YOUR_GITHUB_REPOSITORY_URL>
@@ -157,7 +297,7 @@ cd <YOUR_REPOSITORY_DIRECTORY>
 
 Replace the placeholders with your actual repository URL and directory name.
 
-### 2. Configure the MySQL database
+### 2. Configure MySQL
 
 Create the database:
 
@@ -165,88 +305,93 @@ Create the database:
 CREATE DATABASE `htc-insurance`;
 ```
 
-Configure the backend's `application.properties` or environment variables with your local database credentials.
+Configure the backend database connection in `application.properties` or through environment variables.
 
-Example local configuration:
+Example configuration:
 
 ```properties
 spring.application.name=insurance-management
 
-spring.datasource.url=jdbc:mysql://localhost:3306/htc-insurance
+spring.datasource.url=${DB_URL:jdbc:mysql://localhost:3306/htc-insurance}
 spring.datasource.username=${DB_USERNAME}
 spring.datasource.password=${DB_PASSWORD}
 
 spring.jpa.hibernate.ddl-auto=update
 ```
 
-Set `DB_USERNAME` and `DB_PASSWORD` in your local environment. Use a migration strategy and appropriate schema-management settings for production rather than relying on automatic schema updates.
+Set `DB_USERNAME` and `DB_PASSWORD` in your local environment before starting the backend.
 
-### 3. Run the backend
+The `update` setting is suitable for some development setups. For production, use a controlled database migration process and an appropriate schema-management strategy.
 
-Navigate to the backend directory containing `pom.xml`:
+### 3. Run the Backend
+
+Navigate to the directory containing the backend `pom.xml` file.
+
+Using Maven:
 
 ```bash
 mvn spring-boot:run
 ```
 
-Alternatively, on Windows, if the Maven Wrapper is present:
+On Windows, if the Maven Wrapper is included:
 
-```bash
+```bat
 mvnw.cmd spring-boot:run
 ```
 
 The local backend is expected to run at:
 
-```text
-http://localhost:8080
-```
+[http://localhost:8080](http://localhost:8080)
 
-If Swagger/OpenAPI is configured, its UI may be available at:
+If Swagger/OpenAPI is enabled, the documentation may be available at:
 
-```text
-http://localhost:8080/swagger-ui/index.html
-```
+[http://localhost:8080/swagger-ui/index.html](http://localhost:8080/swagger-ui/index.html)
 
-The exact endpoint depends on the backend configuration.
+The exact Swagger URL depends on the backend configuration.
 
-### 4. Configure the frontend
+### 4. Configure the Frontend
 
 Navigate to the frontend directory containing `package.json`.
 
-Create a `.env` file:
+Create a `.env` file in that directory:
 
 ```env
 VITE_API_URL=http://localhost:8080
 ```
 
-For a deployed frontend, configure `VITE_API_URL` to the deployed backend's base URL.
+The frontend API client uses this value as the backend base URL.
 
-Do not put database credentials, private API keys, JWT signing secrets, or payment secrets in frontend environment variables. Vite variables prefixed with `VITE_` are exposed to the browser.
+For a deployed frontend, configure `VITE_API_URL` to the deployed backend's base URL and rebuild the frontend after changing the variable.
 
-### 5. Install frontend dependencies
+**Important:** Vite variables prefixed with `VITE_` are exposed to the browser. Never place database passwords, JWT signing secrets, payment secrets, or private provider credentials in them.
+
+### 5. Install Frontend Dependencies
 
 ```bash
 npm install
 ```
 
-### 6. Start the frontend
+### 6. Start the Frontend
 
 ```bash
 npm run dev
 ```
 
-Open the local URL printed by Vite, typically:
+Open the local address printed by Vite, typically:
 
-```text
-http://localhost:5173
-```
+[http://localhost:5173](http://localhost:5173)
 
-## Deployment
+The frontend should be able to reach the backend, and the backend must permit the frontend origin through its CORS configuration.
 
-InsureX can be deployed as a frontend static site and a separate backend web service.
+---
 
-### Frontend
-1. Connect the frontend repository or frontend directory to Render.
+## ☁️ Deployment on Render
+
+The application uses separate frontend and backend deployment URLs.
+
+### Frontend Deployment
+
+1. Connect the frontend project or directory to a Render Static Site.
 2. Configure the build command:
 
    ```bash
@@ -254,10 +399,10 @@ InsureX can be deployed as a frontend static site and a separate backend web ser
    ```
 
 3. Set the publish directory to `dist`.
-4. Set `VITE_API_URL` to the deployed backend base URL.
-5. Configure a single-page application rewrite so direct React Router URLs serve `index.html`.
+4. Configure `VITE_API_URL` to point to the deployed backend.
+5. Configure a single-page application rewrite so direct React Router URLs return `index.html`.
 
-For Render static-site rewrites, use a rule equivalent to:
+For example, a Render rewrite rule can use:
 
 ```text
 Source: /*
@@ -265,21 +410,155 @@ Destination: /index.html
 Action: Rewrite
 ```
 
-### Backend
-1. Deploy the Spring Boot service.
-2. Configure database connectivity and required environment variables.
-3. Configure CORS to allow the deployed frontend origin.
-4. Configure JWT and payment credentials securely.
-5. Confirm that the service can connect to its database and that required API endpoints are available.
+### Backend Deployment
 
-The frontend and backend must use compatible API paths, authentication rules, and CORS settings.
+1. Deploy the Spring Boot application as a Render web service.
+2. Configure the database connection and required environment variables.
+3. Configure the production CORS allowed origin.
+4. Configure JWT signing and validation settings securely.
+5. Configure payment and OTP provider credentials as required.
+6. Confirm that the backend can connect to its database.
+7. Verify the deployed endpoints and application logs.
 
-## Configuration and Secrets
+### Deployment URLs
+
+**Frontend:**  
+https://insurance-management-frontend-jsp3.onrender.com
+
+**Backend:**  
+https://insurance-management-ke8b.onrender.com
+
+**Swagger UI:**  
+https://insurance-management-ke8b.onrender.com/swagger-ui/index.html
+
+These URLs are provided for the current deployment configuration; confirm service availability before sharing them publicly.
+
+---
+
+## 🔌 API Overview
+
+The frontend API client defines calls for the following functional areas.
+
+| Module | Example endpoints |
+|---|---|
+| Authentication | `/api/auth/login`, `/api/session` |
+| Users | `/user/save`, `/user/getAll` |
+| Plans | `/api/plans/available` |
+| Policies | `/policy/available`, `/policy/my-policies` |
+| Purchases | `/policy/purchase`, `/policy/my-purchases` |
+| Payments | `/payment/create-order`, `/payment/verify` |
+| Policy holders | `/policyholder/getAll` |
+| Claims | `/claims/save`, `/claims/my-claims` |
+| Settlements | `/settlement/save`, `/settlement/getAll` |
+| Reviews | `/reviewer/save`, `/reviewer/my-reviews` |
+| Notifications | `/api/notifications/my` |
+| Admin broadcasts | `/api/admin/notifications` |
+
+These are example paths configured in the frontend. Confirm actual backend mappings, request formats, HTTP methods, and access restrictions against the deployed backend.
+
+---
+
+## 🔐 Configuration and Security
 
 Never commit production secrets to GitHub.
 
 Use environment variables or a secure secret manager for:
+
 - Database credentials.
 - JWT signing secrets.
 - Razorpay keys and secrets.
-- OTP provider credentials
+- OTP provider credentials.
+- Third-party API keys.
+
+Keep secret `.env` files out of version control. Provide a sanitized `.env.example` file when documenting required configuration.
+
+### Production Security Checklist
+
+- Enforce authorization and resource ownership in the backend.
+- Hash passwords using a secure password-hashing algorithm.
+- Validate JWT signatures, expiry, and authorization claims.
+- Verify payment signatures on the backend.
+- Prevent duplicate payment and settlement processing.
+- Validate incoming data and uploaded files.
+- Use HTTPS and appropriately restricted CORS.
+- Protect personal, bank, and identity information.
+- Avoid logging passwords, OTPs, tokens, or sensitive payment data.
+- Maintain database backups and operational monitoring.
+
+Browser `sessionStorage` is scoped to a tab session under normal browser behavior, but it is not a server-side session revocation mechanism. Production authentication should be designed around the application's threat model.
+
+---
+
+## 🧪 Testing Checklist
+
+Before releasing a new version, verify the following:
+
+- [ ] Customer registration and login.
+- [ ] Administrator authentication and authorization.
+- [ ] Session restoration after page refresh.
+- [ ] Logout and access restrictions after logout.
+- [ ] Customer data isolation and resource ownership.
+- [ ] Insurance plan browsing and purchases.
+- [ ] Payment verification on the backend.
+- [ ] Claim submission and review.
+- [ ] Settlement processing and status updates.
+- [ ] Notification delivery and read/unread state.
+- [ ] Reviews and administrator responses.
+- [ ] Responsive behavior on mobile and desktop.
+- [ ] Direct-route navigation and page refresh on Render.
+- [ ] CORS configuration and API error handling.
+- [ ] Database connectivity and backup procedures.
+
+---
+
+## 🔮 Future Enhancements
+
+Potential future improvements include:
+
+- Automated policy-renewal reminders.
+- Downloadable policy certificates and payment receipts.
+- Secure claim-document uploads.
+- Claim and settlement status timelines.
+- Administrative audit logs.
+- Advanced reports and CSV exports.
+- Email and SMS notifications.
+- Automated integration and end-to-end tests.
+- Continuous integration and deployment.
+- Database backups and monitoring.
+- More comprehensive payment reconciliation.
+
+These are proposed enhancements and should not be considered implemented unless they are present in the application.
+
+---
+
+## 🤝 Contributing
+
+Contributions and suggestions are welcome.
+
+1. Fork or clone the repository.
+2. Create a branch for your change.
+3. Implement and test the feature.
+4. Check for security implications, particularly around customer data, authentication, and payments.
+5. Submit a pull request with a clear description.
+
+---
+
+## 📄 License
+
+No license has been specified yet. Add a `LICENSE` file and update this section before distributing the project publicly.
+
+---
+
+## 👨‍💻 Project Summary
+
+**InsureX — Insurance Management System**
+
+A full-stack web application designed to streamline insurance operations through customer self-service, policy management, payment integration, claims processing, settlement management, and administrative tools.
+
+**Live Demo:** [InsureX](https://insurance-management-frontend-jsp3.onrender.com)
+
+**Backend:** [InsureX API](https://insurance-management-ke8b.onrender.com)
+
+**Built with:** React · Spring Boot · Java 17 · MySQL · Render
+
+*InsureX — Simplifying Insurance Management.*
