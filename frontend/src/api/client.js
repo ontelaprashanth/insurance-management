@@ -1,4 +1,3 @@
-
 import axios from 'axios'
 
 /* =========================================================
@@ -24,10 +23,6 @@ export const API_URL = normalizeApiUrl(
 
 /* =========================================================
    SESSION STORAGE
-
-   - Persists across page refreshes in the same tab.
-   - Normally clears when the tab is closed.
-   - Removes legacy localStorage token on initialization.
 ========================================================= */
 
 const safely = (callback, fallback = null) => {
@@ -66,11 +61,12 @@ export const tokenStore = {
 
 /* =========================================================
    AXIOS INSTANCE
+   Allow time for Render Free cold starts.
 ========================================================= */
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 30000,
+  timeout: 90000,
   headers: {
     Accept: 'application/json',
   },
@@ -99,17 +95,14 @@ api.interceptors.request.use(
 
 /* =========================================================
    SESSION EXPIRATION HANDLER
-
-   Connect this to your existing AuthContext or auth provider.
 ========================================================= */
 
 let onUnauthorized = () => {}
 let unauthorizedHandled = false
 
 export const setUnauthorizedHandler = (handler) => {
-  onUnauthorized = typeof handler === 'function'
-    ? handler
-    : () => {}
+  onUnauthorized =
+    typeof handler === 'function' ? handler : () => {}
 }
 
 export const resetUnauthorizedState = () => {
@@ -143,7 +136,7 @@ api.interceptors.response.use(
         try {
           onUnauthorized()
         } catch {
-          // Authentication state handler must not mask API errors.
+          // Do not mask the original API error.
         }
       }
     }
@@ -162,8 +155,11 @@ export function errorMessage(
 ) {
   if (!error) return fallback
 
-  if (error.code === 'ECONNABORTED') {
-    return 'The server took too long to respond. Please try again.'
+  if (
+    error.code === 'ECONNABORTED' ||
+    error.code === 'ETIMEDOUT'
+  ) {
+    return 'InsureX is taking longer than usual to start. Please wait a moment and try again.'
   }
 
   if (error.code === 'ERR_CANCELED') {
@@ -177,11 +173,17 @@ export function errorMessage(
     return data
   }
 
-  if (typeof data?.message === 'string' && data.message.trim()) {
+  if (
+    typeof data?.message === 'string' &&
+    data.message.trim()
+  ) {
     return data.message
   }
 
-  if (typeof data?.error === 'string' && data.error.trim()) {
+  if (
+    typeof data?.error === 'string' &&
+    data.error.trim()
+  ) {
     return data.error
   }
 
@@ -218,7 +220,7 @@ export function errorMessage(
   }
 
   if (error.code === 'ERR_NETWORK' || !error.response) {
-    return 'Cannot connect to InsureX. Check your internet connection and try again.'
+    return 'Cannot connect to InsureX. The server may be starting up. Please try again shortly.'
   }
 
   return error.message || fallback
