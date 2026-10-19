@@ -22,27 +22,29 @@ const Ctx = createContext(null)
 export const useAuth = () => useContext(Ctx)
 
 export function AuthProvider({ children }) {
-  const qc = useQueryClient()
+  const queryClient = useQueryClient()
 
   const [user, setUser] = useState(null)
   const [booting, setBooting] = useState(true)
 
   const mountedRef = useRef(false)
   const sessionRequestRef = useRef(null)
+  const authVersionRef = useRef(0)
 
   // -------------------------------------------------------
-  // Clear local authentication and application cache.
+  // Clear the local session and cached user data.
   // -------------------------------------------------------
   const logout = useCallback(() => {
-    tokenStore.clear()
+    authVersionRef.current += 1
     sessionRequestRef.current = null
 
+    tokenStore.clear()
     setUser(null)
-    qc.clear()
-  }, [qc])
+    queryClient.clear()
+  }, [queryClient])
 
   // -------------------------------------------------------
-  // Load the currently authenticated user from the backend.
+  // Load and validate the current user with the backend.
   // -------------------------------------------------------
   const loadSession = useCallback(async () => {
     const token = tokenStore.get()
@@ -52,17 +54,21 @@ export function AuthProvider({ children }) {
       throw new Error('No active session. Please sign in.')
     }
 
-    // Reuse an in-flight session request to avoid duplicate calls.
-    if (sessionRequestRef.current) {
-      return sessionRequestRef.current
+    if (sessionRequestRef.current?.token === token) {
+      return sessionRequestRef.current.promise
     }
 
-    const request = (async () => {
+    const authVersion = authVersionRef.current
+
+    const promise = (async () => {
       try {
         const session = await auth.session()
 
-        if (!tokenStore.get()) {
-          setUser(null)
+        // Ignore responses belonging to an older session.
+        if (
+          authVersion !== authVersionRef.current ||
+          tokenStore.get() !== token
+        ) {
           throw new Error('Your session has ended. Please sign in again.')
         }
 
@@ -71,56 +77,70 @@ export function AuthProvider({ children }) {
           role: String(session?.role || '').toUpperCase(),
         }
 
+        if (
+          normalizedUser.role !== 'ADMIN' &&
+          normalizedUser.role !== 'USER'
+        ) {
+          tokenStore.clear()
+          setUser(null)
+          throw new Error('Your account role could not be verified.')
+        }
+
         setUser(normalizedUser)
         return normalizedUser
       } catch (error) {
-        // Clear invalid credentials, but don't silently log out
-        // on a temporary network failure.
         const status = error?.response?.status
 
-        if (status === 401 || status === 403) {
+        if (
+          authVersion === authVersionRef.current &&
+          (status === 401 || status === 403)
+        ) {
           tokenStore.clear()
           setUser(null)
         }
 
         throw error
       } finally {
-        if (sessionRequestRef.current === request) {
+        if (sessionRequestRef.current?.promise === promise) {
           sessionRequestRef.current = null
         }
       }
     })()
 
-    sessionRequestRef.current = request
-    return request
+    sessionRequestRef.current = { token, promise }
+
+    return promise
   }, [])
 
   // -------------------------------------------------------
-  // Initialize authentication on application startup.
+  // Initialize the session on page load or refresh.
   // -------------------------------------------------------
   useEffect(() => {
     mountedRef.current = true
+    let cancelled = false
 
     const initialize = async () => {
       if (!tokenStore.get()) {
-        setUser(null)
-        setBooting(false)
+        if (!cancelled) {
+          setUser(null)
+          setBooting(false)
+        }
         return
       }
 
       try {
         await loadSession()
       } catch (error) {
-        // A temporary network failure should not destroy a
-        // potentially valid session. Protected API requests
-        // can retry when the connection returns.
         const status = error?.response?.status
 
+        // Only invalid or unauthorized sessions are cleared here.
+        // Temporary network errors do not automatically destroy
+        // an otherwise valid stored session.
         if (status === 401 || status === 403) {
           logout()
         }
       } finally {
-        if (mountedRef.current) {
+        if (!cancelled && mountedRef.current) {
           setBooting(false)
         }
       }
@@ -129,12 +149,13 @@ export function AuthProvider({ children }) {
     initialize()
 
     return () => {
+      cancelled = true
       mountedRef.current = false
     }
   }, [loadSession, logout])
 
   // -------------------------------------------------------
-  // Synchronize unauthorized API responses with auth state.
+  // Synchronize API 401 responses with the auth provider.
   // -------------------------------------------------------
   useEffect(() => {
     setUnauthorizedHandler(logout)
@@ -145,21 +166,30 @@ export function AuthProvider({ children }) {
   }, [logout])
 
   // -------------------------------------------------------
-  // Login.
+  // Sign in using username, email or mobile number.
   // -------------------------------------------------------
   const login = useCallback(
     async (identifier, password) => {
-      const response = await auth.login({ identifier, password })
+      const response = await auth.login({
+        identifier,
+        password,
+      })
+
       const token = response?.token
 
       if (!token) {
-        throw new Error('Login succeeded without a session token.')
+        throw new Error(
+          'The server did not return an authentication token.',
+        )
       }
 
-      // Clear old cached information before starting a new session.
+      // Invalidate requests and data from any previous user.
+      authVersionRef.current += 1
+      sessionRequestRef.current = null
+
       tokenStore.clear()
       setUser(null)
-      qc.clear()
+      queryClient.clear()
       resetUnauthorizedState()
 
       tokenStore.set(token)
@@ -171,11 +201,11 @@ export function AuthProvider({ children }) {
       } catch (error) {
         tokenStore.clear()
         setUser(null)
-        qc.clear()
+        queryClient.clear()
         throw error
       }
     },
-    [loadSession, qc],
+    [loadSession, queryClient],
   )
 
   // -------------------------------------------------------
@@ -188,7 +218,7 @@ export function AuthProvider({ children }) {
   }, [logout])
 
   // -------------------------------------------------------
-  // Expose authentication state to the application.
+  // Expose authentication state to React components.
   // -------------------------------------------------------
   const value = useMemo(
     () => ({
@@ -201,8 +231,18 @@ export function AuthProvider({ children }) {
       isAdmin: user?.role === 'ADMIN',
       isUser: user?.role === 'USER',
     }),
-    [user, booting, login, logoutAndReset, loadSession],
+    [
+      user,
+      booting,
+      login,
+      logoutAndReset,
+      loadSession,
+    ],
   )
 
-  return <Ctx.Provider value={value}>{children}</Ctx.Provider>
+  return (
+    <Ctx.Provider value={value}>
+      {children}
+    </Ctx.Provider>
+  )
 }
