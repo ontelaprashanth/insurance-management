@@ -5,12 +5,13 @@ const d = (promise) => promise.then((response) => response.data)
 
 const id = (value) => encodeURIComponent(String(value))
 
-// =====================================================
-// AUTHENTICATION
-// =====================================================
+/* =========================================================
+   AUTHENTICATION
+========================================================= */
 
 export const auth = {
-  login: (body) => d(api.post('/api/auth/login', body)),
+  login: (body) =>
+    d(api.post('/api/auth/login', body)),
 
   sendOtp: (identifier) =>
     d(api.post('/api/auth/send-otp', { identifier })),
@@ -24,23 +25,32 @@ export const auth = {
   resetPassword: (body) =>
     d(api.post('/api/auth/reset-password', body)),
 
-  session: () => d(api.get('/api/session')),
+  session: () =>
+    d(api.get('/api/session')),
 }
 
-// =====================================================
-// USERS
-// =====================================================
+/* =========================================================
+   USERS
+========================================================= */
 
 export const users = {
-  register: (body) => d(api.post('/user/save', body)),
-  me: () => d(api.get('/user/me')),
-  updateMe: (body) => d(api.put('/user/me', body)),
+  register: (body) =>
+    d(api.post('/user/save', body)),
+
+  me: () =>
+    d(api.get('/user/me')),
+
+  updateMe: (body) =>
+    d(api.put('/user/me', body)),
 
   changePassword: (body) =>
     d(api.put('/user/me/password', body)),
 
-  getAll: () => d(api.get('/user/getAll')),
-  get: (userId) => d(api.get(`/user/get/${id(userId)}`)),
+  getAll: () =>
+    d(api.get('/user/getAll')),
+
+  get: (userId) =>
+    d(api.get(`/user/get/${id(userId)}`)),
 
   update: (userId, body) =>
     d(api.put(`/user/update/${id(userId)}`, body)),
@@ -55,30 +65,37 @@ export const users = {
     d(api.delete(`/user/delete/${id(userId)}`)),
 }
 
-// =====================================================
-// INSURANCE CATALOGUE
-// =====================================================
+/* =========================================================
+   INSURANCE PLANS
+========================================================= */
 
 export const plans = {
-  available: () => d(api.get('/api/plans/available')),
+  available: () =>
+    d(api.get('/api/plans/available')),
 
   get: (planId) =>
     d(api.get(`/api/plans/${id(planId)}`)),
 }
 
-// =====================================================
-// POLICIES
-// =====================================================
+/* =========================================================
+   POLICIES
+========================================================= */
 
 export const policies = {
-  available: () => d(api.get('/policy/available')),
-  mine: () => d(api.get('/policy/my-policies')),
-  getAll: () => d(api.get('/policy/getAll')),
+  available: () =>
+    d(api.get('/policy/available')),
+
+  mine: () =>
+    d(api.get('/policy/my-policies')),
+
+  getAll: () =>
+    d(api.get('/policy/getAll')),
 
   get: (number) =>
     d(api.get(`/policy/get/${id(number)}`)),
 
-  save: (body) => d(api.post('/policy/save', body)),
+  save: (body) =>
+    d(api.post('/policy/save', body)),
 
   update: (number, body) =>
     d(api.put(`/policy/update/${id(number)}`, body)),
@@ -93,22 +110,9 @@ export const policies = {
     d(api.put(`/policy/deactivate/${id(number)}`)),
 }
 
-// =====================================================
-// PURCHASES & REFUNDS
-// =====================================================
-
-// REQUIRED CONFIGURATION:
-// Set VITE_REFUND_REQUEST_PATH to the actual refund route
-// from RefundController.
-//
-// Example format only:
-// /your/actual/refund/path/{purchaseId}
-//
-// If your controller uses a different HTTP method or body,
-// update the refund function to match it.
-
-const refundPathTemplate =
-  import.meta.env.VITE_REFUND_REQUEST_PATH?.trim() || ''
+/* =========================================================
+   POLICY PURCHASES AND REFUNDS
+========================================================= */
 
 export const purchases = {
   purchase: (body) =>
@@ -120,29 +124,23 @@ export const purchases = {
   getAll: () =>
     d(api.get('/policy/purchases')),
 
-  refund: (purchaseId, body) => {
-    if (!refundPathTemplate) {
-      throw new Error(
-        'Refund API route is not configured. Set VITE_REFUND_REQUEST_PATH to the route defined in RefundController.',
-      )
-    }
-
-    const path = refundPathTemplate.replace(
-      '{purchaseId}',
-      id(purchaseId),
-    )
-
-    if (!path.startsWith('/')) {
-      throw new Error('Refund API path must begin with /.')
-    }
-
-    return d(api.post(path, body))
-  },
+  // Confirmed by RefundController.java:
+  // @RequestMapping("/refund")
+  // @PostMapping("/request")
+  //
+  // Body fields must match RefundRequestDto.java.
+  refund: (purchaseId, body) =>
+    d(
+      api.post('/refund/request', {
+        purchaseId,
+        refundReason: body.refundReason,
+      }),
+    ),
 }
 
-// =====================================================
-// PAYMENTS
-// =====================================================
+/* =========================================================
+   PAYMENTS
+========================================================= */
 
 export const payment = {
   createOrder: (body) =>
@@ -152,12 +150,13 @@ export const payment = {
     d(api.post('/payment/verify', body)),
 }
 
-// =====================================================
-// POLICY HOLDERS
-// =====================================================
+/* =========================================================
+   POLICY HOLDERS
+========================================================= */
 
 export const policyHolders = {
-  getAll: () => d(api.get('/policyholder/getAll')),
+  getAll: () =>
+    d(api.get('/policyholder/getAll')),
 
   get: (holderId) =>
     d(api.get(`/policyholder/get/${id(holderId)}`)),
@@ -172,14 +171,19 @@ export const policyHolders = {
     d(api.delete(`/policyholder/delete/${id(holderId)}`)),
 }
 
-// =====================================================
-// CLAIMS
-// =====================================================
+/* =========================================================
+   CLAIMS
+========================================================= */
 
 export const claims = {
-  save: (body) => d(api.post('/claims/save', body)),
-  mine: () => d(api.get('/claims/my-claims')),
-  getAll: () => d(api.get('/claims/getAll')),
+  save: (body) =>
+    d(api.post('/claims/save', body)),
+
+  mine: () =>
+    d(api.get('/claims/my-claims')),
+
+  getAll: () =>
+    d(api.get('/claims/getAll')),
 
   get: (number) =>
     d(api.get(`/claims/get/${id(number)}`)),
@@ -197,12 +201,13 @@ export const claims = {
     d(api.delete(`/claims/delete/${id(number)}`)),
 }
 
-// =====================================================
-// SETTLEMENTS
-// =====================================================
+/* =========================================================
+   SETTLEMENTS
+========================================================= */
 
 export const settlements = {
-  getAll: () => d(api.get('/settlement/getAll')),
+  getAll: () =>
+    d(api.get('/settlement/getAll')),
 
   get: (number) =>
     d(api.get(`/settlement/get/${id(number)}`)),
@@ -220,22 +225,29 @@ export const settlements = {
     d(api.put(`/settlement/process/${id(number)}`)),
 
   reject: (number, rejectionReason) =>
-    d(api.put(`/settlement/reject/${id(number)}`, {
-      rejectionReason,
-    })),
+    d(
+      api.put(`/settlement/reject/${id(number)}`, {
+        rejectionReason,
+      }),
+    ),
 
   remove: (number) =>
     d(api.delete(`/settlement/delete/${id(number)}`)),
 }
 
-// =====================================================
-// REVIEWS
-// =====================================================
+/* =========================================================
+   REVIEWS
+========================================================= */
 
 export const reviews = {
-  save: (body) => d(api.post('/reviewer/save', body)),
-  mine: () => d(api.get('/reviewer/my-reviews')),
-  getAll: () => d(api.get('/reviewer/getAll')),
+  save: (body) =>
+    d(api.post('/reviewer/save', body)),
+
+  mine: () =>
+    d(api.get('/reviewer/my-reviews')),
+
+  getAll: () =>
+    d(api.get('/reviewer/getAll')),
 
   get: (reviewId) =>
     d(api.get(`/reviewer/get/${id(reviewId)}`)),
@@ -250,12 +262,13 @@ export const reviews = {
     d(api.delete(`/reviewer/delete/${id(reviewId)}`)),
 }
 
-// =====================================================
-// CUSTOMER NOTIFICATIONS
-// =====================================================
+/* =========================================================
+   CUSTOMER NOTIFICATIONS
+========================================================= */
 
 export const notifications = {
-  mine: () => d(api.get('/api/notifications/my')),
+  mine: () =>
+    d(api.get('/api/notifications/my')),
 
   unread: () =>
     d(api.get('/api/notifications/unread-count')),
@@ -270,9 +283,9 @@ export const notifications = {
     d(api.delete(`/api/notifications/${id(notificationId)}`)),
 }
 
-// =====================================================
-// ADMIN BROADCAST
-// =====================================================
+/* =========================================================
+   ADMIN BROADCAST
+========================================================= */
 
 export const broadcast = {
   send: (body) =>
@@ -285,5 +298,9 @@ export const broadcast = {
     d(api.get('/api/admin/notifications')),
 
   remove: (notificationId) =>
-    d(api.delete(`/api/admin/notifications/${id(notificationId)}`)),
+    d(
+      api.delete(
+        `/api/admin/notifications/${id(notificationId)}`,
+      ),
+    ),
 }
