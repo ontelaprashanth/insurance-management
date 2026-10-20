@@ -696,3 +696,75 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 
 }
 
+
+/* =========================================================
+   INSUREX — PAYMENTS AND REFUNDS TABLE FIX
+========================================================= */
+
+.table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.tbl {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.tbl th,
+.tbl td {
+  padding: 14px 16px;
+  vertical-align: middle;
+}
+
+.tbl td strong,
+.tbl td small {
+  display: block;
+}
+
+.tbl td small {
+  margin-top: 4px;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.tbl .badge {
+  display: inline-flex;
+  align-items: center;
+  width: max-content;
+  max-width: none;
+  white-space: nowrap;
+  word-break: normal;
+  flex-shrink: 0;
+}
+
+.tbl .badge::before {
+  flex-shrink: 0;
+}
+
+.tbl .actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.tbl .actions .btn {
+  flex-shrink: 0;
+}
+
+@media (max-width: 1100px) {
+  .table-wrap {
+    overflow-x: auto;
+  }
+
+  .tbl {
+    min-width: 850px;
+  }
+}
+
+
+
