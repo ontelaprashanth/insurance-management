@@ -544,39 +544,29 @@ export default function MyPurchases() {
     setPageError('')
 
     try {
-      await purchases.refund(purchaseId, {
-        refundReason,
-      })
-
-      await queryClient.invalidateQueries({
-        queryKey: ['my-purchases'],
-      })
-
-      await queryClient.invalidateQueries({
-        queryKey: ['my-policies'],
-      })
-
-      await queryClient.invalidateQueries({
-        queryKey: ['insurance-plans'],
-      })
-
-      setRefundPurchase(null)
-      setOpen(null)
-
-      // Re-fetch the backend's authoritative refund status.
-      await queryClient.refetchQueries({
-        queryKey: ['my-purchases'],
-        type: 'active',
-      })
+      // Only this operation determines whether submission succeeded.
+      await purchases.refund(purchaseId, { refundReason })
     } catch (err) {
-      setRefundError(
-        errorMessage(
-          err,
-          'The refund request could not be submitted. Please check the purchase status and try again.',
-        ),
-      )
-    } finally {
+      setRefundError(errorMessage(err,
+        'The refund request could not be submitted. Please check its status before retrying.'))
       setSubmitting(false)
+      return
+    }
+
+    setRefundPurchase(null)
+    setOpen(null)
+    setSubmitting(false)
+
+    // Refresh after successful submission. A refresh failure does not mean
+    // that the refund submission failed; never automatically repeat POST.
+    try {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ['my-purchases'] }),
+        queryClient.invalidateQueries({ queryKey: ['my-policies'] }),
+        queryClient.invalidateQueries({ queryKey: ['insurance-plans'] }),
+      ])
+    } catch (err) {
+      setPageError('Refund request submitted, but the latest status could not be refreshed. Use Refresh to check its status.')
     }
   }
 
