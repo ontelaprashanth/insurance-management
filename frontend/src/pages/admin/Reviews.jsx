@@ -372,4 +372,4 @@ export default function Reviews() {
                     </Panel>
                   )
                 })}
-            </div
+            </div>
