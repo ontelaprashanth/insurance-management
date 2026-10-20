@@ -51,13 +51,13 @@ function isUnread(notification) {
 }
 
 function safeDate(value) {
-  if (!value) return Number.POSITIVE_INFINITY
+  if (!value) return Number.NEGATIVE_INFINITY
 
   const timestamp = new Date(value).getTime()
 
   return Number.isFinite(timestamp)
     ? timestamp
-    : Number.POSITIVE_INFINITY
+    : Number.NEGATIVE_INFINITY
 }
 
 function getClaimDate(claim) {
@@ -76,7 +76,7 @@ function getClaimAmount(claim) {
 
 function StatCard({ label, value, description, icon, to }) {
   const content = (
-    <div className="panel" style={{ height: '100%', boxSizing: 'border-box' }}>
+    <>
       <div
         style={{
           display: 'flex',
@@ -85,60 +85,90 @@ function StatCard({ label, value, description, icon, to }) {
           gap: 12,
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          <div className="label">{label}</div>
-
-          <div
-            className="value"
-            style={{
-              marginTop: 8,
-              overflowWrap: 'anywhere',
-            }}
-          >
-            {value}
-          </div>
-
-          <div className="sub" style={{ marginTop: 5 }}>
-            {description}
-          </div>
+        <div
+          className="label"
+          style={{
+            minWidth: 0,
+            lineHeight: 1.5,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {label}
         </div>
 
-        <div className="dot-icon" aria-hidden="true">
+        <div
+          className="dot-icon"
+          aria-hidden="true"
+          style={{
+            flexShrink: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
           {icon}
         </div>
       </div>
 
-      {to && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 5,
-            marginTop: 14,
-            fontSize: 12.5,
-            fontWeight: 650,
-          }}
-        >
-          View details <ArrowRight size={14} />
-        </div>
-      )}
-    </div>
+      <div
+        className="value"
+        style={{
+          marginTop: 12,
+          lineHeight: 1.25,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </div>
+
+      <div
+        className="sub"
+        style={{
+          marginTop: 7,
+          lineHeight: 1.5,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {description}
+      </div>
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 5,
+          marginTop: 'auto',
+          paddingTop: 14,
+          fontSize: 12.5,
+          fontWeight: 650,
+        }}
+      >
+        View details <ArrowRight size={14} />
+      </div>
+    </>
   )
 
-  return to ? (
+  const cardStyle = {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100%',
+    minWidth: 0,
+    minHeight: 168,
+    boxSizing: 'border-box',
+    padding: 18,
+    color: 'inherit',
+    textDecoration: 'none',
+    overflowWrap: 'anywhere',
+  }
+
+  return (
     <Link
       to={to}
-      style={{
-        color: 'inherit',
-        textDecoration: 'none',
-        display: 'block',
-        minWidth: 0,
-      }}
+      className="panel"
+      style={cardStyle}
     >
       {content}
     </Link>
-  ) : (
-    content
   )
 }
 
@@ -149,16 +179,22 @@ function QueryError({ query, label }) {
     <div
       className="alert error"
       role="alert"
-      style={{ marginBottom: 12 }}
+      style={{
+        marginBottom: 12,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: 10,
+      }}
     >
-      Could not load {label}. Please refresh the page or try again.
+      <span>Could not load {label}. Please try again.</span>
 
       <button
         type="button"
         className="btn sm"
         onClick={() => query.refetch()}
         disabled={query.isFetching}
-        style={{ marginLeft: 10 }}
       >
         {query.isFetching ? 'Retrying…' : 'Retry'}
       </button>
@@ -252,8 +288,7 @@ export default function Dashboard() {
     () =>
       [...notificationRows]
         .sort(
-          (a, b) =>
-            safeDate(b?.createdAt) - safeDate(a?.createdAt),
+          (a, b) => safeDate(b?.createdAt) - safeDate(a?.createdAt),
         )
         .slice(0, 5),
     [notificationRows],
@@ -262,7 +297,7 @@ export default function Dashboard() {
   const firstName = user?.username?.trim() || 'Customer'
 
   return (
-    <>
+    <div style={{ width: '100%', minWidth: 0 }}>
       <PageHeader
         title={`Hello, ${firstName}`}
         subtitle="Here is where your cover and claims stand today."
@@ -278,14 +313,17 @@ export default function Dashboard() {
       <QueryError query={clm} label="your claims" />
       <QueryError query={ntf} label="your notifications" />
 
+      {/* Four consistently sized statistics cards */}
       <div
-        className="grid"
         style={{
           display: 'grid',
           gridTemplateColumns:
-            'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-          gap: 14,
-          marginBottom: 22,
+            'repeat(auto-fit, minmax(min(100%, 215px), 1fr))',
+          gap: 16,
+          alignItems: 'stretch',
+          marginBottom: 24,
+          width: '100%',
+          minWidth: 0,
         }}
       >
         <StatCard
@@ -300,7 +338,7 @@ export default function Dashboard() {
           description={
             pol.isError
               ? 'Unable to load policies'
-              : `of ${policyRows.length} total`
+              : `${policyRows.length} in total`
           }
           icon={<ShieldCheck size={20} />}
           to="/app/policies"
@@ -353,7 +391,18 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="two-col">
+      {/* Aligned claims and alerts panels */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns:
+            'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
+          gap: 20,
+          alignItems: 'stretch',
+          width: '100%',
+          minWidth: 0,
+        }}
+      >
         <Panel
           title="Recent claims"
           flush
@@ -380,12 +429,17 @@ export default function Dashboard() {
                 <div
                   className="list-item"
                   key={claim.claimNumber ?? `claim-${index}`}
+                  style={{
+                    minWidth: 0,
+                    alignItems: 'center',
+                    gap: 12,
+                  }}
                 >
-                  <div className="dot-icon">
+                  <div className="dot-icon" style={{ flexShrink: 0 }}>
                     <Icon name="claim" />
                   </div>
 
-                  <div className="grow">
+                  <div className="grow" style={{ minWidth: 0 }}>
                     <b>Claim #{claim.claimNumber ?? '—'}</b>
 
                     <span className="muted">
@@ -393,18 +447,31 @@ export default function Dashboard() {
                       · {claim.claimType || 'Insurance claim'}
                     </span>
 
-                    <div className="faint" style={{ fontSize: 13 }}>
+                    <div
+                      className="faint"
+                      style={{
+                        fontSize: 13,
+                        marginTop: 5,
+                        overflowWrap: 'anywhere',
+                      }}
+                    >
                       Policy #{claim.policyNumber ?? '—'} · filed{' '}
                       {getClaimDate(claim)}
                     </div>
                   </div>
 
-                  <div style={{ textAlign: 'right' }}>
+                  <div
+                    style={{
+                      textAlign: 'right',
+                      flexShrink: 0,
+                      maxWidth: '42%',
+                    }}
+                  >
                     <StatusBadge value={claim.status || 'UNKNOWN'} />
 
                     <div
                       className="num"
-                      style={{ fontSize: 13.5, marginTop: 4 }}
+                      style={{ fontSize: 13.5, marginTop: 5 }}
                     >
                       {getClaimAmount(claim)}
                     </div>
@@ -441,17 +508,27 @@ export default function Dashboard() {
                     notification.notificationId ??
                     `notification-${index}`
                   }
+                  style={{
+                    minWidth: 0,
+                    alignItems: 'flex-start',
+                    gap: 12,
+                  }}
                 >
-                  <div className="dot-icon">
+                  <div className="dot-icon" style={{ flexShrink: 0 }}>
                     <Icon name="bell" />
                   </div>
 
-                  <div className="grow">
+                  <div className="grow" style={{ minWidth: 0 }}>
                     <b>{notification.title || 'InsureX update'}</b>
 
                     <div
                       className="muted"
-                      style={{ fontSize: 13, marginTop: 4 }}
+                      style={{
+                        fontSize: 13,
+                        marginTop: 5,
+                        lineHeight: 1.5,
+                        overflowWrap: 'anywhere',
+                      }}
                     >
                       {notification.message ||
                         notification.description ||
@@ -460,7 +537,7 @@ export default function Dashboard() {
 
                     <div
                       className="faint"
-                      style={{ fontSize: 12, marginTop: 5 }}
+                      style={{ fontSize: 12, marginTop: 6 }}
                     >
                       {notification.createdAt
                         ? timeAgo(notification.createdAt)
@@ -475,6 +552,7 @@ export default function Dashboard() {
                         fontSize: 11,
                         padding: '4px 8px',
                         whiteSpace: 'nowrap',
+                        flexShrink: 0,
                       }}
                     >
                       New
@@ -486,6 +564,6 @@ export default function Dashboard() {
           </DataState>
         </Panel>
       </div>
-    </>
+    </div>
   )
 }
