@@ -1,8 +1,9 @@
+
 package com.htc.insurance.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,135 +23,158 @@ import com.htc.insurance.service.ClaimsService;
 @RequestMapping("/claims")
 public class ClaimsController {
 
-    @Autowired
-    private ClaimsService claimsService;
+    private final ClaimsService claimsService;
 
+    public ClaimsController(ClaimsService claimsService) {
+        this.claimsService = claimsService;
+    }
 
     // =========================================================
-    // USER + ADMIN
-    // SUBMIT NEW CLAIM
+    // USER + ADMIN - SUBMIT NEW CLAIM
     // =========================================================
+
     @PostMapping("/save")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ClaimsDto saveClaims(
+    public ResponseEntity<ClaimsDto> saveClaims(
             @RequestBody ClaimsDto claimsDto,
             Authentication authentication) {
 
-        return claimsService.saveClaims(
+        ClaimsDto savedClaim = claimsService.saveClaims(
                 claimsDto,
                 authentication
         );
+
+        return ResponseEntity.ok(savedClaim);
     }
 
+    // =========================================================
+    // USER - GET MY CLAIMS
+    // =========================================================
 
-    // =========================================================
-    // USER
-    // GET MY CLAIMS
-    // =========================================================
     @GetMapping("/my-claims")
     @PreAuthorize("hasRole('USER')")
-    public List<ClaimsDto> getMyClaims(
+    public ResponseEntity<List<ClaimsDto>> getMyClaims(
             Authentication authentication) {
 
-        return claimsService.getMyClaims(
-                authentication
+        return ResponseEntity.ok(
+                claimsService.getMyClaims(authentication)
         );
     }
 
+    // =========================================================
+    // ADMIN - GET ALL CLAIMS
+    // =========================================================
 
-    // =========================================================
-    // ADMIN
-    // GET ALL CLAIMS
-    // =========================================================
     @GetMapping("/getAll")
     @PreAuthorize("hasRole('ADMIN')")
-    public List<ClaimsDto> getAllClaims() {
+    public ResponseEntity<List<ClaimsDto>> getAllClaims() {
 
-        return claimsService.getAllClaims();
+        return ResponseEntity.ok(
+                claimsService.getAllClaims()
+        );
     }
 
+    // =========================================================
+    // USER + ADMIN - GET CLAIM BY NUMBER
+    // =========================================================
 
-    // =========================================================
-    // USER + ADMIN
-    // GET ONE CLAIM
-    // =========================================================
     @GetMapping("/get/{claimNumber}")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
-    public ClaimsDto getClaimsById(
+    public ResponseEntity<ClaimsDto> getClaimsById(
             @PathVariable Long claimNumber,
             Authentication authentication) {
 
-        return claimsService.getClaimsById(
+        ClaimsDto claim = claimsService.getClaimsById(
                 claimNumber,
                 authentication
         );
+
+        if (claim == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(claim);
     }
 
+    // =========================================================
+    // ADMIN - UPDATE CLAIM
+    // =========================================================
 
-    // =========================================================
-    // ADMIN
-    // UPDATE CLAIM
-    // =========================================================
     @PutMapping("/update/{claimNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ClaimsDto updateClaims(
+    public ResponseEntity<ClaimsDto> updateClaims(
             @PathVariable Long claimNumber,
             @RequestBody ClaimsDto claimsDto) {
 
-        return claimsService.updateClaims(
+        ClaimsDto updatedClaim = claimsService.updateClaims(
                 claimNumber,
                 claimsDto
         );
+
+        if (updatedClaim == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(updatedClaim);
     }
 
+    // =========================================================
+    // ADMIN - APPROVE CLAIM
+    // =========================================================
 
-    // =========================================================
-    // ADMIN
-    // APPROVE CLAIM
-    // =========================================================
     @PutMapping("/approve/{claimNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ClaimsDto approveClaim(
+    public ResponseEntity<ClaimsDto> approveClaim(
             @PathVariable Long claimNumber,
             @RequestBody ClaimDecisionDto decisionDto) {
 
-        return claimsService.approveClaim(
+        ClaimsDto approvedClaim = claimsService.approveClaim(
                 claimNumber,
                 decisionDto
         );
+
+        if (approvedClaim == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(approvedClaim);
     }
 
+    // =========================================================
+    // ADMIN - REJECT CLAIM
+    // =========================================================
 
-    // =========================================================
-    // ADMIN
-    // REJECT CLAIM
-    // =========================================================
     @PutMapping("/reject/{claimNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ClaimsDto rejectClaim(
+    public ResponseEntity<ClaimsDto> rejectClaim(
             @PathVariable Long claimNumber,
             @RequestBody ClaimDecisionDto decisionDto) {
 
-        return claimsService.rejectClaim(
+        ClaimsDto rejectedClaim = claimsService.rejectClaim(
                 claimNumber,
                 decisionDto
         );
+
+        if (rejectedClaim == null) {
+            return ResponseEntity.notFound().build();
+        }
+
+        return ResponseEntity.ok(rejectedClaim);
     }
 
+    // =========================================================
+    // ADMIN - DELETE CLAIM
+    // =========================================================
 
-    // =========================================================
-    // ADMIN
-    // DELETE CLAIM
-    // =========================================================
     @DeleteMapping("/delete/{claimNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public String deleteClaims(
+    public ResponseEntity<String> deleteClaims(
             @PathVariable Long claimNumber) {
 
-        claimsService.deleteClaims(
-                claimNumber
-        );
+        claimsService.deleteClaims(claimNumber);
 
-        return "Claim deleted successfully";
+        return ResponseEntity.ok(
+                "Claim deleted successfully"
+        );
     }
 }
