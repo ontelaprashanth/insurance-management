@@ -1,3 +1,4 @@
+
 import axios from 'axios'
 
 /* =========================================================
@@ -62,7 +63,7 @@ const switchToPrimary = () => {
 }
 
 /* =========================================================
-   SESSION STORAGE
+   SAFE STORAGE ACCESS
 ========================================================= */
 
 const safely = (callback, fallback = null) => {
@@ -73,9 +74,12 @@ const safely = (callback, fallback = null) => {
   }
 }
 
-safely(() => {
-  localStorage.removeItem(TOKEN_KEY)
-})
+/*
+ * Do not clear localStorage at module startup.
+ * That can unexpectedly remove a legacy token.
+ *
+ * sessionStorage is used for the active InsureX session.
+ */
 
 export const tokenStore = {
   get() {
@@ -83,19 +87,22 @@ export const tokenStore = {
   },
 
   set(token) {
-    safely(() => {
+    return safely(() => {
       if (typeof token === 'string' && token.trim()) {
-        sessionStorage.setItem(TOKEN_KEY, token)
-      } else {
-        sessionStorage.removeItem(TOKEN_KEY)
+        sessionStorage.setItem(TOKEN_KEY, token.trim())
+        return true
       }
-    })
+
+      sessionStorage.removeItem(TOKEN_KEY)
+      return false
+    }, false)
   },
 
   clear() {
-    safely(() => {
+    return safely(() => {
       sessionStorage.removeItem(TOKEN_KEY)
-    })
+      return true
+    }, false)
   },
 }
 
@@ -105,7 +112,7 @@ export const tokenStore = {
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 90000,
+  timeout: 90_000,
   headers: {
     Accept: 'application/json',
   },
@@ -118,10 +125,9 @@ export const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     config.baseURL = getActiveApiUrl()
+    config.headers = config.headers || {}
 
     const token = tokenStore.get()
-
-    config.headers = config.headers || {}
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
@@ -158,11 +164,15 @@ const isBackendAvailabilityFailure = (error) => {
   if (!error) return false
 
   if (!error.response) {
-    return [
-      'ERR_NETWORK',
-      'ECONNABORTED',
-      'ETIMEDOUT',
-    ].includes(error.code) || !error.response
+    return (
+      [
+        'ERR_NETWORK',
+        'ECONNABORTED',
+        'ETIMEDOUT',
+        'ERR_INTERNET_DISCONNECTED',
+      ].includes(error.code) ||
+      error.request != null
+    )
   }
 
   return [502, 503, 504].includes(error.response.status)
@@ -180,7 +190,11 @@ const isSafeToRetry = (config) => {
 
 api.interceptors.response.use(
   (response) => {
-    if (response.config?.baseURL === API_URL) {
+    const responseBaseURL = normalizeApiUrl(
+      response.config?.baseURL,
+    )
+
+    if (responseBaseURL === API_URL) {
       switchToPrimary()
     }
 
@@ -200,8 +214,8 @@ api.interceptors.response.use(
       url.includes('/api/auth/reset-password')
 
     /*
-     * Switch on connectivity/gateway failures only.
-     * Never blindly repeat a potentially successful write.
+     * Fail over only for connectivity/gateway failures.
+     * Never automatically repeat POST/PUT/PATCH/DELETE requests.
      */
 
     if (
@@ -213,9 +227,9 @@ api.interceptors.response.use(
       const failedBaseURL = normalizeApiUrl(config.baseURL)
 
       if (failedBaseURL === API_URL) {
-        switchToFallback()
+        const fallbackActivated = switchToFallback()
 
-        if (isSafeToRetry(config)) {
+        if (fallbackActivated && isSafeToRetry(config)) {
           config._insurexFailoverRetry = true
           config.baseURL = FALLBACK_API_URL
 
@@ -231,7 +245,8 @@ api.interceptors.response.use(
     }
 
     /*
-     * Preserve existing session-expiration behavior.
+     * Clear invalid sessions on protected requests.
+     * Login/OTP errors must remain visible to the login UI.
      */
 
     if (status === 401 && !isAuthenticationEndpoint) {
@@ -326,8 +341,12 @@ export function errorMessage(
     return 'The InsureX server encountered a problem. Please try again later.'
   }
 
-  if (error.code === 'ERR_NETWORK' || !error.response) {
-    return 'Cannot connect to InsureX. The server may be starting up. Please try again shortly.'
+  if (!error.response) {
+    if (error.code === 'ERR_NETWORK') {
+      return 'Unable to reach InsureX. Check the network request and backend connection.'
+    }
+
+    return 'Cannot connect to InsureX. Please check your connection and try again.'
   }
 
   return error.message || fallback
