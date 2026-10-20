@@ -3,6 +3,12 @@ import axios from 'axios'
 
 /* =========================================================
    INSUREX — CENTRAL API CLIENT
+
+   JWT Authentication
+   Session Storage
+   Render Backend
+   Request / Response Interceptors
+   Error Handling
 ========================================================= */
 
 const TOKEN_KEY = 'insurex_token'
@@ -11,7 +17,8 @@ const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
 
 const normalizeApiUrl = (url) => {
   if (!url) return ''
-  return String(url).replace(/\/+$/, '')
+
+  return String(url).trim().replace(/\/+$/, '')
 }
 
 export const API_URL = normalizeApiUrl(
@@ -22,7 +29,7 @@ export const API_URL = normalizeApiUrl(
 )
 
 /* =========================================================
-   SESSION STORAGE
+   SAFE STORAGE
 ========================================================= */
 
 const safely = (callback, fallback = null) => {
@@ -33,23 +40,42 @@ const safely = (callback, fallback = null) => {
   }
 }
 
+/* =========================================================
+   SESSION TOKEN STORAGE
+
+   sessionStorage:
+   - Survives page refresh
+   - Survives navigation
+   - Usually ends with browser tab session
+========================================================= */
+
 export const tokenStore = {
   get() {
-    return safely(() => sessionStorage.getItem(TOKEN_KEY))
+    return safely(
+      () => sessionStorage.getItem(TOKEN_KEY),
+      null,
+    )
   },
 
   set(token) {
     safely(() => {
       if (typeof token === 'string' && token.trim()) {
-        sessionStorage.setItem(TOKEN_KEY, token.trim())
+        sessionStorage.setItem(
+          TOKEN_KEY,
+          token.trim(),
+        )
       } else {
         sessionStorage.removeItem(TOKEN_KEY)
       }
     })
+
+    resetUnauthorizedState()
   },
 
   clear() {
-    safely(() => sessionStorage.removeItem(TOKEN_KEY))
+    safely(() => {
+      sessionStorage.removeItem(TOKEN_KEY)
+    })
   },
 }
 
@@ -59,11 +85,36 @@ export const tokenStore = {
 
 export const api = axios.create({
   baseURL: API_URL,
+
+  // Render free services may take time to wake up.
   timeout: 90000,
+
   headers: {
     Accept: 'application/json',
   },
 })
+
+/* =========================================================
+   AUTHENTICATION ENDPOINT CHECK
+========================================================= */
+
+const PUBLIC_AUTH_ENDPOINTS = [
+  '/api/auth/login',
+  '/api/auth/send-otp',
+  '/api/auth/verify-otp',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
+]
+
+const isPublicAuthEndpoint = (url = '') => {
+  const path = String(url).split('?')[0]
+
+  return PUBLIC_AUTH_ENDPOINTS.some(
+    (endpoint) =>
+      path === endpoint ||
+      path.endsWith(endpoint),
+  )
+}
 
 /* =========================================================
    REQUEST INTERCEPTOR
@@ -75,14 +126,19 @@ api.interceptors.request.use(
 
     config.headers = config.headers || {}
 
-    if (token) {
+    if (token && !isPublicAuthEndpoint(config.url)) {
       config.headers.Authorization = `Bearer ${token}`
+
+      // Used to identify the session that made this request.
+      config._insurexRequestToken = token
     } else {
       delete config.headers.Authorization
+      config._insurexRequestToken = null
     }
 
     return config
   },
+
   (error) => Promise.reject(error),
 )
 
@@ -95,7 +151,9 @@ let unauthorizedHandled = false
 
 export const setUnauthorizedHandler = (handler) => {
   onUnauthorized =
-    typeof handler === 'function' ? handler : () => {}
+    typeof handler === 'function'
+      ? handler
+      : () => {}
 }
 
 export const resetUnauthorizedState = () => {
@@ -108,31 +166,42 @@ export const resetUnauthorizedState = () => {
 
 api.interceptors.response.use(
   (response) => response,
+
   (error) => {
-    const url = error.config?.url || ''
+    const config = error.config || {}
+
+    const url = config.url || ''
     const status = error.response?.status
 
-    const isAuthenticationEndpoint = [
-      '/api/auth/login',
-      '/api/auth/send-otp',
-      '/api/auth/verify-otp',
-      '/api/auth/forgot-password',
-      '/api/auth/reset-password',
-    ].some((path) => url.includes(path))
+    const authenticationRequest =
+      isPublicAuthEndpoint(url)
 
-    if (status === 401 && !isAuthenticationEndpoint) {
-      tokenStore.clear()
+    if (status === 401 && !authenticationRequest) {
+      const currentToken = tokenStore.get()
+      const requestToken =
+        config._insurexRequestToken
 
-      if (!unauthorizedHandled) {
-        unauthorizedHandled = true
+      // Only invalidate the same session that sent
+      // the unauthorized request.
+      const sameSession =
+        Boolean(currentToken) &&
+        Boolean(requestToken) &&
+        currentToken === requestToken
 
-        try {
-          onUnauthorized()
-        } catch (handlerError) {
-          console.error(
-            'InsureX unauthorized handler error:',
-            handlerError,
-          )
+      if (sameSession) {
+        tokenStore.clear()
+
+        if (!unauthorizedHandled) {
+          unauthorizedHandled = true
+
+          try {
+            onUnauthorized()
+          } catch (handlerError) {
+            console.error(
+              'InsureX unauthorized handler error:',
+              handlerError,
+            )
+          }
         }
       }
     }
@@ -151,37 +220,73 @@ export function errorMessage(
 ) {
   if (!error) return fallback
 
+  /* Cancelled request */
+
   if (error.code === 'ERR_CANCELED') {
     return 'The request was cancelled.'
   }
+
+  /* Timeout */
 
   if (
     error.code === 'ECONNABORTED' ||
     error.code === 'ETIMEDOUT'
   ) {
-    return 'The request timed out. Check the latest status before retrying.'
+    return (
+      'The request timed out. ' +
+      'Check the latest status before retrying.'
+    )
   }
 
   const status = error.response?.status
   const data = error.response?.data
 
+  /* Backend text response */
+
   if (typeof data === 'string' && data.trim()) {
-    return data
+    return data.trim()
   }
+
+  /* Backend structured response */
 
   if (
     typeof data?.message === 'string' &&
     data.message.trim()
   ) {
-    return data.message
+    return data.message.trim()
   }
 
   if (
     typeof data?.error === 'string' &&
     data.error.trim()
   ) {
-    return data.error
+    return data.error.trim()
   }
+
+  /* Validation errors */
+
+  if (data?.errors && typeof data.errors === 'object') {
+    const messages = Array.isArray(data.errors)
+      ? data.errors
+      : Object.values(data.errors)
+
+    const result = messages
+      .map((item) => {
+        if (typeof item === 'string') {
+          return item
+        }
+
+        return item?.defaultMessage ||
+          item?.message ||
+          ''
+      })
+      .filter(Boolean)
+      .join(', ')
+
+    if (result) return result
+  }
+
+  /* HTTP errors */
 
   if (status === 400) {
     return 'Invalid request. Please check your information.'
@@ -212,14 +317,24 @@ export function errorMessage(
   }
 
   if (status >= 500) {
-    return 'The InsureX server encountered an error. Check the latest status before retrying.'
+    return (
+      'The InsureX server encountered an error. ' +
+      'Check the latest status before retrying.'
+    )
   }
+
+  /* Network errors */
 
   if (error.code === 'ERR_NETWORK') {
-    return 'The network request failed. Check the request in your browser Network tab.'
+    return (
+      'Cannot connect to the InsureX server. ' +
+      'Check your internet connection, backend status, ' +
+      'and browser Network tab.'
+    )
   }
 
-  // JavaScript errors are not backend connection errors.
+  /* Client-side errors */
+
   if (error instanceof Error) {
     return error.message || fallback
   }
