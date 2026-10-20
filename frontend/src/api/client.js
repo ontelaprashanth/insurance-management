@@ -9,8 +9,10 @@ const TOKEN_KEY = 'insurex_token'
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
 
-const normalizeApiUrl = (url) =>
-  String(url || '').replace(/\/+$/, '')
+const normalizeApiUrl = (url) => {
+  if (!url) return ''
+  return String(url).replace(/\/+$/, '')
+}
 
 export const API_URL = normalizeApiUrl(
   configuredApiUrl ||
@@ -30,10 +32,6 @@ const safely = (callback, fallback = null) => {
     return fallback
   }
 }
-
-// Keep the existing tab-scoped login behavior.
-// Do not migrate an old localStorage token automatically.
-safely(() => localStorage.removeItem(TOKEN_KEY))
 
 export const tokenStore = {
   get() {
@@ -221,7 +219,7 @@ export function errorMessage(
     return 'The network request failed. Check the request in your browser Network tab.'
   }
 
-  // A frontend TypeError is not a backend connection failure.
+  // JavaScript errors are not backend connection errors.
   if (error instanceof Error) {
     return error.message || fallback
   }
