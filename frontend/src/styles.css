@@ -445,3 +445,75 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   }
 }
 
+/* =========================================================
+   INSUREX — SIDEBAR / MOBILE BRAND LOGO FIX
+   Keep the complete logo visible on every customer/admin page.
+========================================================= */
+.sidebar .brand,
+.topbar .brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+  flex-shrink: 0;
+  overflow: visible;
+  line-height: 1.2;
+}
+
+.sidebar .brand {
+  padding: 6px 8px;
+  min-height: 52px;
+}
+
+.sidebar .brand .logo,
+.topbar .brand .logo {
+  display: block;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  max-width: none;
+  flex: 0 0 40px;
+  object-fit: contain;
+  overflow: visible;
+}
+
+/* Support both an SVG as .logo and an SVG inside .logo. */
+.sidebar .brand .logo svg,
+.topbar .brand .logo svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.sidebar .brand .logo img,
+.topbar .brand .logo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.sidebar .brand > span,
+.topbar .brand > span,
+.sidebar .brand > div,
+.topbar .brand > div {
+  min-width: 0;
+}
+
+@media (max-width: 920px) {
+  .topbar .brand {
+    padding: 0;
+    gap: 9px;
+    min-width: 0;
+  }
+
+  .topbar .brand .logo {
+    width: 34px;
+    height: 34px;
+    min-width: 34px;
+    min-height: 34px;
+    flex-basis: 34px;
+  }
+}
