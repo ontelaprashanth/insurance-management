@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -37,6 +38,18 @@ public class RazorpayRefundService {
         this.persistenceService = persistenceService;
     }
 
+    /*
+     * IMPORTANT:
+     * Razorpay's get() method is generic. Passing payment.get("status")
+     * directly to String.valueOf(...) can cause Java to infer char[]
+     * and throw a ClassCastException at runtime.
+     *
+     * Accept the value as Object first, then convert it safely.
+     */
+    private static String sdkValueToString(Object value) {
+        return value == null ? null : value.toString();
+    }
+
     public PolicyPurchase requestFullRefund(
             Long purchaseId,
             String username,
@@ -64,14 +77,15 @@ public class RazorpayRefundService {
                     "Refund reason must not exceed 500 characters.");
         }
 
-        PolicyPurchase purchase = purchaseDao.getPurchaseById(purchaseId);
+        PolicyPurchase purchase =
+                purchaseDao.getPurchaseById(purchaseId);
 
         if (purchase == null) {
             throw new IllegalArgumentException(
                     "Purchase was not found.");
         }
 
-        // Customer may refund only their own purchase.
+        // A customer can refund only their own purchase.
         String owner = null;
 
         if (purchase.getPolicy() != null
@@ -131,22 +145,30 @@ public class RazorpayRefundService {
                 .longValueExact();
 
         /*
-         * Verify current payment details with Razorpay before creating
-         * a refund attempt.
+         * Verify payment with Razorpay before creating an attempt.
          */
         RazorpayClient client = new RazorpayClient(
-                razorpayKeyId, razorpayKeySecret);
+                razorpayKeyId,
+                razorpayKeySecret);
 
         Payment payment = client.payments.fetch(paymentId);
 
-        if (payment == null
-                || !"captured".equalsIgnoreCase(
-                        String.valueOf(payment.get("status")))) {
+        if (payment == null) {
+            throw new IllegalStateException(
+                    "Razorpay did not return the payment details.");
+        }
+
+        // Avoid String.valueOf(payment.get(...)) generic overload inference.
+        Object paymentStatusObject = payment.get("status");
+        String paymentStatus = sdkValueToString(paymentStatusObject);
+
+        if (!"captured".equalsIgnoreCase(paymentStatus)) {
             throw new IllegalStateException(
                     "Razorpay does not report this payment as captured.");
         }
 
-        String fetchedOrderId = payment.get("order_id");
+        Object orderIdObject = payment.get("order_id");
+        String fetchedOrderId = sdkValueToString(orderIdObject);
 
         if (purchase.getRazorpayOrderId() == null
                 || !purchase.getRazorpayOrderId().equals(fetchedOrderId)) {
@@ -154,16 +176,25 @@ public class RazorpayRefundService {
                     "Razorpay payment and purchase order IDs do not match.");
         }
 
-        String fetchedCurrency = payment.get("currency");
+        Object currencyObject = payment.get("currency");
+        String fetchedCurrency = sdkValueToString(currencyObject);
 
         if (fetchedCurrency == null
+                || currency == null
                 || !currency.equalsIgnoreCase(fetchedCurrency)) {
             throw new IllegalStateException(
                     "Payment currency does not match the configured currency.");
         }
 
-        long paidAmount = new BigDecimal(
-                String.valueOf(payment.get("amount")))
+        Object paidAmountObject = payment.get("amount");
+        String paidAmountText = sdkValueToString(paidAmountObject);
+
+        if (paidAmountText == null) {
+            throw new IllegalStateException(
+                    "Razorpay did not return the captured payment amount.");
+        }
+
+        long paidAmount = new BigDecimal(paidAmountText)
                 .longValueExact();
 
         if (paidAmount != amountInPaise) {
@@ -172,11 +203,13 @@ public class RazorpayRefundService {
         }
 
         long alreadyRefunded = 0L;
+
         Object refundedObject = payment.get("amount_refunded");
 
         if (refundedObject != null) {
-            alreadyRefunded = new BigDecimal(
-                    String.valueOf(refundedObject))
+            String refundedText = sdkValueToString(refundedObject);
+
+            alreadyRefunded = new BigDecimal(refundedText)
                     .longValueExact();
         }
 
@@ -187,8 +220,8 @@ public class RazorpayRefundService {
         }
 
         /*
-         * Persist the unique refund attempt before making the external
-         * request. Never blindly repeat the request after an exception.
+         * Persist the unique attempt before calling Razorpay.
+         * Do not automatically repeat a refund after an uncertain result.
          */
         RefundAttempt attempt = persistenceService.beginRefund(
                 purchaseId,
@@ -199,12 +232,14 @@ public class RazorpayRefundService {
 
         try {
             JSONObject refundRequest = new JSONObject();
+
             refundRequest.put("amount", amountInPaise);
             refundRequest.put(
                     "receipt",
                     "INSXREF" + attempt.getRefundAttemptId());
 
             JSONObject notes = new JSONObject();
+
             notes.put("purchase_id", String.valueOf(purchaseId));
             notes.put(
                     "refund_attempt_id",
@@ -213,35 +248,57 @@ public class RazorpayRefundService {
             refundRequest.put("notes", notes);
 
             Refund refund = client.payments.refund(
-                    paymentId, refundRequest);
+                    paymentId,
+                    refundRequest);
 
-            if (refund == null
-                    || refund.get("id") == null
-                    || String.valueOf(refund.get("id")).isBlank()) {
+            if (refund == null) {
+                persistenceService.requireReconciliation(
+                        attempt.getRefundAttemptId(),
+                        "Razorpay returned no refund response.");
 
+                throw new IllegalStateException(
+                        "Razorpay returned no refund response. "
+                        + "Reconciliation is required; do not retry.");
+            }
+
+            Object refundIdObject = refund.get("id");
+            String refundId = sdkValueToString(refundIdObject);
+
+            if (refundId == null || refundId.isBlank()) {
                 persistenceService.requireReconciliation(
                         attempt.getRefundAttemptId(),
                         "Razorpay response did not include a refund ID.");
 
                 throw new IllegalStateException(
                         "Razorpay returned an incomplete refund response. "
-                        + "The refund requires reconciliation; do not retry it.");
+                        + "Reconciliation is required; do not retry.");
             }
 
-            String refundId = String.valueOf(refund.get("id"));
-            String refundStatus = String.valueOf(refund.get("status"));
+            Object refundStatusObject = refund.get("status");
+            String refundStatus = sdkValueToString(refundStatusObject);
+
+            if (refundStatus == null || refundStatus.isBlank()) {
+                persistenceService.requireReconciliation(
+                        attempt.getRefundAttemptId(),
+                        "Razorpay response did not include a refund status.");
+
+                throw new IllegalStateException(
+                        "Razorpay did not return a refund status. "
+                        + "Reconciliation is required; do not retry.");
+            }
 
             persistenceService.recordRefundResult(
                     attempt.getRefundAttemptId(),
                     refundId,
                     refundStatus);
 
-            PolicyPurchase updated = purchaseDao.getPurchaseById(
-                    purchaseId);
+            PolicyPurchase updated =
+                    purchaseDao.getPurchaseById(purchaseId);
 
             if (updated == null) {
                 throw new IllegalStateException(
-                        "Refund was submitted, but the purchase could not be reloaded.");
+                        "Refund was submitted, but the purchase "
+                        + "could not be reloaded.");
             }
 
             return updated;
@@ -249,8 +306,8 @@ public class RazorpayRefundService {
         } catch (Exception exception) {
 
             /*
-             * The API request may have reached Razorpay even when the
-             * client received an exception. Do not send a second refund.
+             * The request may have reached Razorpay even if the client
+             * received an exception. Preserve reconciliation safeguards.
              */
             try {
                 persistenceService.requireReconciliation(
