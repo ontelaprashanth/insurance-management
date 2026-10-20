@@ -1,36 +1,30 @@
-
 import axios from 'axios'
 
-/* =========================================================
-   INSUREX — CENTRAL API CLIENT
-   Primary Backend • Fallback • Session Handling
-========================================================= */
+// =====================================================
+// INSUREX — CENTRAL API CLIENT
+// Production API • JWT Authentication • Error Handling
+// =====================================================
 
 const TOKEN_KEY = 'insurex_token'
 
-const normalizeApiUrl = (url) =>
-  url?.trim().replace(/\/+$/, '') || ''
+const normalizeUrl = (url) =>
+  typeof url === 'string' ? url.trim().replace(/\/+$/, '') : ''
 
-const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+const configuredApiUrl = normalizeUrl(import.meta.env.VITE_API_URL)
 
-export const API_URL = normalizeApiUrl(
+export const API_URL =
   configuredApiUrl ||
-    (import.meta.env.DEV
-      ? 'http://localhost:8080'
-      : 'https://insurance-management-ke8b.onrender.com'),
-)
+  (import.meta.env.DEV
+    ? 'http://localhost:8080'
+    : 'https://insurance-management-ke8b.onrender.com')
 
-const FALLBACK_API_URL = normalizeApiUrl(
+const FALLBACK_API_URL = normalizeUrl(
   import.meta.env.VITE_API_FALLBACK_URL,
 )
 
 const hasFallback =
   Boolean(FALLBACK_API_URL) &&
   FALLBACK_API_URL !== API_URL
-
-/* =========================================================
-   BACKEND FAILOVER STATE
-========================================================= */
 
 let activeApiUrl = API_URL
 let fallbackUntil = 0
@@ -62,10 +56,6 @@ const switchToPrimary = () => {
   fallbackUntil = 0
 }
 
-/* =========================================================
-   SAFE STORAGE ACCESS
-========================================================= */
-
 const safely = (callback, fallback = null) => {
   try {
     return callback()
@@ -74,53 +64,48 @@ const safely = (callback, fallback = null) => {
   }
 }
 
-/*
- * Do not clear localStorage at module startup.
- * That can unexpectedly remove a legacy token.
- *
- * sessionStorage is used for the active InsureX session.
- */
+// =====================================================
+// TOKEN STORAGE
+// Keep localStorage for compatibility with existing login
+// =====================================================
 
 export const tokenStore = {
-  get() {
-    return safely(() => sessionStorage.getItem(TOKEN_KEY))
-  },
+  get: () =>
+    safely(() => localStorage.getItem(TOKEN_KEY)),
 
-  set(token) {
-    return safely(() => {
-      if (typeof token === 'string' && token.trim()) {
-        sessionStorage.setItem(TOKEN_KEY, token.trim())
-        return true
+  set: (token) =>
+    safely(() => {
+      if (typeof token !== 'string' || !token.trim()) {
+        localStorage.removeItem(TOKEN_KEY)
+        return false
       }
 
-      sessionStorage.removeItem(TOKEN_KEY)
-      return false
-    }, false)
-  },
-
-  clear() {
-    return safely(() => {
-      sessionStorage.removeItem(TOKEN_KEY)
+      localStorage.setItem(TOKEN_KEY, token.trim())
       return true
-    }, false)
-  },
+    }, false),
+
+  clear: () =>
+    safely(() => {
+      localStorage.removeItem(TOKEN_KEY)
+      return true
+    }, false),
 }
 
-/* =========================================================
-   AXIOS INSTANCE
-========================================================= */
+// =====================================================
+// AXIOS INSTANCE
+// =====================================================
 
 export const api = axios.create({
   baseURL: API_URL,
-  timeout: 90_000,
+  timeout: 60_000,
   headers: {
     Accept: 'application/json',
   },
 })
 
-/* =========================================================
-   REQUEST INTERCEPTOR
-========================================================= */
+// =====================================================
+// REQUEST INTERCEPTOR — ATTACH JWT
+// =====================================================
 
 api.interceptors.request.use(
   (config) => {
@@ -140,9 +125,9 @@ api.interceptors.request.use(
   (error) => Promise.reject(error),
 )
 
-/* =========================================================
-   UNAUTHORIZED SESSION HANDLER
-========================================================= */
+// =====================================================
+// SESSION EXPIRATION HANDLER
+// =====================================================
 
 let onUnauthorized = () => {}
 let unauthorizedHandled = false
@@ -156,11 +141,11 @@ export const resetUnauthorizedState = () => {
   unauthorizedHandled = false
 }
 
-/* =========================================================
-   FAILOVER HELPERS
-========================================================= */
+// =====================================================
+// NETWORK / FAILOVER HELPERS
+// =====================================================
 
-const isBackendAvailabilityFailure = (error) => {
+const isAvailabilityFailure = (error) => {
   if (!error) return false
 
   if (!error.response) {
@@ -171,32 +156,36 @@ const isBackendAvailabilityFailure = (error) => {
         'ETIMEDOUT',
         'ERR_INTERNET_DISCONNECTED',
       ].includes(error.code) ||
-      error.request != null
+      Boolean(error.request)
     )
   }
 
   return [502, 503, 504].includes(error.response.status)
 }
 
-const isSafeToRetry = (config) => {
-  const method = (config?.method || 'get').toLowerCase()
+const isSafeToRetry = (config) =>
+  ['get', 'head', 'options'].includes(
+    (config?.method || 'get').toLowerCase(),
+  )
 
-  return ['get', 'head', 'options'].includes(method)
-}
+const isAuthEndpoint = (url = '') =>
+  url.includes('/api/auth/')
 
-/* =========================================================
-   RESPONSE INTERCEPTOR
-========================================================= */
+// =====================================================
+// RESPONSE INTERCEPTOR
+// =====================================================
 
 api.interceptors.response.use(
   (response) => {
-    const responseBaseURL = normalizeApiUrl(
-      response.config?.baseURL,
-    )
+    const responseBaseURL = normalizeUrl(response.config?.baseURL)
 
     if (responseBaseURL === API_URL) {
       switchToPrimary()
     }
+
+    // A successful response confirms that the current
+    // request reached a server.
+    unauthorizedHandled = false
 
     return response
   },
@@ -206,50 +195,34 @@ api.interceptors.response.use(
     const url = config?.url || ''
     const status = error.response?.status
 
-    const isAuthenticationEndpoint =
-      url.includes('/api/auth/login') ||
-      url.includes('/api/auth/send-otp') ||
-      url.includes('/api/auth/verify-otp') ||
-      url.includes('/api/auth/forgot-password') ||
-      url.includes('/api/auth/reset-password')
-
-    /*
-     * Fail over only for connectivity/gateway failures.
-     * Never automatically repeat POST/PUT/PATCH/DELETE requests.
-     */
-
+    // Retry only safe read requests against the optional
+    // fallback server. Never blindly replay login, payments,
+    // purchases, or other state-changing requests.
     if (
       hasFallback &&
       config &&
-      !config._insurexFailoverRetry &&
-      isBackendAvailabilityFailure(error)
+      !config._insurexFallbackRetried &&
+      isAvailabilityFailure(error) &&
+      isSafeToRetry(config)
     ) {
-      const failedBaseURL = normalizeApiUrl(config.baseURL)
+      const failedBaseURL = normalizeUrl(config.baseURL)
 
-      if (failedBaseURL === API_URL) {
-        const fallbackActivated = switchToFallback()
+      if (failedBaseURL === API_URL && switchToFallback()) {
+        config._insurexFallbackRetried = true
+        config.baseURL = FALLBACK_API_URL
 
-        if (fallbackActivated && isSafeToRetry(config)) {
-          config._insurexFailoverRetry = true
-          config.baseURL = FALLBACK_API_URL
+        return api.request(config)
+      }
 
-          try {
-            return await api.request(config)
-          } catch (retryError) {
-            throw retryError
-          }
-        }
-      } else if (failedBaseURL === FALLBACK_API_URL) {
+      if (failedBaseURL === FALLBACK_API_URL) {
         fallbackUntil = Date.now() + PRIMARY_RETRY_DELAY
       }
     }
 
-    /*
-     * Clear invalid sessions on protected requests.
-     * Login/OTP errors must remain visible to the login UI.
-     */
-
-    if (status === 401 && !isAuthenticationEndpoint) {
+    // Expired/invalid session. Preserve the token on login
+    // and other authentication endpoints so failed sign-in
+    // attempts do not trigger an unnecessary redirect.
+    if (status === 401 && !isAuthEndpoint(url)) {
       tokenStore.clear()
 
       if (!unauthorizedHandled) {
@@ -258,7 +231,7 @@ api.interceptors.response.use(
         try {
           onUnauthorized()
         } catch {
-          // Preserve the original API error.
+          // Do not hide the original API error.
         }
       }
     }
@@ -267,9 +240,9 @@ api.interceptors.response.use(
   },
 )
 
-/* =========================================================
-   STANDARDIZED ERROR MESSAGES
-========================================================= */
+// =====================================================
+// USER-FRIENDLY ERROR MESSAGES
+// =====================================================
 
 export function errorMessage(
   error,
@@ -277,11 +250,8 @@ export function errorMessage(
 ) {
   if (!error) return fallback
 
-  if (
-    error.code === 'ECONNABORTED' ||
-    error.code === 'ETIMEDOUT'
-  ) {
-    return 'InsureX is taking longer than usual to respond. Please try again.'
+  if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
+    return 'InsureX is taking too long to respond. Please try again.'
   }
 
   if (error.code === 'ERR_CANCELED') {
@@ -295,22 +265,24 @@ export function errorMessage(
     return data
   }
 
-  if (
-    typeof data?.message === 'string' &&
-    data.message.trim()
-  ) {
+  if (typeof data?.message === 'string' && data.message.trim()) {
     return data.message
   }
 
-  if (
-    typeof data?.error === 'string' &&
-    data.error.trim()
-  ) {
+  if (typeof data?.error === 'string' && data.error.trim()) {
     return data.error
   }
 
+  if (data && typeof data === 'object') {
+    const firstMessage = Object.values(data).find(
+      (value) => typeof value === 'string' && value.trim(),
+    )
+
+    if (firstMessage) return firstMessage
+  }
+
   if (status === 400) {
-    return 'The request is invalid. Please check your information.'
+    return 'Invalid request. Please check your information.'
   }
 
   if (status === 401) {
@@ -322,7 +294,7 @@ export function errorMessage(
   }
 
   if (status === 404) {
-    return 'The requested resource was not found.'
+    return 'The requested API endpoint was not found.'
   }
 
   if (status === 409) {
@@ -342,11 +314,14 @@ export function errorMessage(
   }
 
   if (!error.response) {
-    if (error.code === 'ERR_NETWORK') {
-      return 'Unable to reach InsureX. Check the network request and backend connection.'
+    if (
+      error.code === 'ERR_NETWORK' ||
+      error.request
+    ) {
+      return 'Cannot connect to InsureX. Check the deployed backend, API URL, and CORS configuration.'
     }
 
-    return 'Cannot connect to InsureX. Please check your connection and try again.'
+    return error.message || fallback
   }
 
   return error.message || fallback
