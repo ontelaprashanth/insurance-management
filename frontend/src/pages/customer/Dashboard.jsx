@@ -51,13 +51,13 @@ function isUnread(notification) {
 }
 
 function safeDate(value) {
-  if (!value) return Number.POSITIVE_INFINITY
+  if (!value) return Number.NEGATIVE_INFINITY
 
   const timestamp = new Date(value).getTime()
 
   return Number.isFinite(timestamp)
     ? timestamp
-    : Number.POSITIVE_INFINITY
+    : Number.NEGATIVE_INFINITY
 }
 
 function getClaimDate(claim) {
@@ -74,38 +74,35 @@ function getClaimAmount(claim) {
   )
 }
 
-function StatCard({ label, value, description, icon, to }) {
+function Stat({ label, value, description, icon, to }) {
   const content = (
-    <div className="panel" style={{ height: '100%', boxSizing: 'border-box' }}>
+    <div style={{ minWidth: 0 }}>
       <div
         style={{
           display: 'flex',
+          alignItems: 'center',
           justifyContent: 'space-between',
-          alignItems: 'flex-start',
           gap: 12,
         }}
       >
-        <div style={{ minWidth: 0 }}>
-          <div className="label">{label}</div>
-
-          <div
-            className="value"
-            style={{
-              marginTop: 8,
-              overflowWrap: 'anywhere',
-            }}
-          >
-            {value}
-          </div>
-
-          <div className="sub" style={{ marginTop: 5 }}>
-            {description}
-          </div>
-        </div>
-
+        <div className="label">{label}</div>
         <div className="dot-icon" aria-hidden="true">
           {icon}
         </div>
+      </div>
+
+      <div
+        className="value"
+        style={{
+          marginTop: 8,
+          overflowWrap: 'anywhere',
+        }}
+      >
+        {value}
+      </div>
+
+      <div className="sub" style={{ marginTop: 5 }}>
+        {description}
       </div>
 
       {to && (
@@ -114,7 +111,7 @@ function StatCard({ label, value, description, icon, to }) {
             display: 'flex',
             alignItems: 'center',
             gap: 5,
-            marginTop: 14,
+            marginTop: 12,
             fontSize: 12.5,
             fontWeight: 650,
           }}
@@ -129,16 +126,20 @@ function StatCard({ label, value, description, icon, to }) {
     <Link
       to={to}
       style={{
-        color: 'inherit',
-        textDecoration: 'none',
         display: 'block',
         minWidth: 0,
+        color: 'inherit',
+        textDecoration: 'none',
       }}
     >
-      {content}
+      <div className="panel" style={{ height: '100%', boxSizing: 'border-box' }}>
+        {content}
+      </div>
     </Link>
   ) : (
-    content
+    <div className="panel" style={{ height: '100%', boxSizing: 'border-box' }}>
+      {content}
+    </div>
   )
 }
 
@@ -151,7 +152,7 @@ function QueryError({ query, label }) {
       role="alert"
       style={{ marginBottom: 12 }}
     >
-      Could not load {label}. Please refresh the page or try again.
+      Could not load {label}. Please try again.
 
       <button
         type="button"
@@ -203,30 +204,32 @@ export default function Dashboard() {
     [policyRows],
   )
 
+  const eligiblePurchases = useMemo(
+    () =>
+      purchaseRows.filter(
+        (purchase) =>
+          ['PAID', 'SUCCESS', 'COMPLETED'].includes(
+            String(purchase?.paymentStatus || '').toUpperCase(),
+          ) &&
+          String(purchase?.refundStatus || '').toUpperCase() !== 'REFUNDED',
+      ),
+    [purchaseRows],
+  )
+
   const totalCover = useMemo(
     () =>
-      purchaseRows
-        .filter(
-          (purchase) =>
-            ['PAID', 'SUCCESS', 'COMPLETED'].includes(
-              String(purchase?.paymentStatus || '').toUpperCase(),
-            ) &&
-            String(purchase?.refundStatus || '').toUpperCase() !==
-              'REFUNDED',
-        )
-        .reduce(
-          (sum, purchase) =>
-            sum + Math.max(0, Number(purchase?.coverageAmount) || 0),
-          0,
-        ),
-    [purchaseRows],
+      eligiblePurchases.reduce(
+        (sum, purchase) =>
+          sum + Math.max(0, Number(purchase?.coverageAmount) || 0),
+        0,
+      ),
+    [eligiblePurchases],
   )
 
   const pendingClaims = useMemo(
     () =>
       claimRows.filter(
-        (claim) =>
-          String(claim?.status || '').toUpperCase() === 'PENDING',
+        (claim) => String(claim?.status || '').toUpperCase() === 'PENDING',
       ),
     [claimRows],
   )
@@ -252,8 +255,7 @@ export default function Dashboard() {
     () =>
       [...notificationRows]
         .sort(
-          (a, b) =>
-            safeDate(b?.createdAt) - safeDate(a?.createdAt),
+          (a, b) => safeDate(b?.createdAt) - safeDate(a?.createdAt),
         )
         .slice(0, 5),
     [notificationRows],
@@ -279,66 +281,49 @@ export default function Dashboard() {
       <QueryError query={ntf} label="your notifications" />
 
       <div
-        className="grid"
+        className="ledger"
         style={{
+          marginBottom: 20,
           display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
-          gap: 14,
-          marginBottom: 22,
+          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+          gap: 0,
         }}
       >
-        <StatCard
+        <Stat
           label="Active policies"
           value={
-            pol.isPending
-              ? '…'
-              : pol.isError
-                ? '—'
-                : activePolicies.length
+            pol.isPending ? '…' : pol.isError ? '—' : activePolicies.length
           }
           description={
-            pol.isError
-              ? 'Unable to load policies'
-              : `of ${policyRows.length} total`
+            pol.isError ? 'Unable to load policies' : `${policyRows.length} in total`
           }
-          icon={<ShieldCheck size={20} />}
+          icon={<ShieldCheck size={19} />}
           to="/app/policies"
         />
 
-        <StatCard
+        <Stat
           label="Total cover"
           value={
-            pur.isPending
-              ? '…'
-              : pur.isError
-                ? '—'
-                : inrShort(totalCover)
+            pur.isPending ? '…' : pur.isError ? '—' : inrShort(totalCover)
           }
           description="Across eligible paid purchases"
-          icon={<WalletCards size={20} />}
+          icon={<WalletCards size={19} />}
           to="/app/purchases"
         />
 
-        <StatCard
+        <Stat
           label="Claims in review"
           value={
-            clm.isPending
-              ? '…'
-              : clm.isError
-                ? '—'
-                : pendingClaims.length
+            clm.isPending ? '…' : clm.isError ? '—' : pendingClaims.length
           }
           description={
-            clm.isError
-              ? 'Unable to load claims'
-              : `${claimRows.length} filed in all`
+            clm.isError ? 'Unable to load claims' : `${claimRows.length} filed in all`
           }
-          icon={<FileText size={20} />}
+          icon={<FileText size={19} />}
           to="/app/claims"
         />
 
-        <StatCard
+        <Stat
           label="Unread alerts"
           value={
             ntf.isPending
@@ -348,12 +333,12 @@ export default function Dashboard() {
                 : unreadNotifications.length
           }
           description="Notifications and updates"
-          icon={<Bell size={20} />}
+          icon={<Bell size={19} />}
           to="/app/notifications"
         />
       </div>
 
-      <div className="two-col">
+      <div className="two-col" style={{ marginBottom: 20 }}>
         <Panel
           title="Recent claims"
           flush
@@ -367,7 +352,7 @@ export default function Dashboard() {
             query={clm}
             empty={{
               title: 'No claims yet',
-              text: 'If something happens, file a claim from any active policy.',
+              text: 'When you need to make a claim, you can track it here.',
             }}
             emptyAction={
               <Link className="btn dark" to="/app/policies">
@@ -387,7 +372,6 @@ export default function Dashboard() {
 
                   <div className="grow">
                     <b>Claim #{claim.claimNumber ?? '—'}</b>
-
                     <span className="muted">
                       {' '}
                       · {claim.claimType || 'Insurance claim'}
@@ -401,7 +385,6 @@ export default function Dashboard() {
 
                   <div style={{ textAlign: 'right' }}>
                     <StatusBadge value={claim.status || 'UNKNOWN'} />
-
                     <div
                       className="num"
                       style={{ fontSize: 13.5, marginTop: 4 }}
@@ -428,7 +411,7 @@ export default function Dashboard() {
             query={ntf}
             empty={{
               title: 'Nothing new',
-              text: 'Offers, payment receipts and claim updates show up here.',
+              text: 'Offers, payment receipts and claim updates will appear here.',
             }}
           >
             {() =>
