@@ -1,30 +1,33 @@
+
 /* =========================================================
    INSUREX — CENTRAL API ENDPOINTS
-   Authentication • Users • Policies • Claims
-   Payments • Settlements • Reviews • Notifications
+   Original routes and existing settings preserved
 ========================================================= */
 
-// Your Axios client file must export `api`.
-// If the code you supplied is saved as src/api/api.js,
-// this import is correct.
-import { api } from './api'
+import { api } from './client'
 
-const d = (request) => request.then((response) => response.data)
+const d = (p) => p.then((r) => r.data)
 
 /* =========================================================
-   AUTHENTICATION
+   AUTHENTICATION & SESSION
 ========================================================= */
 
 export const auth = {
   login: (body) => d(api.post('/api/auth/login', body)),
-  signup: (body) => d(api.post('/api/auth/signup', body)),
-  register: (body) => d(api.post('/api/auth/signup', body)),
+
   sendOtp: (body) => d(api.post('/api/auth/send-otp', body)),
+
   verifyOtp: (body) => d(api.post('/api/auth/verify-otp', body)),
+
   forgotPassword: (body) =>
     d(api.post('/api/auth/forgot-password', body)),
+
   resetPassword: (body) =>
     d(api.post('/api/auth/reset-password', body)),
+}
+
+export const session = {
+  current: () => d(api.get('/api/session')),
 }
 
 /* =========================================================
@@ -32,28 +35,30 @@ export const auth = {
 ========================================================= */
 
 export const users = {
+  register: (body) => d(api.post('/user/save', body)),
+
+  me: () => d(api.get('/user/me')),
+
+  updateMe: (body) => d(api.put('/user/me', body)),
+
+  changePassword: (body) =>
+    d(api.put('/user/me/password', body)),
+
   getAll: () => d(api.get('/user/getAll')),
+
   get: (id) => d(api.get(`/user/get/${encodeURIComponent(id)}`)),
-  save: (body) => d(api.post('/user/save', body)),
+
   update: (id, body) =>
     d(api.put(`/user/update/${encodeURIComponent(id)}`, body)),
+
+  activate: (id) =>
+    d(api.put(`/user/activate/${encodeURIComponent(id)}`)),
+
+  deactivate: (id) =>
+    d(api.put(`/user/deactivate/${encodeURIComponent(id)}`)),
+
   remove: (id) =>
     d(api.delete(`/user/delete/${encodeURIComponent(id)}`)),
-}
-
-/* =========================================================
-   PLANS
-========================================================= */
-
-export const plans = {
-  getAll: () => d(api.get('/policy/getAll')),
-  available: () => d(api.get('/policy/available')),
-  get: (id) => d(api.get(`/policy/get/${encodeURIComponent(id)}`)),
-  save: (body) => d(api.post('/policy/save', body)),
-  update: (id, body) =>
-    d(api.put(`/policy/update/${encodeURIComponent(id)}`, body)),
-  remove: (id) =>
-    d(api.delete(`/policy/delete/${encodeURIComponent(id)}`)),
 }
 
 /* =========================================================
@@ -62,29 +67,51 @@ export const plans = {
 
 export const policies = {
   available: () => d(api.get('/policy/available')),
+
   mine: () => d(api.get('/policy/my-policies')),
+
   getAll: () => d(api.get('/policy/getAll')),
+
   get: (id) => d(api.get(`/policy/get/${encodeURIComponent(id)}`)),
+
   save: (body) => d(api.post('/policy/save', body)),
+
   update: (id, body) =>
     d(api.put(`/policy/update/${encodeURIComponent(id)}`, body)),
-  remove: (id) =>
-    d(api.delete(`/policy/delete/${encodeURIComponent(id)}`)),
+
   activate: (id) =>
     d(api.put(`/policy/activate/${encodeURIComponent(id)}`)),
+
   deactivate: (id) =>
     d(api.put(`/policy/deactivate/${encodeURIComponent(id)}`)),
+
+  remove: (id) =>
+    d(api.delete(`/policy/delete/${encodeURIComponent(id)}`)),
 }
 
 /* =========================================================
-   POLICY PURCHASES
+   PLANS — EXISTING API SETTINGS
+========================================================= */
+
+export const plans = {
+  available: () => d(api.get('/api/plans/available')),
+
+  get: (planId) =>
+    d(api.get(`/api/plans/${encodeURIComponent(planId)}`)),
+}
+
+/* =========================================================
+   PURCHASES
 ========================================================= */
 
 export const purchases = {
   purchase: (body) => d(api.post('/policy/purchase', body)),
+
   mine: () => d(api.get('/policy/my-purchases')),
+
   getAll: () => d(api.get('/policy/purchases')),
-  refund: (purchaseId, body) =>
+
+  refund: (purchaseId, body = {}) =>
     d(
       api.post(
         `/policy/purchases/${encodeURIComponent(purchaseId)}/refund`,
@@ -99,18 +126,29 @@ export const purchases = {
 
 export const policyHolders = {
   getAll: () => d(api.get('/policyholder/getAll')),
+
   get: (id) =>
     d(api.get(`/policyholder/get/${encodeURIComponent(id)}`)),
+
   save: (body) => d(api.post('/policyholder/save', body)),
+
   update: (id, body) =>
-    d(
-      api.put(
-        `/policyholder/update/${encodeURIComponent(id)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/policyholder/update/${encodeURIComponent(id)}`, body)),
+
   remove: (id) =>
     d(api.delete(`/policyholder/delete/${encodeURIComponent(id)}`)),
+}
+
+/* =========================================================
+   PAYMENTS — RAZORPAY
+========================================================= */
+
+export const payment = {
+  createOrder: (body) =>
+    d(api.post('/payment/create-order', body)),
+
+  verify: (body) =>
+    d(api.post('/payment/verify', body)),
 }
 
 /* =========================================================
@@ -119,10 +157,14 @@ export const policyHolders = {
 
 export const claims = {
   save: (body) => d(api.post('/claims/save', body)),
+
   mine: () => d(api.get('/claims/my-claims')),
+
   getAll: () => d(api.get('/claims/getAll')),
+
   get: (claimNumber) =>
     d(api.get(`/claims/get/${encodeURIComponent(claimNumber)}`)),
+
   update: (claimNumber, body) =>
     d(
       api.put(
@@ -130,6 +172,7 @@ export const claims = {
         body,
       ),
     ),
+
   approve: (claimNumber, body = {}) =>
     d(
       api.put(
@@ -137,6 +180,7 @@ export const claims = {
         body,
       ),
     ),
+
   reject: (claimNumber, body = {}) =>
     d(
       api.put(
@@ -144,23 +188,9 @@ export const claims = {
         body,
       ),
     ),
+
   remove: (claimNumber) =>
     d(api.delete(`/claims/delete/${encodeURIComponent(claimNumber)}`)),
-}
-
-/* =========================================================
-   PAYMENTS
-   Verify these routes against your payment controller.
-========================================================= */
-
-export const payment = {
-  createOrder: (body) =>
-    d(api.post('/payment/create-order', body)),
-  verify: (body) => d(api.post('/payment/verify', body)),
-  pay: (body) => d(api.post('/payment/pay', body)),
-  mine: () => d(api.get('/payment/my-payments')),
-  getAll: () => d(api.get('/payment/getAll')),
-  get: (id) => d(api.get(`/payment/get/${encodeURIComponent(id)}`)),
 }
 
 /* =========================================================
@@ -169,68 +199,120 @@ export const payment = {
 
 export const settlements = {
   getAll: () => d(api.get('/settlement/getAll')),
-  get: (id) =>
-    d(api.get(`/settlement/get/${encodeURIComponent(id)}`)),
+
+  get: (settlementNumber) =>
+    d(
+      api.get(
+        `/settlement/get/${encodeURIComponent(settlementNumber)}`,
+      ),
+    ),
+
+  byClaim: (claimNumber) =>
+    d(api.get(`/settlement/claim/${encodeURIComponent(claimNumber)}`)),
+
   save: (body) => d(api.post('/settlement/save', body)),
-  update: (id, body) =>
-    d(api.put(`/settlement/update/${encodeURIComponent(id)}`, body)),
-  remove: (id) =>
-    d(api.delete(`/settlement/delete/${encodeURIComponent(id)}`)),
+
+  update: (settlementNumber, body) =>
+    d(
+      api.put(
+        `/settlement/update/${encodeURIComponent(settlementNumber)}`,
+        body,
+      ),
+    ),
+
+  process: (settlementNumber) =>
+    d(
+      api.put(
+        `/settlement/process/${encodeURIComponent(settlementNumber)}`,
+      ),
+    ),
+
+  reject: (settlementNumber, rejectionReason) =>
+    d(
+      api.put(
+        `/settlement/reject/${encodeURIComponent(settlementNumber)}`,
+        { rejectionReason },
+      ),
+    ),
+
+  remove: (settlementNumber) =>
+    d(
+      api.delete(
+        `/settlement/delete/${encodeURIComponent(settlementNumber)}`,
+      ),
+    ),
 }
 
 /* =========================================================
-   REVIEWS
+   REVIEWS — ORIGINAL REVIEWER ROUTES
 ========================================================= */
 
 export const reviews = {
-  mine: () => d(api.get('/reviews/my-reviews')),
-  getAll: () => d(api.get('/reviews/getAll')),
-  get: (id) => d(api.get(`/reviews/get/${encodeURIComponent(id)}`)),
-  save: (body) => d(api.post('/reviews/save', body)),
+  save: (body) => d(api.post('/reviewer/save', body)),
+
+  mine: () => d(api.get('/reviewer/my-reviews')),
+
+  getAll: () => d(api.get('/reviewer/getAll')),
+
+  get: (id) => d(api.get(`/reviewer/get/${encodeURIComponent(id)}`)),
+
   update: (id, body) =>
-    d(api.put(`/reviews/update/${encodeURIComponent(id)}`, body)),
+    d(api.put(`/reviewer/update/${encodeURIComponent(id)}`, body)),
+
+  reply: (id, body) =>
+    d(api.put(`/reviewer/reply/${encodeURIComponent(id)}`, body)),
+
   remove: (id) =>
-    d(api.delete(`/reviews/delete/${encodeURIComponent(id)}`)),
+    d(api.delete(`/reviewer/delete/${encodeURIComponent(id)}`)),
 }
 
 /* =========================================================
-   NOTIFICATIONS
+   CUSTOMER NOTIFICATIONS
 ========================================================= */
 
 export const notifications = {
   mine: () => d(api.get('/api/notifications/my')),
+
   unread: () => d(api.get('/api/notifications/unread-count')),
+
   read: (id) =>
     d(api.put(`/api/notifications/read/${encodeURIComponent(id)}`)),
+
   readAll: () => d(api.put('/api/notifications/read-all')),
+
   remove: (id) =>
     d(api.delete(`/api/notifications/${encodeURIComponent(id)}`)),
 }
 
 /* =========================================================
-   BROADCAST
-   Verify these routes against your notification controller.
+   ADMIN NOTIFICATIONS & BROADCAST
 ========================================================= */
 
 export const broadcast = {
-  send: (body) =>
-    d(api.post('/api/notifications/broadcast', body)),
-  getAll: () => d(api.get('/api/notifications/broadcast')),
+  send: (body) => d(api.post('/api/admin/notifications', body)),
+
+  customers: () => d(api.get('/api/admin/notifications/customers')),
+
+  getAll: () => d(api.get('/api/admin/notifications')),
+
+  remove: (id) =>
+    d(api.delete(`/api/admin/notifications/${encodeURIComponent(id)}`)),
 }
 
 /* =========================================================
-   DEFAULT EXPORT
+   DEFAULT EXPORT — KEEP NAMED EXPORTS ABOVE
 ========================================================= */
 
 export default {
   auth,
+  session,
   users,
-  plans,
   policies,
+  plans,
   purchases,
   policyHolders,
-  claims,
   payment,
+  claims,
   settlements,
   reviews,
   notifications,
