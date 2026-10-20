@@ -1,10 +1,14 @@
+
 import { api } from './client'
 
-const d = (p) => p.then((r) => r.data)
+const d = (promise) => promise.then((response) => response.data)
+
+const id = (value) => encodeURIComponent(String(value))
 
 // =====================================================
 // AUTHENTICATION
 // =====================================================
+
 export const auth = {
   login: (body) => d(api.post('/api/auth/login', body)),
 
@@ -26,75 +30,86 @@ export const auth = {
 // =====================================================
 // USERS
 // =====================================================
+
 export const users = {
   register: (body) => d(api.post('/user/save', body)),
-
   me: () => d(api.get('/user/me')),
-
   updateMe: (body) => d(api.put('/user/me', body)),
 
   changePassword: (body) =>
     d(api.put('/user/me/password', body)),
 
   getAll: () => d(api.get('/user/getAll')),
+  get: (userId) => d(api.get(`/user/get/${id(userId)}`)),
 
-  get: (id) => d(api.get(`/user/get/${id}`)),
+  update: (userId, body) =>
+    d(api.put(`/user/update/${id(userId)}`, body)),
 
-  update: (id, body) =>
-    d(api.put(`/user/update/${id}`, body)),
+  activate: (userId) =>
+    d(api.put(`/user/activate/${id(userId)}`)),
 
-  activate: (id) =>
-    d(api.put(`/user/activate/${id}`)),
+  deactivate: (userId) =>
+    d(api.put(`/user/deactivate/${id(userId)}`)),
 
-  deactivate: (id) =>
-    d(api.put(`/user/deactivate/${id}`)),
-
-  remove: (id) =>
-    d(api.delete(`/user/delete/${id}`)),
+  remove: (userId) =>
+    d(api.delete(`/user/delete/${id(userId)}`)),
 }
 
 // =====================================================
-// PERMANENT INSURANCE CATALOGUE
-// Separate from customer-owned policies.
+// INSURANCE CATALOGUE
 // =====================================================
+
 export const plans = {
-  available: () =>
-    d(api.get('/api/plans/available')),
+  available: () => d(api.get('/api/plans/available')),
 
   get: (planId) =>
-    d(api.get(`/api/plans/${planId}`)),
+    d(api.get(`/api/plans/${id(planId)}`)),
 }
 
 // =====================================================
-// CUSTOMER-OWNED POLICIES
+// POLICIES
 // =====================================================
+
 export const policies = {
   available: () => d(api.get('/policy/available')),
-
   mine: () => d(api.get('/policy/my-policies')),
-
   getAll: () => d(api.get('/policy/getAll')),
 
-  get: (n) => d(api.get(`/policy/get/${n}`)),
+  get: (number) =>
+    d(api.get(`/policy/get/${id(number)}`)),
 
   save: (body) => d(api.post('/policy/save', body)),
 
-  update: (n, body) =>
-    d(api.put(`/policy/update/${n}`, body)),
+  update: (number, body) =>
+    d(api.put(`/policy/update/${id(number)}`, body)),
 
-  remove: (n) =>
-    d(api.delete(`/policy/delete/${n}`)),
+  remove: (number) =>
+    d(api.delete(`/policy/delete/${id(number)}`)),
 
-  activate: (n) =>
-    d(api.put(`/policy/activate/${n}`)),
+  activate: (number) =>
+    d(api.put(`/policy/activate/${id(number)}`)),
 
-  deactivate: (n) =>
-    d(api.put(`/policy/deactivate/${n}`)),
+  deactivate: (number) =>
+    d(api.put(`/policy/deactivate/${id(number)}`)),
 }
 
 // =====================================================
-// POLICY PURCHASES
+// PURCHASES & REFUNDS
 // =====================================================
+
+// REQUIRED CONFIGURATION:
+// Set VITE_REFUND_REQUEST_PATH to the actual refund route
+// from RefundController.
+//
+// Example format only:
+// /your/actual/refund/path/{purchaseId}
+//
+// If your controller uses a different HTTP method or body,
+// update the refund function to match it.
+
+const refundPathTemplate =
+  import.meta.env.VITE_REFUND_REQUEST_PATH?.trim() || ''
+
 export const purchases = {
   purchase: (body) =>
     d(api.post('/policy/purchase', body)),
@@ -104,11 +119,31 @@ export const purchases = {
 
   getAll: () =>
     d(api.get('/policy/purchases')),
+
+  refund: (purchaseId, body) => {
+    if (!refundPathTemplate) {
+      throw new Error(
+        'Refund API route is not configured. Set VITE_REFUND_REQUEST_PATH to the route defined in RefundController.',
+      )
+    }
+
+    const path = refundPathTemplate.replace(
+      '{purchaseId}',
+      id(purchaseId),
+    )
+
+    if (!path.startsWith('/')) {
+      throw new Error('Refund API path must begin with /.')
+    }
+
+    return d(api.post(path, body))
+  },
 }
 
 // =====================================================
 // PAYMENTS
 // =====================================================
+
 export const payment = {
   createOrder: (body) =>
     d(api.post('/payment/create-order', body)),
@@ -120,134 +155,125 @@ export const payment = {
 // =====================================================
 // POLICY HOLDERS
 // =====================================================
-export const policyHolders = {
-  getAll: () =>
-    d(api.get('/policyholder/getAll')),
 
-  get: (id) =>
-    d(api.get(`/policyholder/get/${id}`)),
+export const policyHolders = {
+  getAll: () => d(api.get('/policyholder/getAll')),
+
+  get: (holderId) =>
+    d(api.get(`/policyholder/get/${id(holderId)}`)),
 
   save: (body) =>
     d(api.post('/policyholder/save', body)),
 
-  update: (id, body) =>
-    d(api.put(`/policyholder/update/${id}`, body)),
+  update: (holderId, body) =>
+    d(api.put(`/policyholder/update/${id(holderId)}`, body)),
 
-  remove: (id) =>
-    d(api.delete(`/policyholder/delete/${id}`)),
+  remove: (holderId) =>
+    d(api.delete(`/policyholder/delete/${id(holderId)}`)),
 }
 
 // =====================================================
 // CLAIMS
 // =====================================================
+
 export const claims = {
-  save: (body) =>
-    d(api.post('/claims/save', body)),
+  save: (body) => d(api.post('/claims/save', body)),
+  mine: () => d(api.get('/claims/my-claims')),
+  getAll: () => d(api.get('/claims/getAll')),
 
-  mine: () =>
-    d(api.get('/claims/my-claims')),
+  get: (number) =>
+    d(api.get(`/claims/get/${id(number)}`)),
 
-  getAll: () =>
-    d(api.get('/claims/getAll')),
+  update: (number, body) =>
+    d(api.put(`/claims/update/${id(number)}`, body)),
 
-  get: (n) =>
-    d(api.get(`/claims/get/${n}`)),
+  approve: (number, body) =>
+    d(api.put(`/claims/approve/${id(number)}`, body)),
 
-  update: (n, body) =>
-    d(api.put(`/claims/update/${n}`, body)),
+  reject: (number, body) =>
+    d(api.put(`/claims/reject/${id(number)}`, body)),
 
-  approve: (n, body) =>
-    d(api.put(`/claims/approve/${n}`, body)),
-
-  reject: (n, body) =>
-    d(api.put(`/claims/reject/${n}`, body)),
-
-  remove: (n) =>
-    d(api.delete(`/claims/delete/${n}`)),
+  remove: (number) =>
+    d(api.delete(`/claims/delete/${id(number)}`)),
 }
 
 // =====================================================
 // SETTLEMENTS
 // =====================================================
+
 export const settlements = {
-  getAll: () =>
-    d(api.get('/settlement/getAll')),
+  getAll: () => d(api.get('/settlement/getAll')),
 
-  get: (n) =>
-    d(api.get(`/settlement/get/${n}`)),
+  get: (number) =>
+    d(api.get(`/settlement/get/${id(number)}`)),
 
-  byClaim: (c) =>
-    d(api.get(`/settlement/claim/${c}`)),
+  byClaim: (claimNumber) =>
+    d(api.get(`/settlement/claim/${id(claimNumber)}`)),
 
   save: (body) =>
     d(api.post('/settlement/save', body)),
 
-  update: (n, body) =>
-    d(api.put(`/settlement/update/${n}`, body)),
+  update: (number, body) =>
+    d(api.put(`/settlement/update/${id(number)}`, body)),
 
-  process: (n) =>
-    d(api.put(`/settlement/process/${n}`)),
+  process: (number) =>
+    d(api.put(`/settlement/process/${id(number)}`)),
 
-  reject: (n, rejectionReason) =>
-    d(
-      api.put(`/settlement/reject/${n}`, {
-        rejectionReason,
-      })
-    ),
+  reject: (number, rejectionReason) =>
+    d(api.put(`/settlement/reject/${id(number)}`, {
+      rejectionReason,
+    })),
 
-  remove: (n) =>
-    d(api.delete(`/settlement/delete/${n}`)),
+  remove: (number) =>
+    d(api.delete(`/settlement/delete/${id(number)}`)),
 }
 
 // =====================================================
 // REVIEWS
 // =====================================================
+
 export const reviews = {
-  save: (body) =>
-    d(api.post('/reviewer/save', body)),
+  save: (body) => d(api.post('/reviewer/save', body)),
+  mine: () => d(api.get('/reviewer/my-reviews')),
+  getAll: () => d(api.get('/reviewer/getAll')),
 
-  mine: () =>
-    d(api.get('/reviewer/my-reviews')),
+  get: (reviewId) =>
+    d(api.get(`/reviewer/get/${id(reviewId)}`)),
 
-  getAll: () =>
-    d(api.get('/reviewer/getAll')),
+  update: (reviewId, body) =>
+    d(api.put(`/reviewer/update/${id(reviewId)}`, body)),
 
-  get: (id) =>
-    d(api.get(`/reviewer/get/${id}`)),
+  reply: (reviewId, body) =>
+    d(api.put(`/reviewer/reply/${id(reviewId)}`, body)),
 
-  update: (id, body) =>
-    d(api.put(`/reviewer/update/${id}`, body)),
-
-  reply: (id, body) =>
-    d(api.put(`/reviewer/reply/${id}`, body)),
-
-  remove: (id) =>
-    d(api.delete(`/reviewer/delete/${id}`)),
+  remove: (reviewId) =>
+    d(api.delete(`/reviewer/delete/${id(reviewId)}`)),
 }
 
 // =====================================================
 // CUSTOMER NOTIFICATIONS
 // =====================================================
+
 export const notifications = {
-  mine: () =>
-    d(api.get('/api/notifications/my')),
+  mine: () => d(api.get('/api/notifications/my')),
 
   unread: () =>
     d(api.get('/api/notifications/unread-count')),
 
-  read: (id) =>
-    d(api.put(`/api/notifications/read/${id}`)),
+  read: (notificationId) =>
+    d(api.put(`/api/notifications/read/${id(notificationId)}`)),
 
   readAll: () =>
     d(api.put('/api/notifications/read-all')),
 
-  remove: (id) =>
-    d(api.delete(`/api/notifications/${id}`)),
+  remove: (notificationId) =>
+    d(api.delete(`/api/notifications/${id(notificationId)}`)),
 }
 
 // =====================================================
-// ADMIN BROADCAST NOTIFICATIONS
+// ADMIN BROADCAST
 // =====================================================
+
 export const broadcast = {
   send: (body) =>
     d(api.post('/api/admin/notifications', body)),
@@ -258,6 +284,6 @@ export const broadcast = {
   list: () =>
     d(api.get('/api/admin/notifications')),
 
-  remove: (id) =>
-    d(api.delete(`/api/admin/notifications/${id}`)),
+  remove: (notificationId) =>
+    d(api.delete(`/api/admin/notifications/${id(notificationId)}`)),
 }
