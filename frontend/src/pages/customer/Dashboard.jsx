@@ -1,10 +1,10 @@
+
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowRight,
   Bell,
-  CalendarClock,
   FileText,
   ShieldCheck,
   WalletCards,
@@ -62,10 +62,6 @@ function safeDate(value) {
 
 function getClaimDate(claim) {
   return claim?.claimDate ? date(claim.claimDate) : 'Date unavailable'
-}
-
-function getExpiryDate(policy) {
-  return policy?.expiryDate ? date(policy.expiryDate) : 'Not available'
 }
 
 function getClaimAmount(claim) {
@@ -263,17 +259,6 @@ export default function Dashboard() {
     [notificationRows],
   )
 
-  const expiringPolicies = useMemo(
-    () =>
-      [...policyRows]
-        .sort(
-          (a, b) =>
-            safeDate(a?.expiryDate) - safeDate(b?.expiryDate),
-        )
-        .slice(0, 4),
-    [policyRows],
-  )
-
   const firstName = user?.username?.trim() || 'Customer'
 
   return (
@@ -401,9 +386,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className="grow">
-                    <b>
-                      Claim #{claim.claimNumber ?? '—'}
-                    </b>
+                    <b>Claim #{claim.claimNumber ?? '—'}</b>
 
                     <span className="muted">
                       {' '}
@@ -464,9 +447,7 @@ export default function Dashboard() {
                   </div>
 
                   <div className="grow">
-                    <b>
-                      {notification.title || 'InsureX update'}
-                    </b>
+                    <b>{notification.title || 'InsureX update'}</b>
 
                     <div
                       className="muted"
@@ -499,71 +480,6 @@ export default function Dashboard() {
                       New
                     </span>
                   )}
-                </div>
-              ))
-            }
-          </DataState>
-        </Panel>
-      </div>
-
-      <div style={{ marginTop: 22 }}>
-        <Panel
-          title="Policies nearing expiry"
-          flush
-          actions={
-            <Link className="btn sm" to="/app/policies">
-              View policies
-            </Link>
-          }
-        >
-          <DataState
-            query={pol}
-            empty={{
-              title: 'No policies available',
-              text: 'Your policy expiry information will appear here.',
-            }}
-          >
-            {() =>
-              expiringPolicies.map((policy, index) => (
-                <div
-                  className="list-item"
-                  key={policy.policyNumber ?? `policy-${index}`}
-                >
-                  <div className="dot-icon">
-                    <CalendarClock size={19} />
-                  </div>
-
-                  <div className="grow">
-                    <b>
-                      Policy #{policy.policyNumber ?? '—'}
-                    </b>
-
-                    <div
-                      className="muted"
-                      style={{ fontSize: 13, marginTop: 4 }}
-                    >
-                      {policy.coveredTypes ||
-                        policy.coverageType ||
-                        'Insurance policy'}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: 'right' }}>
-                    <StatusBadge
-                      value={
-                        isActive(policy.isActive)
-                          ? 'ACTIVE'
-                          : 'INACTIVE'
-                      }
-                    />
-
-                    <div
-                      className="faint"
-                      style={{ fontSize: 12, marginTop: 5 }}
-                    >
-                      Expires {getExpiryDate(policy)}
-                    </div>
-                  </div>
                 </div>
               ))
             }
