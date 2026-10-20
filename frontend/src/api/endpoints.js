@@ -1,40 +1,43 @@
 import { api } from './client'
 
 const d = (request) => request.then((response) => response.data)
+const id = (value) => encodeURIComponent(String(value))
 
-/* =========================================================
-   INSUREX — CENTRAL API ENDPOINTS
-   Authentication • Session • Users • Policies • Claims
-   Payments • Settlements • Reviews • Notifications
-========================================================= */
-
-/* ========================= AUTHENTICATION ========================= */
-
+// =====================================================
+// AUTHENTICATION
+// =====================================================
 export const auth = {
   login: (body) =>
     d(api.post('/api/auth/login', body)),
 
-  sendOtp: (body) =>
-    d(api.post('/api/auth/send-otp', body)),
+  sendOtp: (identifier) =>
+    d(api.post('/api/auth/send-otp', { identifier })),
 
   verifyOtp: (body) =>
     d(api.post('/api/auth/verify-otp', body)),
 
-  forgotPassword: (body) =>
-    d(api.post('/api/auth/forgot-password', body)),
+  forgotPassword: (identifier) =>
+    d(api.post('/api/auth/forgot-password', { identifier })),
 
   resetPassword: (body) =>
     d(api.post('/api/auth/reset-password', body)),
+
+  // Use the authenticated user's profile as the session check.
+  session: () =>
+    d(api.get('/user/me')),
 }
 
-/* ========================= SESSION ========================= */
-
+// =====================================================
+// SESSION
+// =====================================================
 export const session = {
-  current: () => d(api.get('/user/me')),
+  current: () =>
+    d(api.get('/user/me')),
 }
 
-/* ========================= USERS ========================= */
-
+// =====================================================
+// USERS
+// =====================================================
 export const users = {
   register: (body) =>
     d(api.post('/user/save', body)),
@@ -51,24 +54,25 @@ export const users = {
   getAll: () =>
     d(api.get('/user/getAll')),
 
-  get: (id) =>
-    d(api.get(`/user/get/${encodeURIComponent(id)}`)),
+  get: (userId) =>
+    d(api.get(`/user/get/${id(userId)}`)),
 
-  update: (id, body) =>
-    d(api.put(`/user/update/${encodeURIComponent(id)}`, body)),
+  update: (userId, body) =>
+    d(api.put(`/user/update/${id(userId)}`, body)),
 
-  activate: (id) =>
-    d(api.put(`/user/activate/${encodeURIComponent(id)}`)),
+  activate: (userId) =>
+    d(api.put(`/user/activate/${id(userId)}`)),
 
-  deactivate: (id) =>
-    d(api.put(`/user/deactivate/${encodeURIComponent(id)}`)),
+  deactivate: (userId) =>
+    d(api.put(`/user/deactivate/${id(userId)}`)),
 
-  remove: (id) =>
-    d(api.delete(`/user/delete/${encodeURIComponent(id)}`)),
+  remove: (userId) =>
+    d(api.delete(`/user/delete/${id(userId)}`)),
 }
 
-/* ========================= POLICIES ========================= */
-
+// =====================================================
+// POLICIES
+// =====================================================
 export const policies = {
   available: () =>
     d(api.get('/policy/available')),
@@ -79,37 +83,28 @@ export const policies = {
   getAll: () =>
     d(api.get('/policy/getAll')),
 
-  get: (id) =>
-    d(api.get(`/policy/get/${encodeURIComponent(id)}`)),
+  get: (policyId) =>
+    d(api.get(`/policy/get/${id(policyId)}`)),
 
   save: (body) =>
     d(api.post('/policy/save', body)),
 
-  update: (id, body) =>
-    d(api.put(`/policy/update/${encodeURIComponent(id)}`, body)),
+  update: (policyId, body) =>
+    d(api.put(`/policy/update/${id(policyId)}`, body)),
 
-  activate: (id) =>
-    d(api.put(`/policy/activate/${encodeURIComponent(id)}`)),
+  remove: (policyId) =>
+    d(api.delete(`/policy/delete/${id(policyId)}`)),
 
-  deactivate: (id) =>
-    d(api.put(`/policy/deactivate/${encodeURIComponent(id)}`)),
+  activate: (policyId) =>
+    d(api.put(`/policy/activate/${id(policyId)}`)),
 
-  remove: (id) =>
-    d(api.delete(`/policy/delete/${encodeURIComponent(id)}`)),
+  deactivate: (policyId) =>
+    d(api.put(`/policy/deactivate/${id(policyId)}`)),
 }
 
-/* ========================= INSURANCE PLANS ========================= */
-
-export const plans = {
-  available: () =>
-    d(api.get('/api/plans/available')),
-
-  get: (planId) =>
-    d(api.get(`/api/plans/${encodeURIComponent(planId)}`)),
-}
-
-/* ========================= POLICY PURCHASES ========================= */
-
+// =====================================================
+// POLICY PURCHASES
+// =====================================================
 export const purchases = {
   purchase: (body) =>
     d(api.post('/policy/purchase', body)),
@@ -121,35 +116,12 @@ export const purchases = {
     d(api.get('/policy/purchases')),
 
   refund: (purchaseId, body = {}) =>
-    d(
-      api.post(
-        `/policy/purchases/${encodeURIComponent(purchaseId)}/refund`,
-        body,
-      ),
-    ),
+    d(api.post(`/policy/purchases/${id(purchaseId)}/refund`, body)),
 }
 
-/* ========================= POLICY HOLDERS ========================= */
-
-export const policyHolders = {
-  getAll: () =>
-    d(api.get('/policyholder/getAll')),
-
-  get: (id) =>
-    d(api.get(`/policyholder/get/${encodeURIComponent(id)}`)),
-
-  save: (body) =>
-    d(api.post('/policyholder/save', body)),
-
-  update: (id, body) =>
-    d(api.put(`/policyholder/update/${encodeURIComponent(id)}`, body)),
-
-  remove: (id) =>
-    d(api.delete(`/policyholder/delete/${encodeURIComponent(id)}`)),
-}
-
-/* ========================= PAYMENTS ========================= */
-
+// =====================================================
+// PAYMENTS
+// =====================================================
 export const payment = {
   createOrder: (body) =>
     d(api.post('/payment/create-order', body)),
@@ -158,8 +130,29 @@ export const payment = {
     d(api.post('/payment/verify', body)),
 }
 
-/* ========================= CLAIMS ========================= */
+// =====================================================
+// POLICY HOLDERS
+// =====================================================
+export const policyHolders = {
+  getAll: () =>
+    d(api.get('/policyholder/getAll')),
 
+  get: (holderId) =>
+    d(api.get(`/policyholder/get/${id(holderId)}`)),
+
+  save: (body) =>
+    d(api.post('/policyholder/save', body)),
+
+  update: (holderId, body) =>
+    d(api.put(`/policyholder/update/${id(holderId)}`, body)),
+
+  remove: (holderId) =>
+    d(api.delete(`/policyholder/delete/${id(holderId)}`)),
+}
+
+// =====================================================
+// CLAIMS
+// =====================================================
 export const claims = {
   save: (body) =>
     d(api.post('/claims/save', body)),
@@ -171,92 +164,57 @@ export const claims = {
     d(api.get('/claims/getAll')),
 
   get: (claimNumber) =>
-    d(api.get(`/claims/get/${encodeURIComponent(claimNumber)}`)),
+    d(api.get(`/claims/get/${id(claimNumber)}`)),
 
   update: (claimNumber, body) =>
-    d(
-      api.put(
-        `/claims/update/${encodeURIComponent(claimNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/claims/update/${id(claimNumber)}`, body)),
 
   approve: (claimNumber, body = {}) =>
-    d(
-      api.put(
-        `/claims/approve/${encodeURIComponent(claimNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/claims/approve/${id(claimNumber)}`, body)),
 
   reject: (claimNumber, body = {}) =>
-    d(
-      api.put(
-        `/claims/reject/${encodeURIComponent(claimNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/claims/reject/${id(claimNumber)}`, body)),
 
   remove: (claimNumber) =>
-    d(api.delete(`/claims/delete/${encodeURIComponent(claimNumber)}`)),
+    d(api.delete(`/claims/delete/${id(claimNumber)}`)),
 }
 
-/* ========================= SETTLEMENTS ========================= */
-
+// =====================================================
+// SETTLEMENTS
+// =====================================================
 export const settlements = {
   getAll: () =>
     d(api.get('/settlement/getAll')),
 
   get: (settlementNumber) =>
-    d(
-      api.get(
-        `/settlement/get/${encodeURIComponent(settlementNumber)}`,
-      ),
-    ),
+    d(api.get(`/settlement/get/${id(settlementNumber)}`)),
 
   byClaim: (claimNumber) =>
-    d(
-      api.get(
-        `/settlement/claim/${encodeURIComponent(claimNumber)}`,
-      ),
-    ),
+    d(api.get(`/settlement/claim/${id(claimNumber)}`)),
 
   save: (body) =>
     d(api.post('/settlement/save', body)),
 
   update: (settlementNumber, body) =>
-    d(
-      api.put(
-        `/settlement/update/${encodeURIComponent(settlementNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/settlement/update/${id(settlementNumber)}`, body)),
 
   process: (settlementNumber) =>
-    d(
-      api.put(
-        `/settlement/process/${encodeURIComponent(settlementNumber)}`,
-      ),
-    ),
+    d(api.put(`/settlement/process/${id(settlementNumber)}`)),
 
   reject: (settlementNumber, rejectionReason) =>
     d(
-      api.put(
-        `/settlement/reject/${encodeURIComponent(settlementNumber)}`,
-        { rejectionReason },
-      ),
+      api.put(`/settlement/reject/${id(settlementNumber)}`, {
+        rejectionReason,
+      }),
     ),
 
   remove: (settlementNumber) =>
-    d(
-      api.delete(
-        `/settlement/delete/${encodeURIComponent(settlementNumber)}`,
-      ),
-    ),
+    d(api.delete(`/settlement/delete/${id(settlementNumber)}`)),
 }
 
-/* ========================= REVIEWS ========================= */
-
+// =====================================================
+// REVIEWS
+// =====================================================
 export const reviews = {
   save: (body) =>
     d(api.post('/reviewer/save', body)),
@@ -267,21 +225,22 @@ export const reviews = {
   getAll: () =>
     d(api.get('/reviewer/getAll')),
 
-  get: (id) =>
-    d(api.get(`/reviewer/get/${encodeURIComponent(id)}`)),
+  get: (reviewId) =>
+    d(api.get(`/reviewer/get/${id(reviewId)}`)),
 
-  update: (id, body) =>
-    d(api.put(`/reviewer/update/${encodeURIComponent(id)}`, body)),
+  update: (reviewId, body) =>
+    d(api.put(`/reviewer/update/${id(reviewId)}`, body)),
 
-  reply: (id, body) =>
-    d(api.put(`/reviewer/reply/${encodeURIComponent(id)}`, body)),
+  reply: (reviewId, body) =>
+    d(api.put(`/reviewer/reply/${id(reviewId)}`, body)),
 
-  remove: (id) =>
-    d(api.delete(`/reviewer/delete/${encodeURIComponent(id)}`)),
+  remove: (reviewId) =>
+    d(api.delete(`/reviewer/delete/${id(reviewId)}`)),
 }
 
-/* ========================= CUSTOMER NOTIFICATIONS ========================= */
-
+// =====================================================
+// CUSTOMER NOTIFICATIONS
+// =====================================================
 export const notifications = {
   mine: () =>
     d(api.get('/api/notifications/my')),
@@ -289,18 +248,19 @@ export const notifications = {
   unread: () =>
     d(api.get('/api/notifications/unread-count')),
 
-  read: (id) =>
-    d(api.put(`/api/notifications/read/${encodeURIComponent(id)}`)),
+  read: (notificationId) =>
+    d(api.put(`/api/notifications/read/${id(notificationId)}`)),
 
   readAll: () =>
     d(api.put('/api/notifications/read-all')),
 
-  remove: (id) =>
-    d(api.delete(`/api/notifications/${encodeURIComponent(id)}`)),
+  remove: (notificationId) =>
+    d(api.delete(`/api/notifications/${id(notificationId)}`)),
 }
 
-/* ========================= ADMIN NOTIFICATIONS ========================= */
-
+// =====================================================
+// ADMIN BROADCAST NOTIFICATIONS
+// =====================================================
 export const broadcast = {
   send: (body) =>
     d(api.post('/api/admin/notifications', body)),
@@ -308,24 +268,27 @@ export const broadcast = {
   customers: () =>
     d(api.get('/api/admin/notifications/customers')),
 
+  list: () =>
+    d(api.get('/api/admin/notifications')),
+
   getAll: () =>
     d(api.get('/api/admin/notifications')),
 
-  remove: (id) =>
-    d(api.delete(`/api/admin/notifications/${encodeURIComponent(id)}`)),
+  remove: (notificationId) =>
+    d(api.delete(`/api/admin/notifications/${id(notificationId)}`)),
 }
 
-/* ========================= DEFAULT EXPORT ========================= */
-
+// =====================================================
+// DEFAULT EXPORT
+// =====================================================
 const endpoints = {
   auth,
   session,
   users,
   policies,
-  plans,
   purchases,
-  policyHolders,
   payment,
+  policyHolders,
   claims,
   settlements,
   reviews,
