@@ -50,6 +50,7 @@ public class PolicyPurchaseService {
     private final PaymentService paymentService;
     private final PaymentAttemptService paymentAttemptService;
     private final InsurancePlanRepository insurancePlanRepository;
+    private final ClaimsDao claimsDao;
 
     public PolicyPurchaseService(
             PolicyDao policyDao,
