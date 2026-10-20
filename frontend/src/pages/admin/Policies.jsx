@@ -1,8 +1,9 @@
-
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+
 import { policies, policyHolders } from '../../api/endpoints'
 import { errorMessage } from '../../api/client'
+
 import {
   Button,
   Confirm,
@@ -19,42 +20,92 @@ import {
   useFilter,
   useToast,
 } from '../../components/ui'
+
 import { PLANS } from '../../lib/premium'
 import { date, today } from '../../lib/format'
 
 const TYPES = PLANS.map((p) => `${p.label} Insurance`)
 
-function addYears(d, n) {
-  if (!d || !Number(n)) return ''
+/**
+ * Adds years to a YYYY-MM-DD calendar date without relying
+ * on the browser's local timezone.
+ *
+ * Handles leap-day dates by allowing JavaScript to normalize
+ * the date if the target year is not a leap year.
+ */
+function addYears(value, years) {
+  if (!value || !Number.isFinite(Number(years)) || Number(years) < 1) {
+    return ''
+  }
 
-  const x = new Date(`${d}T00:00:00`)
-  x.setFullYear(x.getFullYear() + Number(n))
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value))
 
-  // Use local calendar fields to avoid UTC date shifts.
-  const year = x.getFullYear()
-  const month = String(x.getMonth() + 1).padStart(2, '0')
-  const day = String(x.getDate()).padStart(2, '0')
+  if (!match) return ''
 
-  return `${year}-${month}-${day}`
+  const year = Number(match[1])
+  const month = Number(match[2])
+  const day = Number(match[3])
+  const duration = Number(years)
+
+  const original = new Date(Date.UTC(year, month - 1, day))
+
+  // Reject invalid calendar dates such as 2026-02-30.
+  if (
+    original.getUTCFullYear() !== year ||
+    original.getUTCMonth() !== month - 1 ||
+    original.getUTCDate() !== day
+  ) {
+    return ''
+  }
+
+  const targetYear = year + duration
+
+  // Preserve the month and day where possible.
+  // If the target year is not a leap year, use the last day
+  // of the target month for dates such as February 29.
+  const lastDay = new Date(
+    Date.UTC(targetYear, month, 0),
+  ).getUTCDate()
+
+  const targetDay = Math.min(day, lastDay)
+
+  const result = new Date(
+    Date.UTC(targetYear, month - 1, targetDay),
+  )
+
+  const yyyy = result.getUTCFullYear()
+  const mm = String(result.getUTCMonth() + 1).padStart(2, '0')
+  const dd = String(result.getUTCDate()).padStart(2, '0')
+
+  return `${yyyy}-${mm}-${dd}`
 }
 
-// Prefer the status computed by the backend.
-// The fallback supports older API responses without a status field.
+/**
+ * Prefer the backend status when available.
+ * Otherwise derive status from expiryDate and isActive.
+ */
 function getPolicyStatus(policy) {
-  if (policy.status) {
-    return String(policy.status).toUpperCase()
+  const suppliedStatus = String(policy?.status ?? '')
+    .trim()
+    .toUpperCase()
+
+  if (suppliedStatus) return suppliedStatus
+
+  const expiryDate = String(policy?.expiryDate ?? '').slice(0, 10)
+
+  if (expiryDate && /^\d{4}-\d{2}-\d{2}$/.test(expiryDate)) {
+    if (expiryDate < today()) {
+      return 'EXPIRED'
+    }
   }
 
-  if (policy.expiryDate && policy.expiryDate <= today()) {
-    return 'EXPIRED'
-  }
-
-  return policy.isActive ? 'ACTIVE' : 'INACTIVE'
+  return policy?.isActive ? 'ACTIVE' : 'INACTIVE'
 }
 
 function PolicyForm({ policy, onClose }) {
   const toast = useToast()
   const qc = useQueryClient()
+
   const holders = useQuery({
     queryKey: ['a-holders'],
     queryFn: policyHolders.getAll,
@@ -71,18 +122,43 @@ function PolicyForm({ policy, onClose }) {
   const [error, setError] = useState('')
 
   const save = useMutation({
-    mutationFn: (b) =>
+    mutationFn: (body) =>
       policy
-        ? policies.update(policy.policyNumber, b)
-        : policies.save(b),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['a-policies'] })
-      toast.success(policy ? 'Policy updated' : 'Policy created')
+        ? policies.update(policy.policyNumber, body)
+        : policies.save(body),
+
+    onSuccess: async () => {
+      await qc.invalidateQueries({
+        queryKey: ['a-policies'],
+      })
+
+      toast.success(
+        policy ? 'Policy updated' : 'Policy created',
+      )
+
       onClose()
     },
-    onError: (e) =>
-      setError(errorMessage(e, 'Could not save this policy.')),
+
+    onError: (e) => {
+      setError(
+        errorMessage(e, 'Could not save this policy.'),
+      )
+    },
   })
+
+  const expiryDate = addYears(
+    f.startDate,
+    f.durationYears,
+  )
+
+  function updateField(field, value) {
+    setF((current) => ({
+      ...current,
+      [field]: value,
+    }))
+
+    if (error) setError('')
+  }
 
   function submit() {
     if (!f.coveredTypes) {
@@ -95,12 +171,14 @@ function PolicyForm({ policy, onClose }) {
       return
     }
 
-    if (!(Number(f.durationYears) >= 1 && Number(f.durationYears) <= 5)) {
+    if (
+      !Number.isInteger(Number(f.durationYears)) ||
+      Number(f.durationYears) < 1 ||
+      Number(f.durationYears) > 5
+    ) {
       setError('Term must be between 1 and 5 years.')
       return
     }
-
-    const expiryDate = addYears(f.startDate, f.durationYears)
 
     if (!expiryDate) {
       setError('Could not calculate the expiry date.')
@@ -128,13 +206,25 @@ function PolicyForm({ policy, onClose }) {
 
   return (
     <Modal
-      title={policy ? `Edit policy #${policy.policyNumber}` : 'New policy'}
+      title={
+        policy
+          ? `Edit policy #${policy.policyNumber}`
+          : 'New policy'
+      }
       wide
       onClose={onClose}
       footer={
         <>
-          <Button onClick={onClose}>Cancel</Button>
           <Button
+            type="button"
+            onClick={onClose}
+            disabled={save.isPending}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="button"
             variant="dark"
             loading={save.isPending}
             onClick={submit}
@@ -146,7 +236,10 @@ function PolicyForm({ policy, onClose }) {
     >
       <div className="form-grid">
         {error && (
-          <div className="alert error full" role="alert">
+          <div
+            className="alert error full"
+            role="alert"
+          >
             {error}
           </div>
         )}
@@ -155,7 +248,7 @@ function PolicyForm({ policy, onClose }) {
           label="Cover type"
           value={f.coveredTypes}
           onChange={(e) =>
-            setF({ ...f, coveredTypes: e.target.value })
+            updateField('coveredTypes', e.target.value)
           }
           options={types}
           placeholder="Choose…"
@@ -165,13 +258,15 @@ function PolicyForm({ policy, onClose }) {
           label="Policy holder (optional)"
           value={f.policyHolderId}
           onChange={(e) =>
-            setF({ ...f, policyHolderId: e.target.value })
+            updateField('policyHolderId', e.target.value)
           }
           placeholder="Open to all customers"
-          options={(holders.data || []).map((h) => ({
-            value: h.policyHolderId,
-            label: `${h.name} (#${h.policyHolderId})`,
-          }))}
+          options={(Array.isArray(holders.data) ? holders.data : []).map(
+            (h) => ({
+              value: h.policyHolderId,
+              label: `${h.name} (#${h.policyHolderId})`,
+            }),
+          )}
         />
 
         <TextInput
@@ -179,7 +274,7 @@ function PolicyForm({ policy, onClose }) {
           type="date"
           value={f.startDate}
           onChange={(e) =>
-            setF({ ...f, startDate: e.target.value })
+            updateField('startDate', e.target.value)
           }
         />
 
@@ -190,21 +285,27 @@ function PolicyForm({ policy, onClose }) {
           max="5"
           value={f.durationYears}
           onChange={(e) =>
-            setF({ ...f, durationYears: e.target.value })
+            updateField('durationYears', e.target.value)
           }
-          hint={`Expires ${date(
-            addYears(f.startDate || today(), f.durationYears || 1)
-          )}`}
+          hint={
+            expiryDate
+              ? `Expires ${date(expiryDate)}`
+              : 'Choose a valid start date and term.'
+          }
         />
 
-        <label className="row full" style={{ gap: 10 }}>
+        <label
+          className="row full"
+          style={{ gap: 10 }}
+        >
           <input
             type="checkbox"
-            checked={f.isActive}
+            checked={Boolean(f.isActive)}
             onChange={(e) =>
-              setF({ ...f, isActive: e.target.checked })
+              updateField('isActive', e.target.checked)
             }
           />
+
           Active and available for purchase
         </label>
       </div>
@@ -225,10 +326,12 @@ export default function Policies() {
   const [del, setDel] = useState(null)
   const [status, setStatus] = useState('all')
 
-  const [search, setSearch, searched] = useFilter(q.data, [
-    'policyNumber',
-    'coveredTypes',
-  ])
+  const policyList = Array.isArray(q.data) ? q.data : []
+
+  const [search, setSearch, searched] = useFilter(
+    policyList,
+    ['policyNumber', 'coveredTypes'],
+  )
 
   const rows = searched.filter((p) => {
     const policyStatus = getPolicyStatus(p)
@@ -241,8 +344,11 @@ export default function Policies() {
     return true
   })
 
-  const refresh = (message) => {
-    qc.invalidateQueries({ queryKey: ['a-policies'] })
+  async function refresh(message) {
+    await qc.invalidateQueries({
+      queryKey: ['a-policies'],
+    })
+
     toast.success(message)
   }
 
@@ -252,7 +358,7 @@ export default function Policies() {
 
       if (currentStatus === 'EXPIRED') {
         throw new Error(
-          'Expired policies cannot be activated. Update the policy dates first.'
+          'Expired policies cannot be activated. Update the policy dates first.',
         )
       }
 
@@ -260,22 +366,35 @@ export default function Policies() {
         ? policies.deactivate(p.policyNumber)
         : policies.activate(p.policyNumber)
     },
-    onSuccess: (_, p) => {
-      refresh(p.isActive ? 'Policy deactivated' : 'Policy activated')
+
+    onSuccess: async (_, p) => {
+      await refresh(
+        p.isActive
+          ? 'Policy deactivated'
+          : 'Policy activated',
+      )
     },
+
     onError: (e) => {
-      toast.error(errorMessage(e, 'Could not update policy status.'))
+      toast.error(
+        errorMessage(e, 'Could not update policy status.'),
+      )
     },
   })
 
   const remove = useMutation({
-    mutationFn: (p) => policies.remove(p.policyNumber),
-    onSuccess: () => {
-      refresh('Policy deleted')
+    mutationFn: (p) =>
+      policies.remove(p.policyNumber),
+
+    onSuccess: async () => {
+      await refresh('Policy deleted')
       setDel(null)
     },
+
     onError: (e) => {
-      toast.error(errorMessage(e, 'Could not delete this policy.'))
+      toast.error(
+        errorMessage(e, 'Could not delete this policy.'),
+      )
       setDel(null)
     },
   })
@@ -287,6 +406,7 @@ export default function Policies() {
         subtitle="The plans customers can buy and the policies already issued."
       >
         <Button
+          type="button"
           variant="primary"
           icon="plus"
           onClick={() => setForm({})}
@@ -322,7 +442,11 @@ export default function Policies() {
             text: 'Create your first plan so customers can start buying.',
           }}
           emptyAction={
-            <Button variant="dark" onClick={() => setForm({})}>
+            <Button
+              type="button"
+              variant="dark"
+              onClick={() => setForm({})}
+            >
               New policy
             </Button>
           }
@@ -330,7 +454,10 @@ export default function Policies() {
           {() =>
             rows.length === 0 ? (
               <div className="empty">
-                <h4>No matches</h4>
+                <h4>No matching policies</h4>
+                <p>
+                  Try changing the status filter or search term.
+                </p>
               </div>
             ) : (
               <Table
@@ -340,7 +467,9 @@ export default function Policies() {
                   {
                     key: 'policyNumber',
                     header: 'Policy',
-                    render: (p) => <b>#{p.policyNumber}</b>,
+                    render: (p) => (
+                      <b>#{p.policyNumber}</b>
+                    ),
                   },
                   {
                     key: 'coveredTypes',
@@ -364,7 +493,8 @@ export default function Policies() {
                   {
                     key: 'durationYears',
                     header: 'Term',
-                    render: (p) => `${p.durationYears ?? '—'} yr`,
+                    render: (p) =>
+                      `${p.durationYears ?? '—'} yr`,
                   },
                   {
                     key: 'expiryDate',
@@ -374,17 +504,20 @@ export default function Policies() {
                   {
                     key: 'hasClaims',
                     header: 'Claims',
-                    render: (p) => (p.hasClaims ? 'Yes' : 'None'),
+                    render: (p) =>
+                      p.hasClaims ? 'Yes' : 'None',
                   },
                   {
                     key: 'status',
                     header: 'Status',
                     render: (p) => (
-                      <StatusBadge value={getPolicyStatus(p)} />
+                      <StatusBadge
+                        value={getPolicyStatus(p)}
+                      />
                     ),
                   },
                   {
-                    key: 'a',
+                    key: 'actions',
                     header: '',
                     align: 'right',
                     render: (p) => {
@@ -394,6 +527,7 @@ export default function Policies() {
                       return (
                         <div className="actions">
                           <Button
+                            type="button"
                             size="sm"
                             onClick={() => setForm(p)}
                           >
@@ -401,8 +535,11 @@ export default function Policies() {
                           </Button>
 
                           <Button
+                            type="button"
                             size="sm"
-                            disabled={expired || toggle.isPending}
+                            disabled={
+                              expired || toggle.isPending
+                            }
                             onClick={() => toggle.mutate(p)}
                           >
                             {expired
@@ -413,6 +550,7 @@ export default function Policies() {
                           </Button>
 
                           <Button
+                            type="button"
                             size="sm"
                             variant="ghost"
                             onClick={() => setDel(p)}
@@ -448,7 +586,9 @@ export default function Policies() {
           }`}
           confirmLabel="Delete policy"
           loading={remove.isPending}
-          onClose={() => setDel(null)}
+          onClose={() => {
+            if (!remove.isPending) setDel(null)
+          }}
           onConfirm={() => remove.mutate(del)}
         />
       )}
