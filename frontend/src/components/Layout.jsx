@@ -342,7 +342,7 @@ export default function Layout({ role }) {
           className="brand"
           onClick={() => setOpen(false)}
         >
-          <Logo />
+          <Logo size={40} />
 
           <span>
             InsureX
@@ -453,7 +453,7 @@ export default function Layout({ role }) {
             className="brand"
             onClick={() => setOpen(false)}
           >
-            <Logo size={26} />
+            <Logo size={34} />
 
             <span>
               InsureX
