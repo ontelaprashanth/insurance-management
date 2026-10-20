@@ -2,17 +2,15 @@ import axios from 'axios'
 
 /* =========================================================
    INSUREX — CENTRAL API CLIENT
-   Authentication • Session handling • Error handling
+   Primary Backend • Fallback • Session Handling
 ========================================================= */
 
 const TOKEN_KEY = 'insurex_token'
 
-const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
+const normalizeApiUrl = (url) =>
+  url?.trim().replace(/\/+$/, '') || ''
 
-const normalizeApiUrl = (url) => {
-  if (!url) return ''
-  return url.replace(/\/+$/, '')
-}
+const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
 
 export const API_URL = normalizeApiUrl(
   configuredApiUrl ||
@@ -20,6 +18,48 @@ export const API_URL = normalizeApiUrl(
       ? 'http://localhost:8080'
       : 'https://insurance-management-ke8b.onrender.com'),
 )
+
+const FALLBACK_API_URL = normalizeApiUrl(
+  import.meta.env.VITE_API_FALLBACK_URL,
+)
+
+const hasFallback =
+  Boolean(FALLBACK_API_URL) &&
+  FALLBACK_API_URL !== API_URL
+
+/* =========================================================
+   BACKEND FAILOVER STATE
+========================================================= */
+
+let activeApiUrl = API_URL
+let fallbackUntil = 0
+
+const PRIMARY_RETRY_DELAY = 60_000
+
+const getActiveApiUrl = () => {
+  if (
+    activeApiUrl === FALLBACK_API_URL &&
+    Date.now() >= fallbackUntil
+  ) {
+    activeApiUrl = API_URL
+  }
+
+  return activeApiUrl
+}
+
+const switchToFallback = () => {
+  if (!hasFallback) return false
+
+  activeApiUrl = FALLBACK_API_URL
+  fallbackUntil = Date.now() + PRIMARY_RETRY_DELAY
+
+  return true
+}
+
+const switchToPrimary = () => {
+  activeApiUrl = API_URL
+  fallbackUntil = 0
+}
 
 /* =========================================================
    SESSION STORAGE
@@ -61,7 +101,6 @@ export const tokenStore = {
 
 /* =========================================================
    AXIOS INSTANCE
-   Allow time for Render Free cold starts.
 ========================================================= */
 
 export const api = axios.create({
@@ -73,11 +112,13 @@ export const api = axios.create({
 })
 
 /* =========================================================
-   AUTHENTICATION REQUEST INTERCEPTOR
+   REQUEST INTERCEPTOR
 ========================================================= */
 
 api.interceptors.request.use(
   (config) => {
+    config.baseURL = getActiveApiUrl()
+
     const token = tokenStore.get()
 
     config.headers = config.headers || {}
@@ -94,7 +135,7 @@ api.interceptors.request.use(
 )
 
 /* =========================================================
-   SESSION EXPIRATION HANDLER
+   UNAUTHORIZED SESSION HANDLER
 ========================================================= */
 
 let onUnauthorized = () => {}
@@ -110,14 +151,45 @@ export const resetUnauthorizedState = () => {
 }
 
 /* =========================================================
+   FAILOVER HELPERS
+========================================================= */
+
+const isBackendAvailabilityFailure = (error) => {
+  if (!error) return false
+
+  if (!error.response) {
+    return [
+      'ERR_NETWORK',
+      'ECONNABORTED',
+      'ETIMEDOUT',
+    ].includes(error.code) || !error.response
+  }
+
+  return [502, 503, 504].includes(error.response.status)
+}
+
+const isSafeToRetry = (config) => {
+  const method = (config?.method || 'get').toLowerCase()
+
+  return ['get', 'head', 'options'].includes(method)
+}
+
+/* =========================================================
    RESPONSE INTERCEPTOR
 ========================================================= */
 
 api.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (response.config?.baseURL === API_URL) {
+      switchToPrimary()
+    }
 
-  (error) => {
-    const url = error.config?.url || ''
+    return response
+  },
+
+  async (error) => {
+    const config = error.config
+    const url = config?.url || ''
     const status = error.response?.status
 
     const isAuthenticationEndpoint =
@@ -126,6 +198,41 @@ api.interceptors.response.use(
       url.includes('/api/auth/verify-otp') ||
       url.includes('/api/auth/forgot-password') ||
       url.includes('/api/auth/reset-password')
+
+    /*
+     * Switch on connectivity/gateway failures only.
+     * Never blindly repeat a potentially successful write.
+     */
+
+    if (
+      hasFallback &&
+      config &&
+      !config._insurexFailoverRetry &&
+      isBackendAvailabilityFailure(error)
+    ) {
+      const failedBaseURL = normalizeApiUrl(config.baseURL)
+
+      if (failedBaseURL === API_URL) {
+        switchToFallback()
+
+        if (isSafeToRetry(config)) {
+          config._insurexFailoverRetry = true
+          config.baseURL = FALLBACK_API_URL
+
+          try {
+            return await api.request(config)
+          } catch (retryError) {
+            throw retryError
+          }
+        }
+      } else if (failedBaseURL === FALLBACK_API_URL) {
+        fallbackUntil = Date.now() + PRIMARY_RETRY_DELAY
+      }
+    }
+
+    /*
+     * Preserve existing session-expiration behavior.
+     */
 
     if (status === 401 && !isAuthenticationEndpoint) {
       tokenStore.clear()
@@ -136,7 +243,7 @@ api.interceptors.response.use(
         try {
           onUnauthorized()
         } catch {
-          // Do not mask the original API error.
+          // Preserve the original API error.
         }
       }
     }
@@ -159,7 +266,7 @@ export function errorMessage(
     error.code === 'ECONNABORTED' ||
     error.code === 'ETIMEDOUT'
   ) {
-    return 'InsureX is taking longer than usual to start. Please wait a moment and try again.'
+    return 'InsureX is taking longer than usual to respond. Please try again.'
   }
 
   if (error.code === 'ERR_CANCELED') {
