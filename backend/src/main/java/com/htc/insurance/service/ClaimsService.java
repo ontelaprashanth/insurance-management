@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -11,14 +12,19 @@ import org.springframework.stereotype.Service;
 
 import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
+import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dao.UserDao;
+
 import com.htc.insurance.dto.ClaimDecisionDto;
 import com.htc.insurance.dto.ClaimsDto;
+
 import com.htc.insurance.entity.ClaimStatus;
 import com.htc.insurance.entity.Claims;
 import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyHolder;
+import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.User;
+
 import com.htc.insurance.mapper.ClaimsMapper;
 
 @Service
@@ -31,6 +37,9 @@ public class ClaimsService {
     private PolicyDao policyDao;
 
     @Autowired
+    private PolicyPurchaseDao policyPurchaseDao;
+
+    @Autowired
     private UserDao userDao;
 
     @Autowired
@@ -39,10 +48,8 @@ public class ClaimsService {
     @Autowired
     private NotificationService notificationService;
 
-
     // =========================================================
-    // USER + ADMIN
-    // SUBMIT NEW CLAIM
+    // USER + ADMIN - SUBMIT NEW CLAIM
     // =========================================================
 
     public ClaimsDto saveClaims(
@@ -54,9 +61,10 @@ public class ClaimsService {
                     "Claim data is required.");
         }
 
-        if (authentication == null ||
-                authentication.getName() == null ||
-                authentication.getName().isBlank()) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
 
             throw new RuntimeException(
                     "User authentication required.");
@@ -67,26 +75,30 @@ public class ClaimsService {
                     "Policy number is required.");
         }
 
-        String username =
-                authentication.getName();
+        // =====================================================
+        // GET LOGGED-IN USER
+        // =====================================================
 
-        User user =
-                userDao.getUserByUsername(username);
+        String username = authentication.getName();
 
-        if (user == null) {
+        User user = userDao.getUserByUsername(username);
+
+        if (user == null || user.getUserId() == null) {
             throw new RuntimeException(
                     "Logged-in user not found.");
         }
 
-        Policy policy =
-                policyDao.getPolicyById(
-                        claimsDto.getPolicyNumber());
+        // =====================================================
+        // FIND POLICY
+        // =====================================================
+
+        Policy policy = policyDao.getPolicyById(
+                claimsDto.getPolicyNumber());
 
         if (policy == null) {
             throw new RuntimeException(
                     "Policy not found.");
         }
-
 
         // =====================================================
         // VERIFY POLICY OWNERSHIP
@@ -95,32 +107,64 @@ public class ClaimsService {
         PolicyHolder policyHolder =
                 policy.getPolicyHolder();
 
-        if (policyHolder == null ||
-                policyHolder.getUser() == null ||
-                policyHolder.getUser().getUserId() == null ||
-                !policyHolder.getUser()
-                        .getUserId()
-                        .equals(user.getUserId())) {
+        if (policyHolder == null
+                || policyHolder.getUser() == null
+                || policyHolder.getUser().getUserId() == null
+                || !user.getUserId().equals(
+                        policyHolder.getUser().getUserId())) {
 
             throw new RuntimeException(
-                    "You can only raise a claim against your own policy.");
+                    "You can only raise a claim against "
+                    + "your own policy.");
         }
 
+        // =====================================================
+        // CHECK POLICY ACTIVE STATUS
+        // =====================================================
+
+        if (!Boolean.TRUE.equals(policy.getIsActive())) {
+            throw new RuntimeException(
+                    "Claims cannot be submitted "
+                    + "for an inactive policy.");
+        }
 
         // =====================================================
-        // POLICY MUST BE ACTIVE
+        // CHECK POLICY COVERAGE DATES
         // =====================================================
 
-        if (!Boolean.TRUE.equals(
-                policy.getIsActive())) {
+        LocalDate today = LocalDate.now();
+
+        if (policy.getStartDate() == null
+                || policy.getExpiryDate() == null) {
 
             throw new RuntimeException(
-                    "Claims cannot be submitted for an inactive policy.");
+                    "Policy coverage dates are not available.");
         }
 
+        if (policy.getStartDate().isAfter(today)) {
+            throw new RuntimeException(
+                    "Your policy coverage has not started yet.");
+        }
+
+        if (!policy.getExpiryDate().isAfter(today)) {
+            throw new RuntimeException(
+                    "Your policy has expired. "
+                    + "New claims cannot be submitted.");
+        }
 
         // =====================================================
-        // CONVERT DTO -> ENTITY
+        // CHECK REFUND STATUS
+        // =====================================================
+
+        if (hasBlockingRefund(policy, username)) {
+            throw new RuntimeException(
+                    "Claims cannot be submitted because "
+                    + "a refund has been requested or "
+                    + "processed for this policy.");
+        }
+
+        // =====================================================
+        // CONVERT CLAIM DTO TO ENTITY
         // =====================================================
 
         Claims claims =
@@ -132,51 +176,30 @@ public class ClaimsService {
                     "Unable to create claim.");
         }
 
-
-        // =====================================================
-        // CONNECT POLICY
-        // =====================================================
-
+        // Always use the verified policy.
         claims.setPolicy(policy);
 
+        // Never trust claim date from the client.
+        claims.setClaimDate(today);
 
-        // =====================================================
-        // AUTOMATIC CLAIM DATE
-        // =====================================================
+        // New claims must start as pending.
+        claims.setStatus(ClaimStatus.PENDING);
 
-        claims.setClaimDate(
-                LocalDate.now());
-
-
-        // =====================================================
-        // NEW CLAIM ALWAYS STARTS AS PENDING
-        // =====================================================
-
-        claims.setStatus(
-                ClaimStatus.PENDING);
-
-
-        // =====================================================
-        // CLEAR ADMIN DECISION FIELDS
-        // =====================================================
-
+        // Clear any client-supplied admin decision fields.
         claims.setApprovedAmount(null);
         claims.setAdminRemarks(null);
         claims.setRejectionReason(null);
         claims.setReviewedDate(null);
 
-
         // =====================================================
-        // SAVE
+        // SAVE CLAIM
         // =====================================================
 
         Claims savedClaims =
-                claimsDao.saveClaims(
-                        claims);
-
+                claimsDao.saveClaims(claims);
 
         // =====================================================
-        // NOTIFICATION - CLAIM SUBMITTED
+        // NOTIFY CUSTOMER
         // =====================================================
 
         createClaimNotification(
@@ -186,18 +209,62 @@ public class ClaimsService {
                         + savedClaims.getClaimNumber()
                         + " has been submitted successfully "
                         + "and is now under review.",
-                "CLAIM"
-        );
-
+                "CLAIM");
 
         return claimsMapper.convertClaimsEntityToDto(
                 savedClaims);
     }
 
+    // =========================================================
+    // CHECK REFUND STATUS FOR A POLICY
+    // =========================================================
+
+    private boolean hasBlockingRefund(
+            Policy policy,
+            String username) {
+
+        if (policy == null
+                || policy.getPolicyNumber() == null) {
+
+            throw new IllegalStateException(
+                    "Policy details are unavailable.");
+        }
+
+        List<PolicyPurchase> purchases =
+                policyPurchaseDao.getPurchasesByUsername(
+                        username);
+
+        if (purchases == null) {
+            throw new IllegalStateException(
+                    "Unable to verify policy refund status.");
+        }
+
+        return purchases.stream()
+                .filter(purchase -> purchase != null)
+                .filter(purchase ->
+                        purchase.getPolicy() != null
+                        && policy.getPolicyNumber().equals(
+                                purchase.getPolicy()
+                                        .getPolicyNumber()))
+                .anyMatch(purchase -> {
+
+                    String refundStatus =
+                            purchase.getRefundStatus();
+
+                    // Unknown refund status: do not allow claim.
+                    if (refundStatus == null
+                            || refundStatus.isBlank()) {
+                        return true;
+                    }
+
+                    // Only NOT_REFUNDED permits claims.
+                    return !"NOT_REFUNDED".equalsIgnoreCase(
+                            refundStatus.trim());
+                });
+    }
 
     // =========================================================
-    // ADMIN
-    // GET ALL CLAIMS
+    // ADMIN - GET ALL CLAIMS
     // =========================================================
 
     public List<ClaimsDto> getAllClaims() {
@@ -205,36 +272,31 @@ public class ClaimsService {
         List<Claims> claimsList =
                 claimsDao.getAllClaims();
 
-        return claimsList
-                .stream()
+        return claimsList.stream()
                 .map(claimsMapper::convertClaimsEntityToDto)
                 .collect(Collectors.toList());
     }
 
-
     // =========================================================
-    // USER
-    // GET MY CLAIMS
+    // USER - GET MY CLAIMS
     // =========================================================
 
     public List<ClaimsDto> getMyClaims(
             Authentication authentication) {
 
-        if (authentication == null ||
-                authentication.getName() == null ||
-                authentication.getName().isBlank()) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
 
             throw new RuntimeException(
                     "User authentication required.");
         }
 
-        String username =
-                authentication.getName();
+        User user = userDao.getUserByUsername(
+                authentication.getName());
 
-        User user =
-                userDao.getUserByUsername(username);
-
-        if (user == null) {
+        if (user == null || user.getUserId() == null) {
             throw new RuntimeException(
                     "Logged-in user not found.");
         }
@@ -242,39 +304,32 @@ public class ClaimsService {
         List<Claims> allClaims =
                 claimsDao.getAllClaims();
 
-        return allClaims
-                .stream()
+        return allClaims.stream()
                 .filter(claim -> {
 
-                    Policy policy =
-                            claim.getPolicy();
-
-                    if (policy == null) {
+                    if (claim == null
+                            || claim.getPolicy() == null) {
                         return false;
                     }
 
                     PolicyHolder holder =
-                            policy.getPolicyHolder();
+                            claim.getPolicy().getPolicyHolder();
 
-                    if (holder == null ||
-                            holder.getUser() == null ||
-                            holder.getUser().getUserId() == null) {
-
+                    if (holder == null
+                            || holder.getUser() == null
+                            || holder.getUser().getUserId() == null) {
                         return false;
                     }
 
-                    return holder.getUser()
-                            .getUserId()
-                            .equals(user.getUserId());
+                    return user.getUserId().equals(
+                            holder.getUser().getUserId());
                 })
                 .map(claimsMapper::convertClaimsEntityToDto)
                 .collect(Collectors.toList());
     }
 
-
     // =========================================================
-    // USER + ADMIN
-    // GET CLAIM BY ID
+    // USER + ADMIN - GET CLAIM BY ID
     // =========================================================
 
     public ClaimsDto getClaimsById(
@@ -286,92 +341,78 @@ public class ClaimsService {
                     "Claim number is required.");
         }
 
-        if (authentication == null ||
-                authentication.getName() == null ||
-                authentication.getName().isBlank()) {
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
 
             throw new RuntimeException(
                     "User authentication required.");
         }
 
         Claims claim =
-                claimsDao.getClaimsById(
-                        claimNumber);
+                claimsDao.getClaimsById(claimNumber);
 
         if (claim == null) {
             return null;
         }
-
 
         // =====================================================
         // ADMIN CAN VIEW ANY CLAIM
         // =====================================================
 
         boolean isAdmin =
-                authentication.getAuthorities()
+                authentication.getAuthorities() != null
+                && authentication.getAuthorities()
                         .stream()
-                        .anyMatch(
-                                authority ->
-                                        authority.getAuthority()
-                                                .equals("ROLE_ADMIN"));
+                        .anyMatch(authority ->
+                                "ROLE_ADMIN".equals(
+                                        authority.getAuthority()));
 
         if (isAdmin) {
-
-            return claimsMapper
-                    .convertClaimsEntityToDto(
-                            claim);
+            return claimsMapper.convertClaimsEntityToDto(
+                    claim);
         }
-
 
         // =====================================================
         // USER CAN ONLY VIEW OWN CLAIM
         // =====================================================
 
-        String username =
-                authentication.getName();
+        User user = userDao.getUserByUsername(
+                authentication.getName());
 
-        User user =
-                userDao.getUserByUsername(
-                        username);
-
-        if (user == null) {
+        if (user == null || user.getUserId() == null) {
             throw new RuntimeException(
                     "Logged-in user not found.");
         }
 
-        Policy policy =
-                claim.getPolicy();
+        Policy policy = claim.getPolicy();
 
-        if (policy == null ||
-                policy.getPolicyHolder() == null ||
-                policy.getPolicyHolder().getUser() == null ||
-                policy.getPolicyHolder().getUser().getUserId() == null) {
+        if (policy == null
+                || policy.getPolicyHolder() == null
+                || policy.getPolicyHolder().getUser() == null
+                || policy.getPolicyHolder()
+                        .getUser().getUserId() == null) {
 
             throw new RuntimeException(
                     "Claim ownership could not be verified.");
         }
 
-        Long ownerId =
-                policy.getPolicyHolder()
-                        .getUser()
-                        .getUserId();
+        Long ownerId = policy.getPolicyHolder()
+                .getUser()
+                .getUserId();
 
-        if (!ownerId.equals(
-                user.getUserId())) {
-
+        if (!ownerId.equals(user.getUserId())) {
             throw new RuntimeException(
                     "You are not authorized to view this claim.");
         }
 
-        return claimsMapper
-                .convertClaimsEntityToDto(
-                        claim);
+        return claimsMapper.convertClaimsEntityToDto(
+                claim);
     }
 
-
     // =========================================================
-    // ADMIN
-    // UPDATE CLAIM
+    // ADMIN - UPDATE CLAIM
     // =========================================================
 
     public ClaimsDto updateClaims(
@@ -389,8 +430,7 @@ public class ClaimsService {
         }
 
         Claims existingClaims =
-                claimsDao.getClaimsById(
-                        claimNumber);
+                claimsDao.getClaimsById(claimNumber);
 
         if (existingClaims == null) {
             return null;
@@ -401,9 +441,8 @@ public class ClaimsService {
                     "Policy number is required.");
         }
 
-        Policy policy =
-                policyDao.getPolicyById(
-                        claimsDto.getPolicyNumber());
+        Policy policy = policyDao.getPolicyById(
+                claimsDto.getPolicyNumber());
 
         if (policy == null) {
             throw new RuntimeException(
@@ -419,17 +458,10 @@ public class ClaimsService {
                     "Unable to update claim.");
         }
 
-        claims.setClaimNumber(
-                claimNumber);
+        claims.setClaimNumber(claimNumber);
+        claims.setPolicy(policy);
 
-        claims.setPolicy(
-                policy);
-
-
-        // =====================================================
-        // PRESERVE ORIGINAL SUBMISSION INFORMATION
-        // =====================================================
-
+        // Preserve original claim date and review details.
         claims.setClaimDate(
                 existingClaims.getClaimDate());
 
@@ -448,15 +480,8 @@ public class ClaimsService {
         claims.setReviewedDate(
                 existingClaims.getReviewedDate());
 
-
         Claims updatedClaims =
-                claimsDao.updateClaims(
-                        claims);
-
-
-        // =====================================================
-        // NOTIFICATION - CLAIM UPDATED
-        // =====================================================
+                claimsDao.updateClaims(claims);
 
         notifyClaimOwner(
                 updatedClaims,
@@ -464,18 +489,14 @@ public class ClaimsService {
                 "Your claim #"
                         + updatedClaims.getClaimNumber()
                         + " has been updated successfully.",
-                "CLAIM"
-        );
-
+                "CLAIM");
 
         return claimsMapper.convertClaimsEntityToDto(
                 updatedClaims);
     }
 
-
     // =========================================================
-    // ADMIN
-    // APPROVE CLAIM
+    // ADMIN - APPROVE CLAIM
     // =========================================================
 
     public ClaimsDto approveClaim(
@@ -493,37 +514,26 @@ public class ClaimsService {
         }
 
         Claims claim =
-                claimsDao.getClaimsById(
-                        claimNumber);
+                claimsDao.getClaimsById(claimNumber);
 
         if (claim == null) {
             return null;
         }
 
-
-        // =====================================================
-        // ONLY PENDING CLAIMS CAN BE APPROVED
-        // =====================================================
-
+        // Only pending claims can be approved.
         if (claim.getStatus() != ClaimStatus.PENDING) {
             throw new RuntimeException(
                     "Only pending claims can be approved.");
         }
 
-
         // =====================================================
-        // APPROVED AMOUNT IS REQUIRED
+        // VALIDATE APPROVED AMOUNT
         // =====================================================
 
         if (decisionDto.getApprovedAmount() == null) {
             throw new RuntimeException(
                     "Approved amount is required.");
         }
-
-
-        // =====================================================
-        // APPROVED AMOUNT CANNOT BE NEGATIVE
-        // =====================================================
 
         if (decisionDto.getApprovedAmount()
                 .compareTo(BigDecimal.ZERO) < 0) {
@@ -532,35 +542,24 @@ public class ClaimsService {
                     "Approved amount cannot be negative.");
         }
 
-
-        // =====================================================
-        // ORIGINAL CLAIM AMOUNT MUST EXIST
-        // =====================================================
-
         if (claim.getAmount() == null) {
             throw new RuntimeException(
                     "Claim amount is not available.");
         }
 
-
-        // =====================================================
-        // APPROVED AMOUNT CANNOT EXCEED CLAIM AMOUNT
-        // =====================================================
-
         if (decisionDto.getApprovedAmount()
                 .compareTo(claim.getAmount()) > 0) {
 
             throw new RuntimeException(
-                    "Approved amount cannot be greater than the claimed amount.");
+                    "Approved amount cannot be greater "
+                    + "than the claimed amount.");
         }
 
-
         // =====================================================
-        // SET APPROVAL DETAILS
+        // SAVE APPROVAL
         // =====================================================
 
-        claim.setStatus(
-                ClaimStatus.APPROVED);
+        claim.setStatus(ClaimStatus.APPROVED);
 
         claim.setApprovedAmount(
                 decisionDto.getApprovedAmount());
@@ -568,21 +567,11 @@ public class ClaimsService {
         claim.setAdminRemarks(
                 decisionDto.getAdminRemarks());
 
-        claim.setRejectionReason(
-                null);
-
-        claim.setReviewedDate(
-                LocalDate.now());
-
+        claim.setRejectionReason(null);
+        claim.setReviewedDate(LocalDate.now());
 
         Claims updatedClaim =
-                claimsDao.updateClaims(
-                        claim);
-
-
-        // =====================================================
-        // NOTIFICATION - CLAIM APPROVED
-        // =====================================================
+                claimsDao.updateClaims(claim);
 
         notifyClaimOwner(
                 updatedClaim,
@@ -592,18 +581,14 @@ public class ClaimsService {
                         + " has been approved for ₹"
                         + updatedClaim.getApprovedAmount()
                         + ".",
-                "CLAIM"
-        );
-
+                "CLAIM");
 
         return claimsMapper.convertClaimsEntityToDto(
                 updatedClaim);
     }
 
-
     // =========================================================
-    // ADMIN
-    // REJECT CLAIM
+    // ADMIN - REJECT CLAIM
     // =========================================================
 
     public ClaimsDto rejectClaim(
@@ -621,66 +606,47 @@ public class ClaimsService {
         }
 
         Claims claim =
-                claimsDao.getClaimsById(
-                        claimNumber);
+                claimsDao.getClaimsById(claimNumber);
 
         if (claim == null) {
             return null;
         }
 
-
-        // =====================================================
-        // ONLY PENDING CLAIMS CAN BE REJECTED
-        // =====================================================
-
+        // Only pending claims can be rejected.
         if (claim.getStatus() != ClaimStatus.PENDING) {
             throw new RuntimeException(
                     "Only pending claims can be rejected.");
         }
 
-
         // =====================================================
-        // REJECTION REASON IS REQUIRED
+        // VALIDATE REJECTION REASON
         // =====================================================
 
-        if (decisionDto.getRejectionReason() == null ||
-                decisionDto.getRejectionReason()
-                        .isBlank()) {
+        if (decisionDto.getRejectionReason() == null
+                || decisionDto.getRejectionReason().isBlank()) {
 
             throw new RuntimeException(
                     "Rejection reason is required.");
         }
 
-
         // =====================================================
-        // SET REJECTION DETAILS
+        // SAVE REJECTION
         // =====================================================
 
-        claim.setStatus(
-                ClaimStatus.REJECTED);
+        claim.setStatus(ClaimStatus.REJECTED);
 
-        claim.setApprovedAmount(
-                null);
+        claim.setApprovedAmount(null);
 
         claim.setAdminRemarks(
                 decisionDto.getAdminRemarks());
 
         claim.setRejectionReason(
-                decisionDto.getRejectionReason()
-                        .trim());
+                decisionDto.getRejectionReason().trim());
 
-        claim.setReviewedDate(
-                LocalDate.now());
-
+        claim.setReviewedDate(LocalDate.now());
 
         Claims updatedClaim =
-                claimsDao.updateClaims(
-                        claim);
-
-
-        // =====================================================
-        // NOTIFICATION - CLAIM REJECTED
-        // =====================================================
+                claimsDao.updateClaims(claim);
 
         notifyClaimOwner(
                 updatedClaim,
@@ -689,22 +655,17 @@ public class ClaimsService {
                         + updatedClaim.getClaimNumber()
                         + " has been rejected. Reason: "
                         + updatedClaim.getRejectionReason(),
-                "CLAIM"
-        );
-
+                "CLAIM");
 
         return claimsMapper.convertClaimsEntityToDto(
                 updatedClaim);
     }
 
-
     // =========================================================
-    // ADMIN
-    // DELETE CLAIM
+    // ADMIN - DELETE CLAIM
     // =========================================================
 
-    public void deleteClaims(
-            Long claimNumber) {
+    public void deleteClaims(Long claimNumber) {
 
         if (claimNumber == null) {
             throw new RuntimeException(
@@ -712,73 +673,46 @@ public class ClaimsService {
         }
 
         Claims existingClaim =
-                claimsDao.getClaimsById(
-                        claimNumber);
+                claimsDao.getClaimsById(claimNumber);
 
         if (existingClaim == null) {
             throw new RuntimeException(
                     "Claim not found: " + claimNumber);
         }
 
-
-        // -----------------------------------------------------
-        // Store claim owner before deleting
-        // -----------------------------------------------------
-
-        Policy policy =
-                existingClaim.getPolicy();
+        // Remember the customer before deleting.
+        Policy policy = existingClaim.getPolicy();
 
         User customer = null;
 
-        if (policy != null &&
-                policy.getPolicyHolder() != null) {
+        if (policy != null
+                && policy.getPolicyHolder() != null) {
 
             customer =
                     policy.getPolicyHolder().getUser();
         }
 
-
-        // -----------------------------------------------------
-        // Delete claim
-        // -----------------------------------------------------
-
-        claimsDao.deleteClaims(
-                claimNumber);
-
+        claimsDao.deleteClaims(claimNumber);
 
         // =====================================================
-        // NOTIFICATION - CLAIM DELETED
+        // NOTIFY CUSTOMER
         // =====================================================
 
-        if (customer != null &&
-                customer.getUserId() != null) {
+        if (customer != null
+                && customer.getUserId() != null) {
 
-            try {
-
-                notificationService.createNotification(
-                        customer,
-                        "Claim Deleted",
-                        "Your claim #"
-                                + claimNumber
-                                + " has been deleted.",
-                        "CLAIM"
-                );
-
-            } catch (Exception e) {
-
-                System.out.println(
-                        "NOTIFICATION ERROR: "
-                                + e.getClass().getSimpleName()
-                                + " - "
-                                + e.getMessage());
-            }
+            createClaimNotification(
+                    customer,
+                    "Claim Deleted",
+                    "Your claim #"
+                            + claimNumber
+                            + " has been deleted.",
+                    "CLAIM");
         }
     }
 
-
     // =========================================================
-    // COMMON METHOD
-    // CREATE CLAIM NOTIFICATION
+    // COMMON - CREATE CLAIM NOTIFICATION
     // =========================================================
 
     private void createClaimNotification(
@@ -787,51 +721,30 @@ public class ClaimsService {
             String message,
             String type) {
 
-        if (user == null) {
-            System.out.println(
-                    "NOTIFICATION SKIPPED: User is null.");
-            return;
-        }
-
-        if (user.getUserId() == null) {
-            System.out.println(
-                    "NOTIFICATION SKIPPED: User ID is null.");
+        if (user == null || user.getUserId() == null) {
             return;
         }
 
         try {
 
-            System.out.println(
-                    "NOTIFICATION: Creating claim notification for user: "
-                            + user.getUsername()
-                            + " | userId="
-                            + user.getUserId());
-
             notificationService.createNotification(
                     user,
                     title,
                     message,
-                    type
-            );
-
-            System.out.println(
-                    "NOTIFICATION: Successfully created -> "
-                            + title);
+                    type);
 
         } catch (Exception e) {
 
-            System.out.println(
-                    "NOTIFICATION ERROR: "
+            System.err.println(
+                    "Claim notification failed: "
                             + e.getClass().getSimpleName()
                             + " - "
                             + e.getMessage());
         }
     }
 
-
     // =========================================================
-    // COMMON METHOD
-    // NOTIFY CLAIM OWNER
+    // COMMON - NOTIFY CLAIM OWNER
     // =========================================================
 
     private void notifyClaimOwner(
@@ -840,36 +753,18 @@ public class ClaimsService {
             String message,
             String type) {
 
-        if (claim == null) {
-            System.out.println(
-                    "NOTIFICATION SKIPPED: Claim is null.");
-            return;
-        }
-
-        Policy policy =
-                claim.getPolicy();
-
-        if (policy == null) {
-            System.out.println(
-                    "NOTIFICATION SKIPPED: Claim has no policy.");
-            return;
-        }
-
-        PolicyHolder policyHolder =
-                policy.getPolicyHolder();
-
-        if (policyHolder == null) {
-            System.out.println(
-                    "NOTIFICATION SKIPPED: Policy holder is null.");
+        if (claim == null
+                || claim.getPolicy() == null
+                || claim.getPolicy().getPolicyHolder() == null) {
             return;
         }
 
         User customer =
-                policyHolder.getUser();
+                claim.getPolicy()
+                        .getPolicyHolder()
+                        .getUser();
 
         if (customer == null) {
-            System.out.println(
-                    "NOTIFICATION SKIPPED: Policy holder has no user.");
             return;
         }
 
@@ -877,7 +772,6 @@ public class ClaimsService {
                 customer,
                 title,
                 message,
-                type
-        );
+                type);
     }
 }
