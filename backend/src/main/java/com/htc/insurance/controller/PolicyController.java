@@ -1,3 +1,4 @@
+
 package com.htc.insurance.controller;
 
 import java.util.List;
@@ -23,12 +24,9 @@ public class PolicyController {
 
     private final PolicyService policyService;
 
-    public PolicyController(
-            PolicyService policyService) {
-
+    public PolicyController(PolicyService policyService) {
         this.policyService = policyService;
     }
-
 
     // =========================================================
     // USER - GET AVAILABLE POLICIES
@@ -39,43 +37,34 @@ public class PolicyController {
     public ResponseEntity<List<PolicyDto>>
     getAvailablePolicies() {
 
-        List<PolicyDto> policies =
-                policyService.getAvailablePolicies();
-
-        return ResponseEntity.ok(policies);
+        return ResponseEntity.ok(
+                policyService.getAvailablePolicies()
+        );
     }
 
-
     // =========================================================
-    // USER - GET MY POLICIES
+    // USER - GET MY ACTIVE POLICIES
     // =========================================================
 
     @GetMapping("/my-policies")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<PolicyDto>>
-    getMyPolicies(
-            Authentication authentication) {
+    getMyPolicies(Authentication authentication) {
 
         if (authentication == null
+                || !authentication.isAuthenticated()
                 || authentication.getName() == null
                 || authentication.getName().isBlank()) {
 
-            return ResponseEntity
-                    .status(401)
-                    .build();
+            return ResponseEntity.status(401).build();
         }
 
-        String username =
-                authentication.getName();
-
-        List<PolicyDto> policies =
+        return ResponseEntity.ok(
                 policyService.getPoliciesByUsername(
-                        username
-                );
-
-        return ResponseEntity.ok(policies);
+                        authentication.getName()
+                )
+        );
     }
-
 
     // =========================================================
     // ADMIN - SAVE POLICY
@@ -84,17 +73,12 @@ public class PolicyController {
     @PostMapping("/save")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PolicyDto>
-    savePolicy(
-            @RequestBody PolicyDto policyDto) {
+    savePolicy(@RequestBody PolicyDto policyDto) {
 
-        PolicyDto saved =
-                policyService.savePolicy(
-                        policyDto
-                );
-
-        return ResponseEntity.ok(saved);
+        return ResponseEntity.ok(
+                policyService.savePolicy(policyDto)
+        );
     }
-
 
     // =========================================================
     // ADMIN - GET ALL POLICIES
@@ -105,12 +89,10 @@ public class PolicyController {
     public ResponseEntity<List<PolicyDto>>
     getAllPolicies() {
 
-        List<PolicyDto> policies =
-                policyService.getAllPolicies();
-
-        return ResponseEntity.ok(policies);
+        return ResponseEntity.ok(
+                policyService.getAllPolicies()
+        );
     }
-
 
     // =========================================================
     // ADMIN - GET POLICY BY NUMBER
@@ -119,23 +101,17 @@ public class PolicyController {
     @GetMapping("/get/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PolicyDto>
-    getPolicyById(
-            @PathVariable Long policyNumber) {
+    getPolicyById(@PathVariable Long policyNumber) {
 
         PolicyDto policy =
-                policyService.getPolicyById(
-                        policyNumber
-                );
+                policyService.getPolicyById(policyNumber);
 
         if (policy == null) {
-            return ResponseEntity
-                    .notFound()
-                    .build();
+            return ResponseEntity.notFound().build();
         }
 
         return ResponseEntity.ok(policy);
     }
-
 
     // =========================================================
     // ADMIN - UPDATE POLICY
@@ -155,14 +131,11 @@ public class PolicyController {
                 );
 
         if (updated == null) {
-            return ResponseEntity
-                    .notFound()
-                    .build();
+            return ResponseEntity.notFound().build();
         }
 
         return ResponseEntity.ok(updated);
     }
-
 
     // =========================================================
     // ADMIN - DELETE POLICY
@@ -171,18 +144,14 @@ public class PolicyController {
     @DeleteMapping("/delete/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String>
-    deletePolicy(
-            @PathVariable Long policyNumber) {
+    deletePolicy(@PathVariable Long policyNumber) {
 
-        policyService.deletePolicy(
-                policyNumber
-        );
+        policyService.deletePolicy(policyNumber);
 
         return ResponseEntity.ok(
                 "Policy deleted successfully."
         );
     }
-
 
     // =========================================================
     // ADMIN - ACTIVATE POLICY
@@ -191,17 +160,12 @@ public class PolicyController {
     @PutMapping("/activate/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PolicyDto>
-    activatePolicy(
-            @PathVariable Long policyNumber) {
+    activatePolicy(@PathVariable Long policyNumber) {
 
-        PolicyDto updated =
-                policyService.activatePolicy(
-                        policyNumber
-                );
-
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(
+                policyService.activatePolicy(policyNumber)
+        );
     }
-
 
     // =========================================================
     // ADMIN - DEACTIVATE POLICY
@@ -210,14 +174,10 @@ public class PolicyController {
     @PutMapping("/deactivate/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<PolicyDto>
-    deactivatePolicy(
-            @PathVariable Long policyNumber) {
+    deactivatePolicy(@PathVariable Long policyNumber) {
 
-        PolicyDto updated =
-                policyService.deactivatePolicy(
-                        policyNumber
-                );
-
-        return ResponseEntity.ok(updated);
+        return ResponseEntity.ok(
+                policyService.deactivatePolicy(policyNumber)
+        );
     }
 }
