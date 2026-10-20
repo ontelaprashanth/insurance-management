@@ -9,12 +9,35 @@ import {
   useRef,
   useState,
 } from 'react'
+
 import { errorMessage } from '../api/client'
 
-/* ───────── Icons ───────── */
+/* =========================================================
+   INSUREX — SHARED UI COMPONENTS
+
+   Icons & Branding
+   Buttons & Forms
+   Status Badges
+   Tables & Search
+   Panels & Layout
+   Modals & Confirmations
+   Toast Notifications
+   Filtering
+
+   Compatible with:
+   Customer Dashboard
+   Payments & Refunds
+   Policies & Claims
+   Admin Management
+========================================================= */
+
+/* =========================================================
+   ICONS
+========================================================= */
+
 const PATHS = {
   home: 'M3 11l9-8 9 8M5 10v10h5v-6h4v6h5V10',
-  shield: 'M12 3l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-6-8-11V6z',
+  shield: 'M12 3l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-11V6z',
   receipt: 'M6 3h12v18l-3-2-3 2-3-2-3 2zM9 8h6M9 12h6',
   claim: 'M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9zM14 3v6h6M9 14h6M9 18h4',
   star: 'M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z',
@@ -37,9 +60,24 @@ const PATHS = {
   chart: 'M4 20V10M10 20V4M16 20v-7M22 20H2',
   lock: 'M6 11h12v10H6zM8 11V7a4 4 0 018 0v4',
   power: 'M12 3v9M6.3 6.3a8 8 0 1011.4 0',
+
+  /* Additional icons */
+
+  refresh: 'M20 7v5h-5M4 17v-5h5M5.5 9A7 7 0 0118 7l2 5M4 12l2 5a7 7 0 0012.5-2',
+  arrowRight: 'M5 12h14M13 6l6 6-6 6',
+  arrowLeft: 'M19 12H5M11 6l-6 6 6 6',
+  info: 'M12 17v-5M12 8h.01M12 22a10 10 0 100-20 10 10 0 000 20z',
+  alert: 'M12 9v4M12 17h.01M10.3 3.9L2.2 18a2 2 0 001.7 3h16.2a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z',
+  download: 'M12 3v12M7 10l5 5 5-5M4 17v4h16v-4',
+  calendar: 'M3 5h18v16H3zM7 3v4M17 3v4M3 10h18',
+  wallet: 'M3 6h16a2 2 0 012 2v12H5a2 2 0 01-2-2V6zM3 9h18M16 14h5v4h-5a2 2 0 010-4z',
 }
 
-export function Icon({ name, size = 18, ...rest }) {
+export function Icon({
+  name,
+  size = 18,
+  ...rest
+}) {
   return (
     <svg
       width={size}
@@ -58,6 +96,10 @@ export function Icon({ name, size = 18, ...rest }) {
   )
 }
 
+/* =========================================================
+   LOGO
+========================================================= */
+
 export function Logo({ size = 32 }) {
   return (
     <svg
@@ -67,11 +109,18 @@ export function Logo({ size = 32 }) {
       viewBox="0 0 32 32"
       aria-hidden="true"
     >
-      <rect width="32" height="32" rx="8" fill="#1f5b5d" />
+      <rect
+        width="32"
+        height="32"
+        rx="8"
+        fill="#1f5b5d"
+      />
+
       <path
         d="M16 6l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-6-8-11V9z"
         fill="#E9A23B"
       />
+
       <path
         d="M12.5 15.5l2.6 2.6 4.6-5"
         stroke="#0F3D3E"
@@ -84,15 +133,20 @@ export function Logo({ size = 32 }) {
   )
 }
 
-/* ───────── Buttons ───────── */
+/* =========================================================
+   BUTTON
+========================================================= */
+
 export function Button({
   variant,
   size,
   block,
-  loading,
+  loading = false,
   children,
   className = '',
   icon,
+  disabled = false,
+  type = 'button',
   ...rest
 }) {
   const cls = [
@@ -101,73 +155,151 @@ export function Button({
     size,
     block && 'block',
     className,
-  ].filter(Boolean).join(' ')
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   return (
     <button
-      className={cls}
-      disabled={loading || rest.disabled}
       {...rest}
+      type={type}
+      className={cls}
+      disabled={loading || disabled}
+      aria-busy={loading || undefined}
     >
       {loading ? (
-        <span className="spinner" aria-hidden="true" />
+        <span
+          className="spinner"
+          aria-hidden="true"
+        />
       ) : icon ? (
-        <Icon name={icon} size={16} />
+        <Icon
+          name={icon}
+          size={16}
+        />
       ) : null}
+
       {children}
     </button>
   )
 }
 
-/* ───────── Form fields ───────── */
-export function TextInput({ label, hint, error, ...rest }) {
+/* =========================================================
+   TEXT INPUT
+========================================================= */
+
+export function TextInput({
+  label,
+  hint,
+  error,
+  ...rest
+}) {
   const id = useId()
 
   return (
     <div className="field">
-      {label && <label htmlFor={id}>{label}</label>}
+      {label && (
+        <label htmlFor={id}>
+          {label}
+        </label>
+      )}
+
       <input
+        {...rest}
         id={id}
         className={`input ${error ? 'invalid' : ''}`}
-        aria-invalid={!!error}
-        {...rest}
+        aria-invalid={Boolean(error)}
       />
-      {hint && !error && <span className="hint">{hint}</span>}
-      {error && <span className="err" role="alert">{error}</span>}
+
+      {hint && !error && (
+        <span className="hint">
+          {hint}
+        </span>
+      )}
+
+      {error && (
+        <span
+          className="err"
+          role="alert"
+        >
+          {error}
+        </span>
+      )}
     </div>
   )
 }
 
-export function PasswordInput({ label, hint, error, ...rest }) {
+/* =========================================================
+   PASSWORD INPUT
+========================================================= */
+
+export function PasswordInput({
+  label,
+  hint,
+  error,
+  ...rest
+}) {
   const id = useId()
   const [show, setShow] = useState(false)
 
   return (
     <div className="field">
-      {label && <label htmlFor={id}>{label}</label>}
+      {label && (
+        <label htmlFor={id}>
+          {label}
+        </label>
+      )}
+
       <div className="input-wrap">
         <input
+          {...rest}
           id={id}
           className={`input ${error ? 'invalid' : ''}`}
           type={show ? 'text' : 'password'}
-          aria-invalid={!!error}
-          style={{ paddingRight: 64 }}
-          {...rest}
+          aria-invalid={Boolean(error)}
+          style={{
+            paddingRight: 64,
+            ...rest.style,
+          }}
         />
+
         <button
           type="button"
           className="btn ghost sm adorn"
-          onClick={() => setShow((s) => !s)}
-          aria-label={show ? 'Hide password' : 'Show password'}
+          onClick={() =>
+            setShow((current) => !current)
+          }
+          aria-label={
+            show
+              ? 'Hide password'
+              : 'Show password'
+          }
         >
           {show ? 'Hide' : 'Show'}
         </button>
       </div>
-      {hint && !error && <span className="hint">{hint}</span>}
-      {error && <span className="err" role="alert">{error}</span>}
+
+      {hint && !error && (
+        <span className="hint">
+          {hint}
+        </span>
+      )}
+
+      {error && (
+        <span
+          className="err"
+          role="alert"
+        >
+          {error}
+        </span>
+      )}
     </div>
   )
 }
+
+/* =========================================================
+   SELECT INPUT
+========================================================= */
 
 export function SelectInput({
   label,
@@ -181,47 +313,116 @@ export function SelectInput({
 
   return (
     <div className="field">
-      {label && <label htmlFor={id}>{label}</label>}
+      {label && (
+        <label htmlFor={id}>
+          {label}
+        </label>
+      )}
+
       <select
+        {...rest}
         id={id}
         className={`select ${error ? 'invalid' : ''}`}
-        aria-invalid={!!error}
-        {...rest}
+        aria-invalid={Boolean(error)}
       >
-        {placeholder && <option value="">{placeholder}</option>}
-        {options.map((o) => (
-          typeof o === 'string' ? (
-            <option key={o} value={o}>{o}</option>
+        {placeholder && (
+          <option value="">
+            {placeholder}
+          </option>
+        )}
+
+        {options.map((option) =>
+          typeof option === 'string' ? (
+            <option
+              key={option}
+              value={option}
+            >
+              {option}
+            </option>
           ) : (
-            <option key={o.value} value={o.value}>{o.label}</option>
-          )
-        ))}
+            <option
+              key={option.value}
+              value={option.value}
+            >
+              {option.label}
+            </option>
+          ),
+        )}
       </select>
-      {hint && !error && <span className="hint">{hint}</span>}
-      {error && <span className="err" role="alert">{error}</span>}
+
+      {hint && !error && (
+        <span className="hint">
+          {hint}
+        </span>
+      )}
+
+      {error && (
+        <span
+          className="err"
+          role="alert"
+        >
+          {error}
+        </span>
+      )}
     </div>
   )
 }
 
-export function TextArea({ label, hint, error, ...rest }) {
+/* =========================================================
+   TEXT AREA
+========================================================= */
+
+export function TextArea({
+  label,
+  hint,
+  error,
+  ...rest
+}) {
   const id = useId()
 
   return (
     <div className="field">
-      {label && <label htmlFor={id}>{label}</label>}
+      {label && (
+        <label htmlFor={id}>
+          {label}
+        </label>
+      )}
+
       <textarea
+        {...rest}
         id={id}
         className={`textarea ${error ? 'invalid' : ''}`}
-        aria-invalid={!!error}
-        {...rest}
+        aria-invalid={Boolean(error)}
       />
-      {hint && !error && <span className="hint">{hint}</span>}
-      {error && <span className="err" role="alert">{error}</span>}
+
+      {hint && !error && (
+        <span className="hint">
+          {hint}
+        </span>
+      )}
+
+      {error && (
+        <span
+          className="err"
+          role="alert"
+        >
+          {error}
+        </span>
+      )}
     </div>
   )
 }
 
-/* ───────── Status badges ───────── */
+/* =========================================================
+   STATUS BADGES
+
+   Payments
+   Refunds
+   Claims
+   Policies
+   Settlements
+========================================================= */
+
 const TONES = {
   APPROVED: 'green',
   SETTLED: 'green',
@@ -231,62 +432,134 @@ const TONES = {
   CAPTURED: 'green',
   REPLIED: 'green',
   COMPLETED: 'green',
+
+  REFUNDED: 'blue',
+  FULLY_REFUNDED: 'blue',
+
   PENDING: 'amber',
   CREATED: 'amber',
   OPEN: 'amber',
+  SUBMITTED: 'amber',
+  UNDER_REVIEW: 'amber',
+  PROCESSING: 'amber',
+
+  REFUND_PENDING: 'amber',
+  REFUND_PROCESSING: 'amber',
+  REFUND_REQUIRES_RECONCILIATION: 'amber',
+  REQUIRES_RECONCILIATION: 'amber',
+  REQUESTED: 'amber',
+
   NOT_REFUNDED: 'gray',
+  GRAY: 'gray',
+
   REJECTED: 'red',
   INACTIVE: 'red',
   FAILED: 'red',
-  REFUNDED: 'blue',
+  REFUND_FAILED: 'red',
+
   BLUE: 'blue',
-  GRAY: 'gray',
 }
 
-export function StatusBadge({ value, label }) {
-  const v = String(value ?? '').toUpperCase()
-
-  if (!v) return <span className="faint">—</span>
-
-  const text = label || (
-    v.charAt(0) + v.slice(1).toLowerCase().replace(/_/g, ' ')
+export function StatusBadge({
+  value,
+  label,
+}) {
+  const status = String(
+    value ?? '',
   )
+    .trim()
+    .toUpperCase()
 
-  return <span className={`badge ${TONES[v] || 'gray'}`}>{text}</span>
+  if (!status) {
+    return (
+      <span className="faint">
+        —
+      </span>
+    )
+  }
+
+  const text =
+    label ||
+    status
+      .toLowerCase()
+      .replaceAll('_', ' ')
+      .replace(/\b\w/g, (char) =>
+        char.toUpperCase(),
+      )
+
+  return (
+    <span
+      className={`badge ${TONES[status] || 'gray'}`}
+    >
+      {text}
+    </span>
+  )
 }
 
-export function Stars({ value = 0, onChange, size = 20 }) {
+/* =========================================================
+   STAR RATING
+========================================================= */
+
+export function Stars({
+  value = 0,
+  onChange,
+  size = 20,
+}) {
   return (
     <span
       className="stars"
-      role={onChange ? 'radiogroup' : 'img'}
+      role={onChange ? 'group' : 'img'}
       aria-label={`${value} out of 5 stars`}
     >
-      {[1, 2, 3, 4, 5].map((n) =>
+      {[1, 2, 3, 4, 5].map((number) =>
         onChange ? (
           <button
             type="button"
-            key={n}
-            className={n <= value ? 'on' : ''}
-            onClick={() => onChange(n)}
-            aria-label={`${n} star${n > 1 ? 's' : ''}`}
+            key={number}
+            className={
+              number <= value
+                ? 'on'
+                : ''
+            }
+            aria-pressed={number === value}
+            onClick={() =>
+              onChange(number)
+            }
+            aria-label={`${number} star${number > 1 ? 's' : ''}`}
           >
             <Icon
               name="star"
               size={size}
-              fill={n <= value ? 'currentColor' : 'none'}
+              fill={
+                number <= value
+                  ? 'currentColor'
+                  : 'none'
+              }
             />
           </button>
         ) : (
           <span
-            key={n}
-            className={n <= value ? 'on' : ''}
-            style={{ color: n <= value ? undefined : '#cdd8d5' }}
+            key={number}
+            className={
+              number <= value
+                ? 'on'
+                : ''
+            }
+            style={{
+              color:
+                number <= value
+                  ? undefined
+                  : '#cdd8d5',
+            }}
           >
             <Icon
               name="star"
               size={size}
-              fill={n <= value ? 'currentColor' : 'none'}
+              fill={
+                number <= value
+                  ? 'currentColor'
+                  : 'none'
+              }
             />
           </span>
         ),
@@ -295,74 +568,171 @@ export function Stars({ value = 0, onChange, size = 20 }) {
   )
 }
 
-/* ───────── Layout bits ───────── */
-export function PageHeader({ title, subtitle, children }) {
+/* =========================================================
+   PAGE HEADER
+========================================================= */
+
+export function PageHeader({
+  title,
+  subtitle,
+  children,
+}) {
   return (
     <div className="page-head">
       <div>
         <h1>{title}</h1>
-        {subtitle && <p>{subtitle}</p>}
+
+        {subtitle && (
+          <p>{subtitle}</p>
+        )}
       </div>
-      {children && <div className="row wrap">{children}</div>}
+
+      {children && (
+        <div className="row wrap">
+          {children}
+        </div>
+      )}
     </div>
   )
 }
 
-export function Panel({ title, actions, children, flush, className = '' }) {
+/* =========================================================
+   PANEL
+========================================================= */
+
+export function Panel({
+  title,
+  actions,
+  children,
+  flush = false,
+  className = '',
+}) {
   return (
-    <section className={`panel ${className}`}>
+    <section
+      className={`panel ${className}`}
+    >
       {(title || actions) && (
         <div className="panel-head">
-          {title && <h3>{title}</h3>}
-          {actions && <div className="row wrap">{actions}</div>}
+          {title && (
+            <h3>{title}</h3>
+          )}
+
+          {actions && (
+            <div className="row wrap">
+              {actions}
+            </div>
+          )}
         </div>
       )}
-      {flush ? children : <div className="panel-body">{children}</div>}
+
+      {flush ? (
+        children
+      ) : (
+        <div className="panel-body">
+          {children}
+        </div>
+      )}
     </section>
   )
 }
 
-export function Empty({ title, children, action }) {
+/* =========================================================
+   EMPTY STATE
+========================================================= */
+
+export function Empty({
+  title,
+  children,
+  action,
+}) {
   return (
     <div className="empty">
       <h4>{title}</h4>
-      {children && <p>{children}</p>}
+
+      {children && (
+        <p>{children}</p>
+      )}
+
       {action}
     </div>
   )
 }
 
-export function Skeleton({ rows = 4 }) {
+/* =========================================================
+   SKELETON LOADING
+========================================================= */
+
+export function Skeleton({
+  rows = 4,
+}) {
   return (
     <div
       className="panel-body stack-sm"
       aria-busy="true"
       aria-label="Loading"
     >
-      {Array.from({ length: rows }).map((_, i) => (
+      {Array.from({
+        length: rows,
+      }).map((_, index) => (
         <div
-          key={i}
+          key={index}
           className="skeleton"
-          style={{ height: 38, opacity: 1 - i * 0.12 }}
+          style={{
+            height: 38,
+            opacity: Math.max(
+              0.35,
+              1 - index * 0.12,
+            ),
+          }}
         />
       ))}
     </div>
   )
 }
 
-/** Renders loading / error / empty / data for a react-query result. */
-export function DataState({ query, empty, emptyAction, children, rows }) {
-  if (query.isLoading) return <Skeleton rows={rows} />
+/* =========================================================
+   DATA STATE
+
+   React Query:
+   Loading
+   Error
+   Empty
+   Success
+========================================================= */
+
+export function DataState({
+  query,
+  empty,
+  emptyAction,
+  children,
+  rows,
+}) {
+  if (query.isLoading) {
+    return (
+      <Skeleton rows={rows} />
+    )
+  }
 
   if (query.isError) {
     return (
       <div className="panel-body">
-        <div className="alert error">
-          {errorMessage(query.error, 'Could not load this data.')}{' '}
+        <div
+          className="alert error"
+          role="alert"
+        >
+          {errorMessage(
+            query.error,
+            'Could not load this data.',
+          )}
+
+          {' '}
+
           <button
             type="button"
             className="link-btn"
-            onClick={() => query.refetch()}
+            onClick={() =>
+              query.refetch()
+            }
           >
             Try again
           </button>
@@ -375,10 +745,19 @@ export function DataState({ query, empty, emptyAction, children, rows }) {
 
   if (
     empty &&
-    (!data || (Array.isArray(data) && data.length === 0))
+    (
+      data == null ||
+      (
+        Array.isArray(data) &&
+        data.length === 0
+      )
+    )
   ) {
     return (
-      <Empty title={empty.title} action={emptyAction}>
+      <Empty
+        title={empty.title}
+        action={emptyAction}
+      >
         {empty.text}
       </Empty>
     )
@@ -387,45 +766,90 @@ export function DataState({ query, empty, emptyAction, children, rows }) {
   return children(data)
 }
 
-/** Simple responsive table. columns: [{ key, header, render, align }] */
-export function Table({ columns, rows, rowKey, onRowClick }) {
+/* =========================================================
+   RESPONSIVE TABLE
+========================================================= */
+
+export function Table({
+  columns = [],
+  rows = [],
+  rowKey,
+  onRowClick,
+}) {
+  const getRowKey = (row, index) => {
+    if (typeof rowKey === 'function') {
+      return rowKey(row)
+    }
+
+    if (rowKey && row?.[rowKey] != null) {
+      return row[rowKey]
+    }
+
+    return index
+  }
+
   return (
     <div className="table-wrap">
       <table className="tbl">
+
         <thead>
           <tr>
-            {columns.map((c) => (
+            {columns.map((column) => (
               <th
-                key={c.key}
-                className={c.align === 'right' ? 'right' : ''}
+                key={column.key}
+                className={
+                  column.align === 'right'
+                    ? 'right'
+                    : ''
+                }
               >
-                {c.header}
+                {column.header}
               </th>
             ))}
           </tr>
         </thead>
+
         <tbody>
-          {rows.map((r) => (
+          {rows.map((row, index) => (
             <tr
-              key={r[rowKey]}
-              onClick={onRowClick ? () => onRowClick(r) : undefined}
-              style={onRowClick ? { cursor: 'pointer' } : undefined}
+              key={getRowKey(row, index)}
+              onClick={
+                onRowClick
+                  ? () => onRowClick(row)
+                  : undefined
+              }
+              style={
+                onRowClick
+                  ? { cursor: 'pointer' }
+                  : undefined
+              }
             >
-              {columns.map((c) => (
+              {columns.map((column) => (
                 <td
-                  key={c.key}
-                  className={c.align === 'right' ? 'right' : ''}
+                  key={column.key}
+                  className={
+                    column.align === 'right'
+                      ? 'right'
+                      : ''
+                  }
                 >
-                  {c.render ? c.render(r) : r[c.key] ?? '—'}
+                  {column.render
+                    ? column.render(row)
+                    : row[column.key] ?? '—'}
                 </td>
               ))}
             </tr>
           ))}
         </tbody>
+
       </table>
     </div>
   )
 }
+
+/* =========================================================
+   SEARCH BOX
+========================================================= */
 
 export function SearchBox({
   value,
@@ -434,112 +858,259 @@ export function SearchBox({
 }) {
   return (
     <div className="search">
-      <Icon name="search" size={16} />
+      <Icon
+        name="search"
+        size={16}
+      />
+
       <input
         className="input"
         value={value}
-        onChange={(e) => onChange(e.target.value)}
+        onChange={(event) =>
+          onChange(event.target.value)
+        }
         placeholder={placeholder}
         aria-label={placeholder}
+        type="search"
       />
     </div>
   )
 }
 
-export function Segmented({ value, onChange, options }) {
+/* =========================================================
+   SEGMENTED CONTROL
+========================================================= */
+
+export function Segmented({
+  value,
+  onChange,
+  options = [],
+}) {
   return (
-    <div className="seg" role="group">
-      {options.map((o) => (
+    <div
+      className="seg"
+      role="group"
+    >
+      {options.map((option) => (
         <button
           type="button"
-          key={o.value}
-          aria-pressed={value === o.value}
-          onClick={() => onChange(o.value)}
+          key={option.value}
+          aria-pressed={
+            value === option.value
+          }
+          className={
+            value === option.value
+              ? 'active'
+              : ''
+          }
+          onClick={() =>
+            onChange(option.value)
+          }
         >
-          {o.label}
+          {option.label}
         </button>
       ))}
     </div>
   )
 }
 
-export function Tabs({ value, onChange, tabs }) {
+/* =========================================================
+   TABS
+========================================================= */
+
+export function Tabs({
+  value,
+  onChange,
+  tabs = [],
+}) {
   return (
-    <div className="pill-tabs" role="tablist">
-      {tabs.map((t) => (
+    <div
+      className="pill-tabs"
+      role="tablist"
+    >
+      {tabs.map((tab) => (
         <button
           type="button"
-          key={t.value}
+          key={tab.value}
           role="tab"
-          aria-selected={value === t.value}
-          onClick={() => onChange(t.value)}
+          aria-selected={
+            value === tab.value
+          }
+          tabIndex={
+            value === tab.value
+              ? 0
+              : -1
+          }
+          onClick={() =>
+            onChange(tab.value)
+          }
         >
-          {t.label}
+          {tab.label}
         </button>
       ))}
     </div>
   )
 }
 
-export function Details({ items }) {
+/* =========================================================
+   DETAILS GRID
+========================================================= */
+
+export function Details({
+  items = [],
+}) {
   return (
-    <dl className="detail-grid" style={{ margin: 0 }}>
-      {items.map(([k, v]) => (
-        <div key={k}>
-          <dt>{k}</dt>
-          <dd>{v ?? '—'}</dd>
-        </div>
-      ))}
+    <dl
+      className="detail-grid"
+      style={{ margin: 0 }}
+    >
+      {items.map(
+        ([label, value], index) => (
+          <div
+            key={`${label}-${index}`}
+          >
+            <dt>{label}</dt>
+
+            <dd>
+              {value ?? '—'}
+            </dd>
+          </div>
+        ),
+      )}
     </dl>
   )
 }
 
-/* ───────── Modal ───────── */
-export function Modal({ title, onClose, children, footer, wide }) {
-  const ref = useRef(null)
-  const onCloseRef = useRef(onClose)
+/* =========================================================
+   MODAL
 
-  // Keep the latest close handler without restarting the modal effect.
+   Escape Key
+   Backdrop Close
+   Body Scroll Lock
+   Initial Focus
+   Focus Trap
+   Restore Focus
+========================================================= */
+
+export function Modal({
+  title,
+  onClose,
+  children,
+  footer,
+  wide = false,
+}) {
+  const modalRef = useRef(null)
+  const onCloseRef = useRef(onClose)
+  const titleId = useId()
+
   useEffect(() => {
     onCloseRef.current = onClose
   }, [onClose])
 
-  // Set up the modal once when it mounts.
-  // Typing and ordinary parent re-renders will not restart this effect.
   useEffect(() => {
-    const previousActiveElement = document.activeElement
-    const previousOverflow = document.body.style.overflow
+    const previousActiveElement =
+      document.activeElement
+
+    const previousOverflow =
+      document.body.style.overflow
+
+    document.body.style.overflow = 'hidden'
+
+    const modal = modalRef.current
+
+    const getFocusableElements = () =>
+      Array.from(
+        modal?.querySelectorAll(
+          [
+            'a[href]',
+            'button:not([disabled])',
+            'input:not([disabled])',
+            'select:not([disabled])',
+            'textarea:not([disabled])',
+            '[tabindex]:not([tabindex="-1"])',
+          ].join(','),
+        ) || [],
+      ).filter(
+        (element) =>
+          element.getAttribute('aria-hidden') !==
+          'true',
+      )
+
+    const initialFocus =
+      modal?.querySelector(
+        'input:not([disabled]), textarea:not([disabled]), select:not([disabled])',
+      ) ||
+      getFocusableElements()[0]
+
+    initialFocus?.focus()
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
+        event.preventDefault()
         onCloseRef.current?.()
+        return
+      }
+
+      if (event.key !== 'Tab') {
+        return
+      }
+
+      const focusable =
+        getFocusableElements()
+
+      if (focusable.length === 0) {
+        event.preventDefault()
+        modal?.focus()
+        return
+      }
+
+      const first = focusable[0]
+      const last =
+        focusable[focusable.length - 1]
+
+      if (
+        event.shiftKey &&
+        (
+          document.activeElement === first ||
+          !modal?.contains(
+            document.activeElement,
+          )
+        )
+      ) {
+        event.preventDefault()
+        last.focus()
+      } else if (
+        !event.shiftKey &&
+        (
+          document.activeElement === last ||
+          !modal?.contains(
+            document.activeElement,
+          )
+        )
+      ) {
+        event.preventDefault()
+        first.focus()
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    document.body.style.overflow = 'hidden'
-
-    // Focus the first form field once, not the close button on every render.
-    const firstField = ref.current?.querySelector(
-      'input:not([disabled]), textarea:not([disabled]), select:not([disabled])'
+    document.addEventListener(
+      'keydown',
+      handleKeyDown,
     )
 
-    if (firstField) {
-      firstField.focus()
-    } else {
-      ref.current
-        ?.querySelector('button:not([disabled])')
-        ?.focus()
-    }
-
     return () => {
-      document.removeEventListener('keydown', handleKeyDown)
-      document.body.style.overflow = previousOverflow
+      document.removeEventListener(
+        'keydown',
+        handleKeyDown,
+      )
+
+      document.body.style.overflow =
+        previousOverflow
 
       if (
-        previousActiveElement &&
-        typeof previousActiveElement.focus === 'function' &&
-        previousActiveElement.isConnected
+        previousActiveElement?.isConnected &&
+        typeof previousActiveElement.focus ===
+          'function'
       ) {
         previousActiveElement.focus()
       }
@@ -554,20 +1125,29 @@ export function Modal({ title, onClose, children, footer, wide }) {
     <div
       className="modal-back"
       onMouseDown={(event) => {
-        if (event.target === event.currentTarget) {
+        if (
+          event.target ===
+          event.currentTarget
+        ) {
           closeModal()
         }
       }}
     >
       <div
+        ref={modalRef}
         className={`modal ${wide ? 'wide' : ''}`}
         role="dialog"
         aria-modal="true"
-        aria-label={title}
-        ref={ref}
+        aria-labelledby={titleId}
+        tabIndex={-1}
       >
+
+        {/* MODAL HEADER */}
+
         <div className="modal-head">
-          <h3>{title}</h3>
+          <h3 id={titleId}>
+            {title}
+          </h3>
 
           <button
             type="button"
@@ -579,42 +1159,60 @@ export function Modal({ title, onClose, children, footer, wide }) {
           </button>
         </div>
 
+        {/* MODAL CONTENT */}
+
         <div className="modal-body">
           {children}
         </div>
+
+        {/* MODAL FOOTER */}
 
         {footer && (
           <div className="modal-foot">
             {footer}
           </div>
         )}
+
       </div>
     </div>
   )
 }
 
+/* =========================================================
+   CONFIRM DIALOG
+========================================================= */
+
 export function Confirm({
   title,
   message,
   confirmLabel = 'Confirm',
-  danger,
+  danger = false,
   onConfirm,
   onClose,
-  loading,
+  loading = false,
   children,
 }) {
   return (
     <Modal
       title={title}
-      onClose={onClose}
+      onClose={loading ? () => {} : onClose}
       footer={
         <>
-          <Button type="button" onClick={onClose}>
-            Cancel
-          </Button>
           <Button
             type="button"
-            variant={danger ? 'danger' : 'dark'}
+            onClick={onClose}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
+
+          <Button
+            type="button"
+            variant={
+              danger
+                ? 'danger'
+                : 'dark'
+            }
             loading={loading}
             onClick={onConfirm}
           >
@@ -624,45 +1222,128 @@ export function Confirm({
       }
     >
       <p>{message}</p>
+
       {children}
     </Modal>
   )
 }
 
-/* ───────── Toasts ───────── */
-const ToastCtx = createContext(() => {})
+/* =========================================================
+   TOAST NOTIFICATIONS
+========================================================= */
 
-export const useToast = () => useContext(ToastCtx)
+const ToastCtx = createContext(null)
 
-export function ToastProvider({ children }) {
+export function useToast() {
+  const context = useContext(ToastCtx)
+
+  if (!context) {
+    throw new Error(
+      'useToast must be used inside ToastProvider.',
+    )
+  }
+
+  return context
+}
+
+export function ToastProvider({
+  children,
+}) {
   const [items, setItems] = useState([])
 
-  const push = useCallback((message, type = 'success') => {
-    const id = Math.random().toString(36).slice(2)
+  const timersRef = useRef(new Map())
+  const nextIdRef = useRef(0)
 
-    setItems((s) => [...s, { id, message, type }])
+  const dismiss = useCallback((id) => {
+    const timer =
+      timersRef.current.get(id)
 
-    setTimeout(() => {
-      setItems((s) => s.filter((t) => t.id !== id))
-    }, 4200)
+    if (timer) {
+      clearTimeout(timer)
+      timersRef.current.delete(id)
+    }
+
+    setItems((current) =>
+      current.filter(
+        (item) => item.id !== id,
+      ),
+    )
   }, [])
 
-  const api = useMemo(() => ({
-    success: (m) => push(m, 'success'),
-    error: (e) => push(
-      typeof e === 'string' ? e : errorMessage(e),
-      'error'
-    ),
-  }), [push])
+  const push = useCallback(
+    (message, type = 'success') => {
+      const id = ++nextIdRef.current
+
+      setItems((current) => [
+        ...current,
+        {
+          id,
+          message,
+          type,
+        },
+      ])
+
+      const timer = setTimeout(() => {
+        dismiss(id)
+      }, 4200)
+
+      timersRef.current.set(id, timer)
+
+      return id
+    },
+    [dismiss],
+  )
+
+  useEffect(() => {
+    const timers = timersRef.current
+
+    return () => {
+      timers.forEach((timer) =>
+        clearTimeout(timer),
+      )
+
+      timers.clear()
+    }
+  }, [])
+
+  const api = useMemo(
+    () => ({
+      success: (message) =>
+        push(message, 'success'),
+
+      error: (error) =>
+        push(
+          typeof error === 'string'
+            ? error
+            : errorMessage(error),
+          'error',
+        ),
+
+      info: (message) =>
+        push(message, 'info'),
+
+      dismiss,
+    }),
+    [push, dismiss],
+  )
 
   return (
     <ToastCtx.Provider value={api}>
       {children}
 
-      <div className="toasts" role="status" aria-live="polite">
-        {items.map((t) => (
-          <div key={t.id} className={`toast ${t.type}`}>
-            {t.message}
+      <div
+        className="toasts"
+        role="status"
+        aria-live="polite"
+      >
+        {items.map((item) => (
+          <div
+            key={item.id}
+            className={`toast ${item.type}`}
+          >
+            <span>
+              {item.message}
+            </span>
           </div>
         ))}
       </div>
@@ -670,21 +1351,42 @@ export function ToastProvider({ children }) {
   )
 }
 
-/* ───────── Small helpers ───────── */
-export function useFilter(rows, fields) {
+/* =========================================================
+   FILTER HOOK
+========================================================= */
+
+export function useFilter(
+  rows,
+  fields,
+) {
   const [q, setQ] = useState('')
 
   const filtered = useMemo(() => {
-    const s = q.trim().toLowerCase()
+    const search =
+      q.trim().toLowerCase()
 
-    if (!s) return rows || []
+    const list = Array.isArray(rows)
+      ? rows
+      : []
 
-    return (rows || []).filter((r) =>
-      fields.some((f) =>
-        String(r[f] ?? '').toLowerCase().includes(s)
-      )
+    if (!search) {
+      return list
+    }
+
+    return list.filter((row) =>
+      fields.some((field) =>
+        String(
+          row?.[field] ?? '',
+        )
+          .toLowerCase()
+          .includes(search),
+      ),
     )
   }, [rows, q, fields])
 
-  return [q, setQ, filtered]
+  return [
+    q,
+    setQ,
+    filtered,
+  ]
 }
