@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -57,7 +58,7 @@ public class PaymentService {
     }
 
     // =========================================================
-    // CREATE RAZORPAY ORDER USING BACKEND-CALCULATED PREMIUM
+    // CREATE ORDER USING BACKEND-CALCULATED PREMIUM
     // =========================================================
 
     @Transactional(readOnly = true)
@@ -142,10 +143,8 @@ public class PaymentService {
                 .subtract(discount)
                 .setScale(2, RoundingMode.HALF_UP);
 
-        BigDecimal gstAmount = ZERO;
-
         BigDecimal totalPremium = taxableAmount
-                .add(gstAmount)
+                .add(ZERO)
                 .setScale(2, RoundingMode.HALF_UP);
 
         if (totalPremium.compareTo(BigDecimal.ZERO) <= 0) {
@@ -153,8 +152,9 @@ public class PaymentService {
                     "The calculated premium must be greater than zero.");
         }
 
-        // Never trust the amount submitted by the frontend.
-        return createRazorpayOrder(totalPremium, request.getReceipt());
+        // The frontend cannot choose the payable amount.
+        return createRazorpayOrder(
+                totalPremium, request.getReceipt());
     }
 
     // =========================================================
@@ -190,8 +190,7 @@ public class PaymentService {
         }
 
         RazorpayClient razorpayClient = new RazorpayClient(
-                razorpayKeyId,
-                razorpayKeySecret);
+                razorpayKeyId, razorpayKeySecret);
 
         JSONObject orderRequest = new JSONObject();
         orderRequest.put("amount", amountInPaise);
@@ -221,16 +220,15 @@ public class PaymentService {
     }
 
     // =========================================================
-    // VERIFY PAYMENT SIGNATURE AND EXPECTED AMOUNT
+    // SECURE VERIFICATION
+    //
+    // Used by PolicyPurchaseService.
+    // Checks signature, order, payment capture, amount and currency.
     // =========================================================
 
     public boolean verifyPayment(
             PaymentVerificationRequest request,
             BigDecimal expectedAmount) throws Exception {
-
-        if (!hasVerificationFields(request)) {
-            return false;
-        }
 
         if (expectedAmount == null
                 || expectedAmount.compareTo(BigDecimal.ZERO) <= 0) {
@@ -240,14 +238,49 @@ public class PaymentService {
         BigDecimal normalizedExpectedAmount = expectedAmount
                 .setScale(2, RoundingMode.HALF_UP);
 
+        long expectedAmountInPaise = normalizedExpectedAmount
+                .multiply(BigDecimal.valueOf(100))
+                .longValueExact();
+
+        return verifyPaymentInternally(
+                request, expectedAmountInPaise);
+    }
+
+    // =========================================================
+    // LEGACY VERIFICATION
+    //
+    // Kept for existing controller compatibility.
+    // It still checks that the payment is captured and matches
+    // the Razorpay order. Purchase must use the secure overload.
+    // =========================================================
+
+    public boolean verifyPayment(
+            PaymentVerificationRequest request) throws Exception {
+
+        return verifyPaymentInternally(request, null);
+    }
+
+    // =========================================================
+    // VERIFY RAZORPAY ORDER AND PAYMENT
+    // =========================================================
+
+    private boolean verifyPaymentInternally(
+            PaymentVerificationRequest request,
+            Long expectedAmountInPaise) throws Exception {
+
+        if (!hasVerificationFields(request)) {
+            return false;
+        }
+
         String orderId = request.getRazorpayOrderId().trim();
         String paymentId = request.getRazorpayPaymentId().trim();
         String signature = request.getRazorpaySignature().trim();
 
-        String data = orderId + "|" + paymentId;
+        // 1. Verify Razorpay's checkout signature.
+        String signatureData = orderId + "|" + paymentId;
 
         String generatedSignature = generateHmacSha256(
-                data, razorpayKeySecret);
+                signatureData, razorpayKeySecret);
 
         boolean signatureValid = MessageDigest.isEqual(
                 generatedSignature.getBytes(StandardCharsets.UTF_8),
@@ -257,9 +290,9 @@ public class PaymentService {
             return false;
         }
 
+        // 2. Fetch the order directly from Razorpay.
         RazorpayClient razorpayClient = new RazorpayClient(
-                razorpayKeyId,
-                razorpayKeySecret);
+                razorpayKeyId, razorpayKeySecret);
 
         Order order = razorpayClient.orders.fetch(orderId);
 
@@ -281,55 +314,89 @@ public class PaymentService {
             return false;
         }
 
-        Object amountObject = order.get("amount");
+        Long orderAmountInPaise = readAmountInPaise(
+                order.get("amount"));
+
+        if (orderAmountInPaise == null
+                || orderAmountInPaise <= 0) {
+            return false;
+        }
+
+        // 3. If the purchase service supplied its own calculated
+        // amount, require an exact match with the Razorpay order.
+        if (expectedAmountInPaise != null
+                && !expectedAmountInPaise.equals(orderAmountInPaise)) {
+            return false;
+        }
+
+        // 4. Fetch the actual payment, not just the order.
+        // Razorpay's Java SDK exposes payments.fetch(paymentId).
+        var payment = razorpayClient.payments.fetch(paymentId);
+
+        if (payment == null) {
+            return false;
+        }
+
+        // 5. Ensure the payment belongs to this order.
+        String paymentOrderId = payment.get("order_id");
+
+        if (paymentOrderId == null
+                || !orderId.equals(paymentOrderId)) {
+            return false;
+        }
+
+        // 6. A merely authorized payment is not considered paid.
+        String paymentStatus = payment.get("status");
+
+        if (paymentStatus == null
+                || !"captured".equalsIgnoreCase(paymentStatus)) {
+            return false;
+        }
+
+        // 7. Verify the actual captured payment amount.
+        Long paymentAmountInPaise = readAmountInPaise(
+                payment.get("amount"));
+
+        if (paymentAmountInPaise == null
+                || !orderAmountInPaise.equals(paymentAmountInPaise)) {
+            return false;
+        }
+
+        // 8. Verify the captured payment currency.
+        String paymentCurrency = payment.get("currency");
+
+        if (paymentCurrency == null
+                || !currency.equalsIgnoreCase(paymentCurrency)
+                || !orderCurrency.equalsIgnoreCase(paymentCurrency)) {
+            return false;
+        }
+
+        // The payment is captured and matches the expected order.
+        return true;
+    }
+
+    // =========================================================
+    // PARSE RAZORPAY AMOUNT
+    // =========================================================
+
+    private Long readAmountInPaise(Object amountObject) {
 
         if (amountObject == null) {
-            return false;
+            return null;
         }
-
-        long razorpayAmountInPaise;
 
         try {
-            razorpayAmountInPaise = Long.parseLong(
-                    String.valueOf(amountObject));
-        } catch (NumberFormatException exception) {
-            return false;
+            return new BigDecimal(
+                    String.valueOf(amountObject))
+                    .longValueExact();
+        } catch (NumberFormatException
+                | ArithmeticException exception) {
+            return null;
         }
-
-        long expectedAmountInPaise = normalizedExpectedAmount
-                .multiply(BigDecimal.valueOf(100))
-                .longValueExact();
-
-        return razorpayAmountInPaise == expectedAmountInPaise;
     }
 
     // =========================================================
-    // SIGNATURE-ONLY VERIFICATION - LEGACY COMPATIBILITY
-    // =========================================================
-
-    public boolean verifyPayment(
-            PaymentVerificationRequest request) throws Exception {
-
-        if (!hasVerificationFields(request)) {
-            return false;
-        }
-
-        String data = request.getRazorpayOrderId().trim()
-                + "|"
-                + request.getRazorpayPaymentId().trim();
-
-        String generatedSignature = generateHmacSha256(
-                data, razorpayKeySecret);
-
-        return MessageDigest.isEqual(
-                generatedSignature.getBytes(StandardCharsets.UTF_8),
-                request.getRazorpaySignature()
-                        .trim()
-                        .getBytes(StandardCharsets.UTF_8));
-    }
-
-    // =========================================================
-    // COMMON VALIDATION
+    // COMMON REQUEST VALIDATION
     // =========================================================
 
     private boolean hasVerificationFields(
@@ -366,7 +433,7 @@ public class PaymentService {
         StringBuilder result = new StringBuilder();
 
         for (byte b : hash) {
-            result.append(String.format("%02x", b));
+            result.append(String.format("%02x", b & 0xff));
         }
 
         return result.toString();
