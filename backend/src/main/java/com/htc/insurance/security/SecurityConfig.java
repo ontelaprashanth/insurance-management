@@ -82,6 +82,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/session").authenticated()
                 .requestMatchers("/payment/**").authenticated()
                 .requestMatchers("/policy/purchase").authenticated()
+                .requestMatchers("/webhooks/razorpay").permitAll()
 
                 .anyRequest().authenticated()
             )
