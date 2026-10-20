@@ -1,19 +1,18 @@
+
 package com.htc.insurance.dto;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-
-
 import lombok.Data;
 
 @Data
 public class PurchasePolicyDto {
 
-    // =========================
+    // =====================================================
     // PURCHASE / POLICY DETAILS
-    // =========================
+    // =====================================================
 
     private Long purchaseId;
 
@@ -26,13 +25,12 @@ public class PurchasePolicyDto {
     private Integer durationYears;
 
     private BigDecimal coverageAmount;
-    
+
     private Long planId;
 
-
-    // =========================
+    // =====================================================
     // NOMINEE DETAILS
-    // =========================
+    // =====================================================
 
     private String nomineeName;
 
@@ -40,17 +38,15 @@ public class PurchasePolicyDto {
 
     private String nomineeContact;
 
-
-    // =========================
+    // =====================================================
     // PAYMENT METHOD
-    // =========================
+    // =====================================================
 
     private String paymentMethod;
 
-
-    // =========================
-    // PRICING
-    // =========================
+    // =====================================================
+    // PREMIUM DETAILS
+    // =====================================================
 
     private BigDecimal basePremium;
 
@@ -64,10 +60,9 @@ public class PurchasePolicyDto {
 
     private BigDecimal totalPremium;
 
-
-    // =========================
+    // =====================================================
     // PAYMENT RESULT
-    // =========================
+    // =====================================================
 
     private String paymentStatus;
 
@@ -78,34 +73,29 @@ public class PurchasePolicyDto {
     private String razorpayPaymentId;
 
     /*
-     * Sent by Razorpay after successful payment.
+     * Razorpay checkout signature.
      *
-     * Used by backend to verify that the payment
-     * has not been tampered with.
-     *
-     * This value should be accepted from the frontend
-     * during purchase confirmation but should NOT be
-     * stored in the database.
+     * Received from the frontend and verified by the backend.
+     * Do not persist this value in the purchase entity.
      */
+
     private String razorpaySignature;
 
     private LocalDate paymentDate;
 
     private LocalDateTime paymentDateTime;
 
-
-    // =========================
-    // PURCHASE TIMESTAMP
-    // =========================
+    // =====================================================
+    // PURCHASE TIMESTAMPS
+    // =====================================================
 
     private LocalDate purchaseDate;
 
     private LocalDateTime createdAt;
 
-
-    // =========================
+    // =====================================================
     // REFUND DETAILS
-    // =========================
+    // =====================================================
 
     private String refundStatus;
 
@@ -117,21 +107,11 @@ public class PurchasePolicyDto {
 
     private LocalDateTime refundDateTime;
 
-
-    // =========================
+    // =====================================================
     // REFUND ELIGIBILITY
-    // =========================
+    // =====================================================
 
     private LocalDateTime refundDeadline;
 
     private Boolean refundEligible;
-
-
-    public Long getPlanId() {
-    return planId;
-}
-
-public void setPlanId(Long planId) {
-    this.planId = planId;
-}
 }
