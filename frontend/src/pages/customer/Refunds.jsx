@@ -1,544 +1,787 @@
-import React, { useCallback, useEffect, useState } from "react";
+
+import { useMemo, useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+
+import { purchases } from '../../api/endpoints'
+import { errorMessage } from '../../api/client'
+
 import {
-  AlertCircle,
-  CheckCircle2,
-  Clock3,
-  CreditCard,
-  RefreshCw,
-  ShieldCheck,
-  Wallet,
-  X,
-} from "lucide-react";
+  Button,
+  PageHeader,
+  Panel,
+  SearchBox,
+  Segmented,
+  StatusBadge,
+  Table,
+  Details,
+  Modal,
+  DataState,
+  Empty,
+  Icon,
+  useToast,
+} from '../../components/ui'
 
-import Layout from "../components/Layout";
-import { api, money, date } from "../lib/api";
-import "./Refunds.css";
+/* =========================================================
+   INSUREX — REFUNDS & PAYMENTS
+   Uses existing global style.css only.
+   No separate CSS and no nested Layout.
+========================================================= */
 
-function formatStatus(value) {
-  return String(value || "UNKNOWN")
-    .replaceAll("_", " ")
-    .toLowerCase()
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+const REFUND_FILTERS = [
+  { value: 'ALL', label: 'All' },
+  { value: 'ELIGIBLE', label: 'Eligible' },
+  { value: 'PROCESSING', label: 'Processing' },
+  { value: 'REFUNDED', label: 'Refunded' },
+]
+
+const PROCESSING_STATUSES = new Set([
+  'REFUND_PENDING',
+  'REFUND_PROCESSING',
+  'REFUND_REQUIRES_RECONCILIATION',
+  'PROCESSING',
+])
+
+function statusOf(value) {
+  return String(value ?? '').trim().toUpperCase()
 }
 
-function getErrorMessage(error) {
-  return (
-    error?.response?.data?.reason ||
-    error?.response?.data?.message ||
-    error?.message ||
-    "Something went wrong. Please try again."
-  );
+function formatMoney(value) {
+  const amount = Number(value ?? 0)
+
+  if (!Number.isFinite(amount)) return '—'
+
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(amount)
 }
 
-export default function Refunds() {
-  const [purchases, setPurchases] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState("");
-  const [notice, setNotice] = useState("");
-  const [selected, setSelected] = useState(null);
-  const [reason, setReason] = useState("");
-  const [submitting, setSubmitting] = useState(false);
+function formatDate(value, withTime = false) {
+  if (!value) return '—'
 
-  const loadPurchases = useCallback(async (refresh = false) => {
-    if (refresh) {
-      setRefreshing(true);
-    } else {
-      setLoading(true);
-    }
+  const parsed = new Date(value)
 
-    setError("");
-
-    try {
-      const result = await api("/policy/my-purchases");
-
-      setPurchases(Array.isArray(result) ? result : []);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    loadPurchases();
-  }, [loadPurchases]);
-
-  function openRefund(purchase) {
-    setSelected(purchase);
-    setReason("");
-    setError("");
-    setNotice("");
+  if (Number.isNaN(parsed.getTime())) {
+    return String(value)
   }
 
-  function closeRefund() {
-    if (submitting) return;
-
-    setSelected(null);
-    setReason("");
-  }
-
-  async function submitRefund(event) {
-    event.preventDefault();
-
-    if (!selected?.purchaseId || submitting) return;
-
-    const refundReason = reason.trim();
-
-    if (!refundReason) {
-      setError("Please enter a reason for your refund.");
-      return;
-    }
-
-    if (refundReason.length > 500) {
-      setError("The refund reason cannot exceed 500 characters.");
-      return;
-    }
-
-    const confirmed = window.confirm(
-      `Request a full refund of ${formatMoney(
-        selected.totalPremium
-      )} for purchase #${selected.purchaseId}?\n\n` +
-      "This submits a refund request to Razorpay. " +
-      "Only continue if you intend to request this refund."
-    );
-
-    if (!confirmed) return;
-
-    setSubmitting(true);
-    setError("");
-    setNotice("");
-
-    try {
-      await api(
-        `/policy/purchases/${selected.purchaseId}/refund`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            refundReason,
-          }),
+  return new Intl.DateTimeFormat('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    ...(withTime
+      ? {
+          hour: '2-digit',
+          minute: '2-digit',
         }
-      );
+      : {}),
+  }).format(parsed)
+}
 
-      setSelected(null);
-      setReason("");
-      setNotice(
-        "Your refund request was submitted. Refresh the purchase list to view the latest status."
-      );
+function isRefundEligible(purchase) {
+  return (
+    purchase?.refundEligible === true &&
+    statusOf(purchase?.paymentStatus) === 'PAID' &&
+    statusOf(purchase?.refundStatus) === 'NOT_REFUNDED'
+  )
+}
 
-      await loadPurchases(true);
-    } catch (err) {
-      setError(getErrorMessage(err));
-    } finally {
-      setSubmitting(false);
-    }
+function refundLabel(purchase) {
+  const status = statusOf(purchase?.refundStatus)
+
+  if (status === 'REFUNDED') return 'Refunded'
+  if (status === 'REFUND_FAILED') return 'Refund failed'
+  if (status === 'REFUND_REQUIRES_RECONCILIATION') {
+    return 'Under review'
+  }
+  if (status === 'REFUND_PENDING') return 'Refund pending'
+  if (status === 'REFUND_PROCESSING') {
+    return 'Processing'
   }
 
-  function formatMoney(value) {
-    if (typeof money === "function") {
-      return money(value ?? 0);
-    }
+  if (isRefundEligible(purchase)) return 'Eligible'
 
-    return new Intl.NumberFormat("en-IN", {
-      style: "currency",
-      currency: "INR",
-      maximumFractionDigits: 2,
-    }).format(Number(value || 0));
+  if (status === 'NOT_REFUNDED') return 'Not eligible'
+
+  return status
+    ? status.replaceAll('_', ' ').toLowerCase()
+    : 'Unavailable'
+}
+
+function RefundBadge({ purchase }) {
+  const status = statusOf(purchase?.refundStatus)
+
+  if (status === 'REFUNDED') {
+    return <StatusBadge value="REFUNDED" />
   }
 
-  function formatDate(value) {
-    if (!value) return "—";
-
-    if (typeof date === "function") {
-      return date(value);
-    }
-
-    return new Date(value).toLocaleDateString("en-IN");
+  if (status === 'REFUND_FAILED') {
+    return <StatusBadge value="FAILED" label="Refund failed" />
   }
 
-  function canRequestRefund(purchase) {
+  if (PROCESSING_STATUSES.has(status)) {
     return (
-      String(purchase.paymentStatus || "").toUpperCase() === "PAID" &&
-      purchase.refundEligible === true &&
-      (
-        !purchase.refundStatus ||
-        String(purchase.refundStatus).toUpperCase() === "NOT_REFUNDED"
-      )
-    );
+      <StatusBadge
+        value="PENDING"
+        label={refundLabel(purchase)}
+      />
+    )
   }
 
-  const paidCount = purchases.filter(
-    (purchase) =>
-      String(purchase.paymentStatus || "").toUpperCase() === "PAID"
-  ).length;
-
-  const refundableCount = purchases.filter(canRequestRefund).length;
+  if (isRefundEligible(purchase)) {
+    return (
+      <StatusBadge value="ACTIVE" label="Refund eligible" />
+    )
+  }
 
   return (
-    <Layout>
-      <main className="refund-page">
-        <section className="refund-hero">
-          <div className="refund-hero-icon">
-            <ShieldCheck size={27} />
-          </div>
+    <StatusBadge value="GRAY" label={refundLabel(purchase)} />
+  )
+}
 
-          <div className="refund-hero-copy">
-            <span className="refund-eyebrow">INSUREX CUSTOMER SERVICE</span>
-            <h1>Refunds & Payments</h1>
-            <p>
-              Review your policy purchases and request a refund when your
-              purchase is eligible.
-            </p>
-          </div>
+/* =========================================================
+   PURCHASE DETAILS MODAL
+========================================================= */
 
-          <button
-            type="button"
-            className="refund-refresh"
-            onClick={() => loadPurchases(true)}
-            disabled={loading || refreshing}
-          >
-            <RefreshCw
-              size={16}
-              className={refreshing ? "refund-spin" : ""}
-            />
-            Refresh
-          </button>
-        </section>
+function PurchaseDetails({ purchase, onClose, onRefund }) {
+  const eligible = isRefundEligible(purchase)
 
-        <section className="refund-stats">
-          <article className="refund-stat">
-            <span className="refund-stat-icon">
-              <Wallet size={19} />
-            </span>
-            <div>
-              <span>Purchases</span>
-              <strong>{purchases.length}</strong>
-            </div>
-          </article>
+  const items = [
+    ['Purchase ID', `#${purchase.purchaseId}`],
+    ['Policy number', purchase.policyNumber ?? '—'],
+    ['Insurance type', purchase.coveredTypes ?? '—'],
+    ['Coverage amount', formatMoney(purchase.coverageAmount)],
+    [
+      'Policy duration',
+      purchase.durationYears
+        ? `${purchase.durationYears} year(s)`
+        : '—',
+    ],
+    ['Purchase date', formatDate(purchase.purchaseDate)],
+    ['Base premium', formatMoney(purchase.basePremium)],
+    ['Discount', formatMoney(purchase.discountAmount)],
+    ['Taxable amount', formatMoney(purchase.taxableAmount)],
+    [
+      'GST rate',
+      purchase.gstRate != null
+        ? `${purchase.gstRate}%`
+        : '—',
+    ],
+    ['GST amount', formatMoney(purchase.gstAmount)],
+    ['Total paid', formatMoney(purchase.totalPremium)],
+    ['Payment method', purchase.paymentMethod ?? '—'],
+    [
+      'Payment status',
+      <StatusBadge value={purchase.paymentStatus} />,
+    ],
+    [
+      'Payment date',
+      formatDate(purchase.paymentDateTime, true),
+    ],
+    [
+      'Refund status',
+      <RefundBadge purchase={purchase} />,
+    ],
+    [
+      'Refund deadline',
+      formatDate(purchase.refundDeadline, true),
+    ],
+    [
+      'Refund amount',
+      purchase.refundAmount != null
+        ? formatMoney(purchase.refundAmount)
+        : '—',
+    ],
+    ['Refund ID', purchase.refundId ?? '—'],
+    ['Refund reason', purchase.refundReason ?? '—'],
+    [
+      'Refund date',
+      formatDate(purchase.refundDateTime, true),
+    ],
+    ['Transaction ID', purchase.transactionId ?? '—'],
+    ['Razorpay order ID', purchase.razorpayOrderId ?? '—'],
+    ['Razorpay payment ID', purchase.razorpayPaymentId ?? '—'],
+    ['Nominee', purchase.nomineeName ?? '—'],
+    ['Nominee relation', purchase.nomineeRelation ?? '—'],
+    ['Nominee contact', purchase.nomineeContact ?? '—'],
+  ]
 
-          <article className="refund-stat">
-            <span className="refund-stat-icon">
-              <CreditCard size={19} />
-            </span>
-            <div>
-              <span>Paid purchases</span>
-              <strong>{paidCount}</strong>
-            </div>
-          </article>
+  return (
+    <Modal
+      title={`Purchase #${purchase.purchaseId}`}
+      wide
+      onClose={onClose}
+      footer={
+        <>
+          <Button type="button" onClick={onClose}>
+            Close
+          </Button>
 
-          <article className="refund-stat">
-            <span className="refund-stat-icon refund-stat-gold">
-              <Clock3 size={19} />
-            </span>
-            <div>
-              <span>Refund eligible</span>
-              <strong>{refundableCount}</strong>
-            </div>
-          </article>
-        </section>
-
-        {error && !selected && (
-          <div className="refund-alert refund-alert-error" role="alert">
-            <AlertCircle size={18} />
-            <span>{error}</span>
-            <button
+          {eligible && (
+            <Button
               type="button"
-              aria-label="Dismiss error"
-              onClick={() => setError("")}
+              variant="primary"
+              onClick={() => onRefund(purchase)}
             >
-              <X size={17} />
-            </button>
-          </div>
-        )}
-
-        {notice && (
-          <div className="refund-alert refund-alert-success" role="status">
-            <CheckCircle2 size={18} />
-            <span>{notice}</span>
-            <button
-              type="button"
-              aria-label="Dismiss message"
-              onClick={() => setNotice("")}
-            >
-              <X size={17} />
-            </button>
-          </div>
-        )}
-
-        <section className="refund-list-section">
-          <div className="refund-section-heading">
-            <div>
-              <h2>Your purchases</h2>
-              <p>Refund eligibility and status are provided by the backend.</p>
-            </div>
-            <span className="refund-count">{purchases.length} records</span>
-          </div>
-
-          {loading ? (
-            <div className="refund-state">
-              <RefreshCw size={23} className="refund-spin" />
-              <strong>Loading purchases</strong>
-              <span>Retrieving your purchase information securely.</span>
-            </div>
-          ) : error && purchases.length === 0 ? (
-            <div className="refund-state">
-              <AlertCircle size={26} />
-              <strong>Unable to load purchases</strong>
-              <span>{error}</span>
-              <button
-                type="button"
-                className="refund-primary-btn"
-                onClick={() => loadPurchases()}
-              >
-                Try again
-              </button>
-            </div>
-          ) : purchases.length === 0 ? (
-            <div className="refund-state">
-              <Wallet size={30} />
-              <strong>No purchases found</strong>
-              <span>Completed policy purchases will appear here.</span>
-            </div>
-          ) : (
-            <div className="refund-table-wrap">
-              <table className="refund-table">
-                <thead>
-                  <tr>
-                    <th>Purchase</th>
-                    <th>Premium</th>
-                    <th>Payment</th>
-                    <th>Refund status</th>
-                    <th>Purchased</th>
-                    <th>Action</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {purchases.map((purchase) => {
-                    const status = String(
-                      purchase.refundStatus || "NOT_REFUNDED"
-                    ).toUpperCase();
-
-                    const eligible = canRequestRefund(purchase);
-
-                    return (
-                      <tr key={purchase.purchaseId}>
-                        <td>
-                          <div className="refund-purchase-id">
-                            <span className="refund-purchase-icon">
-                              <ShieldCheck size={17} />
-                            </span>
-                            <div>
-                              <strong>
-                                #{purchase.purchaseId}
-                              </strong>
-                              <small>
-                                Policy #{purchase.policyNumber ?? "—"}
-                              </small>
-                            </div>
-                          </div>
-                        </td>
-
-                        <td>
-                          <strong className="refund-amount">
-                            {formatMoney(purchase.totalPremium)}
-                          </strong>
-                        </td>
-
-                        <td>
-                          <span
-                            className={`refund-pill ${
-                              String(purchase.paymentStatus).toUpperCase() === "PAID"
-                                ? "refund-pill-success"
-                                : "refund-pill-neutral"
-                            }`}
-                          >
-                            {formatStatus(purchase.paymentStatus)}
-                          </span>
-                        </td>
-
-                        <td>
-                          <span
-                            className={`refund-pill ${
-                              status === "REFUNDED"
-                                ? "refund-pill-success"
-                                : status === "NOT_REFUNDED"
-                                  ? "refund-pill-neutral"
-                                  : "refund-pill-warning"
-                            }`}
-                          >
-                            {formatStatus(status)}
-                          </span>
-                          {purchase.refundAmount != null &&
-                            Number(purchase.refundAmount) > 0 && (
-                              <small className="refund-subtext">
-                                {formatMoney(purchase.refundAmount)}
-                              </small>
-                            )}
-                        </td>
-
-                        <td>{formatDate(purchase.purchaseDate)}</td>
-
-                        <td>
-                          {eligible ? (
-                            <button
-                              type="button"
-                              className="refund-request-btn"
-                              onClick={() => openRefund(purchase)}
-                            >
-                              Request refund
-                            </button>
-                          ) : (
-                            <span className="refund-action-unavailable">
-                              {status === "REFUNDED"
-                                ? "Refunded"
-                                : status.includes("PENDING") ||
-                                    status.includes("RECONCILIATION")
-                                  ? "Under review"
-                                  : String(
-                                      purchase.paymentStatus || ""
-                                    ).toUpperCase() !== "PAID"
-                                    ? "Not paid"
-                                    : purchase.refundEligible === false
-                                      ? "Not eligible"
-                                      : "Unavailable"}
-                            </span>
-                          )}
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
+              Request refund
+            </Button>
           )}
-        </section>
-
-        <div className="refund-footnote">
-          <ShieldCheck size={17} />
+        </>
+      }
+    >
+      <div className="stack">
+        <div className="alert info">
+          <strong>Payment information</strong>
           <p>
-            Refund requests are checked by InsureX. Eligibility is determined
-            by the backend, and the final processing time depends on Razorpay
-            and your payment provider.
+            Review your insurance purchase, payment details,
+            and refund status below.
           </p>
         </div>
 
-        {selected && (
-          <div
-            className="refund-modal-backdrop"
-            onMouseDown={(event) => {
-              if (event.target === event.currentTarget) closeRefund();
-            }}
+        <Details items={items} />
+      </div>
+    </Modal>
+  )
+}
+
+/* =========================================================
+   REFUND REQUEST MODAL
+========================================================= */
+
+function RefundRequestModal({
+  purchase,
+  onClose,
+  onSuccess,
+}) {
+  const [reason, setReason] = useState('')
+  const [confirmed, setConfirmed] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitError, setSubmitError] = useState('')
+
+  const toast = useToast()
+
+  const validReason =
+    reason.trim().length > 0 &&
+    reason.trim().length <= 500
+
+  const canSubmit =
+    validReason &&
+    confirmed &&
+    !submitting &&
+    isRefundEligible(purchase)
+
+  function close() {
+    if (submitting) return
+    onClose()
+  }
+
+  async function submit(event) {
+    event.preventDefault()
+
+    if (!canSubmit) return
+
+    setSubmitting(true)
+    setSubmitError('')
+
+    try {
+      await purchases.refund(purchase.purchaseId, {
+        refundReason: reason.trim(),
+      })
+
+      toast.success(
+        'Refund request received. Check the status in your purchase history.'
+      )
+
+      onSuccess()
+    } catch (error) {
+      const message = errorMessage(
+        error,
+        'Unable to confirm the refund request.'
+      )
+
+      const uncertain =
+        !error?.response ||
+        Number(error?.response?.status) >= 500
+
+      setSubmitError(
+        uncertain
+          ? 'The server response could not be confirmed. ' +
+            'Please refresh your purchases and check the refund ' +
+            'status before attempting another request.'
+          : message
+      )
+
+      if (uncertain) {
+        // Avoid an immediate retry after an ambiguous result.
+        setConfirmed(false)
+      }
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <Modal
+      title="Request policy refund"
+      onClose={close}
+      footer={
+        <>
+          <Button
+            type="button"
+            onClick={close}
+            disabled={submitting}
           >
-            <section
-              className="refund-modal"
-              role="dialog"
-              aria-modal="true"
-              aria-labelledby="refund-modal-title"
-            >
-              <div className="refund-modal-header">
-                <span className="refund-modal-icon">
-                  <Wallet size={22} />
+            Cancel
+          </Button>
+
+          <Button
+            type="submit"
+            form="insurex-refund-form"
+            variant="primary"
+            loading={submitting}
+            disabled={!canSubmit}
+          >
+            Submit refund
+          </Button>
+        </>
+      }
+    >
+      <form
+        id="insurex-refund-form"
+        className="stack"
+        onSubmit={submit}
+      >
+        <div className="panel">
+          <div className="panel-body">
+            <div className="stack-sm">
+              <span className="muted">
+                Full refund requested
+              </span>
+
+              <h2>{formatMoney(purchase.totalPremium)}</h2>
+
+              <div className="row wrap">
+                <StatusBadge value="PAID" />
+
+                <span className="muted">
+                  Policy #{purchase.policyNumber ?? '—'}
                 </span>
-
-                <button
-                  type="button"
-                  className="refund-modal-close"
-                  aria-label="Close dialog"
-                  disabled={submitting}
-                  onClick={closeRefund}
-                >
-                  <X size={19} />
-                </button>
               </div>
+            </div>
+          </div>
+        </div>
 
-              <span className="refund-eyebrow">PURCHASE #{selected.purchaseId}</span>
-              <h2 id="refund-modal-title">Request a full refund</h2>
-              <p className="refund-modal-description">
-                Please explain why you want to cancel this purchase.
-              </p>
+        <div className="field">
+          <label htmlFor="insurex-refund-reason">
+            Reason for refund
+          </label>
 
-              <div className="refund-summary">
-                <span>Full refund amount</span>
-                <strong>{formatMoney(selected.totalPremium)}</strong>
-                <small>
-                  Policy #{selected.policyNumber ?? "—"}
-                </small>
-              </div>
+          <textarea
+            id="insurex-refund-reason"
+            className="textarea"
+            rows={4}
+            maxLength={500}
+            value={reason}
+            disabled={submitting}
+            onChange={(event) =>
+              setReason(event.target.value)
+            }
+            placeholder="Explain why you want to cancel this policy..."
+            required
+          />
 
-              {error && (
-                <div className="refund-alert refund-alert-error" role="alert">
-                  <AlertCircle size={17} />
-                  <span>{error}</span>
-                </div>
-              )}
+          <span className="hint">
+            {reason.length}/500 characters
+          </span>
+        </div>
 
-              <form onSubmit={submitRefund}>
-                <label htmlFor="refundReason">
-                  Reason for refund <span>*</span>
-                </label>
+        <div className="alert warn">
+          <strong>Important information</strong>
+          <p>
+            If your refund request is accepted, the policy
+            may be deactivated while the refund is processed.
+            Refund availability is subject to eligibility
+            checks, including the 24-hour payment window
+            and claim history.
+          </p>
+        </div>
 
-                <textarea
-                  id="refundReason"
-                  name="refundReason"
-                  value={reason}
-                  onChange={(event) => setReason(event.target.value)}
-                  placeholder="Tell us why you want a refund..."
-                  maxLength={500}
-                  rows={4}
-                  required
-                  disabled={submitting}
-                />
+        <label
+          className="row"
+          style={{ alignItems: 'flex-start' }}
+        >
+          <input
+            type="checkbox"
+            checked={confirmed}
+            disabled={submitting}
+            onChange={(event) =>
+              setConfirmed(event.target.checked)
+            }
+            style={{ marginTop: 5 }}
+          />
 
-                <div className="refund-character-count">
-                  {reason.length}/500 characters
-                </div>
+          <span>
+            I understand that submitting this refund
+            request may deactivate my insurance coverage.
+          </span>
+        </label>
 
-                <div className="refund-modal-warning">
-                  <AlertCircle size={17} />
-                  <span>
-                    Submitting this request contacts the refund service. Only
-                    proceed if you intend to request the full refund.
-                  </span>
-                </div>
-
-                <div className="refund-modal-actions">
-                  <button
-                    type="button"
-                    className="refund-cancel-btn"
-                    onClick={closeRefund}
-                    disabled={submitting}
-                  >
-                    Cancel
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="refund-primary-btn"
-                    disabled={submitting || !reason.trim()}
-                  >
-                    {submitting ? (
-                      <>
-                        <RefreshCw size={16} className="refund-spin" />
-                        Submitting...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 size={16} />
-                        Submit request
-                      </>
-                    )}
-                  </button>
-                </div>
-              </form>
-            </section>
+        {submitError && (
+          <div className="alert error" role="alert">
+            {submitError}
           </div>
         )}
-      </main>
-    </Layout>
-  );
+      </form>
+    </Modal>
+  )
+}
+
+/* =========================================================
+   MAIN REFUNDS PAGE
+========================================================= */
+
+export default function Refunds() {
+  const queryClient = useQueryClient()
+
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState('ALL')
+  const [selected, setSelected] = useState(null)
+  const [refundPurchase, setRefundPurchase] = useState(null)
+
+  const query = useQuery({
+    queryKey: ['my-purchases'],
+    queryFn: purchases.mine,
+    staleTime: 15_000,
+    refetchOnWindowFocus: true,
+  })
+
+  const rows = Array.isArray(query.data)
+    ? query.data
+    : []
+
+  const stats = useMemo(() => {
+    const paid = rows.filter(
+      (item) => statusOf(item.paymentStatus) === 'PAID'
+    )
+
+    const refunded = rows.filter(
+      (item) => statusOf(item.refundStatus) === 'REFUNDED'
+    )
+
+    const eligible = rows.filter(isRefundEligible)
+
+    const processing = rows.filter((item) =>
+      PROCESSING_STATUSES.has(statusOf(item.refundStatus))
+    )
+
+    return {
+      purchases: rows.length,
+      paid: paid.length,
+      eligible: eligible.length,
+      processing: processing.length,
+      refunded: refunded.length,
+      totalPaid: paid.reduce(
+        (sum, item) => sum + Number(item.totalPremium || 0),
+        0
+      ),
+    }
+  }, [rows])
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase()
+
+    return rows
+      .filter((item) => {
+        if (filter === 'ELIGIBLE') {
+          return isRefundEligible(item)
+        }
+
+        if (filter === 'PROCESSING') {
+          return PROCESSING_STATUSES.has(
+            statusOf(item.refundStatus)
+          )
+        }
+
+        if (filter === 'REFUNDED') {
+          return statusOf(item.refundStatus) === 'REFUNDED'
+        }
+
+        return true
+      })
+      .filter((item) => {
+        if (!term) return true
+
+        return [
+          item.purchaseId,
+          item.policyNumber,
+          item.coveredTypes,
+          item.paymentStatus,
+          item.refundStatus,
+          item.transactionId,
+          item.razorpayPaymentId,
+        ].some((value) =>
+          String(value ?? '')
+            .toLowerCase()
+            .includes(term)
+        )
+      })
+      .sort((a, b) =>
+        Number(b.purchaseId || 0) -
+        Number(a.purchaseId || 0)
+      )
+  }, [rows, search, filter])
+
+  function openRefund(purchase) {
+    if (!isRefundEligible(purchase)) return
+
+    setSelected(null)
+    setRefundPurchase(purchase)
+  }
+
+  async function afterRefund() {
+    setRefundPurchase(null)
+    setSelected(null)
+
+    await Promise.all([
+      queryClient.invalidateQueries({
+        queryKey: ['my-purchases'],
+      }),
+      queryClient.invalidateQueries({
+        queryKey: ['my-policies'],
+      }),
+    ])
+  }
+
+  const columns = [
+    {
+      key: 'purchase',
+      header: 'Purchase',
+      render: (item) => (
+        <div className="row">
+          <div className="dot-icon">
+            <Icon name="shield" size={17} />
+          </div>
+
+          <div className="stack-sm" style={{ gap: 2 }}>
+            <strong>#{item.purchaseId}</strong>
+            <span className="faint">
+              Policy #{item.policyNumber ?? '—'}
+            </span>
+          </div>
+        </div>
+      ),
+    },
+    {
+      key: 'type',
+      header: 'Insurance',
+      render: (item) => (
+        <span>{item.coveredTypes || '—'}</span>
+      ),
+    },
+    {
+      key: 'premium',
+      header: 'Premium',
+      align: 'right',
+      render: (item) => (
+        <strong>{formatMoney(item.totalPremium)}</strong>
+      ),
+    },
+    {
+      key: 'payment',
+      header: 'Payment',
+      render: (item) => (
+        <StatusBadge value={item.paymentStatus} />
+      ),
+    },
+    {
+      key: 'refund',
+      header: 'Refund status',
+      render: (item) => (
+        <RefundBadge purchase={item} />
+      ),
+    },
+    {
+      key: 'date',
+      header: 'Purchased',
+      render: (item) => formatDate(item.purchaseDate),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      align: 'right',
+      render: (item) => (
+        <div className="row" style={{ justifyContent: 'flex-end' }}>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setSelected(item)}
+          >
+            Details
+          </Button>
+
+          {isRefundEligible(item) && (
+            <Button
+              type="button"
+              size="sm"
+              variant="primary"
+              onClick={() => openRefund(item)}
+            >
+              Refund
+            </Button>
+          )}
+        </div>
+      ),
+    },
+  ]
+
+  return (
+    <div className="stack">
+      <PageHeader
+        title="Refunds & Payments"
+        subtitle="Manage your insurance payments, check refund eligibility, and track refund requests."
+      >
+        <Button
+          type="button"
+          icon="clock"
+          loading={query.isFetching}
+          disabled={query.isFetching}
+          onClick={() => query.refetch()}
+        >
+          Refresh
+        </Button>
+      </PageHeader>
+
+      {/* =====================================================
+          SUMMARY
+      ===================================================== */}
+
+      <div className="ledger">
+        <div>
+          <div className="label">Total purchases</div>
+          <div className="value">{stats.purchases}</div>
+          <div className="sub">Insurance purchase records</div>
+        </div>
+
+        <div>
+          <div className="label">Paid purchases</div>
+          <div className="value">{stats.paid}</div>
+          <div className="sub">
+            {formatMoney(stats.totalPaid)} paid
+          </div>
+        </div>
+
+        <div>
+          <div className="label">Refund eligible</div>
+          <div className="value">{stats.eligible}</div>
+          <div className="sub">
+            Available for refund request
+          </div>
+        </div>
+
+        <div>
+          <div className="label">Refund processing</div>
+          <div className="value">{stats.processing}</div>
+          <div className="sub">
+            {stats.refunded} completed refunds
+          </div>
+        </div>
+      </div>
+
+      {/* =====================================================
+          PURCHASE HISTORY
+      ===================================================== */}
+
+      <Panel
+        title="Purchase history"
+        flush
+        actions={
+          <span className="muted">
+            {filtered.length} records
+          </span>
+        }
+      >
+        <div className="toolbar">
+          <SearchBox
+            value={search}
+            onChange={setSearch}
+            placeholder="Search policy or transaction"
+          />
+
+          <Segmented
+            value={filter}
+            onChange={setFilter}
+            options={REFUND_FILTERS}
+          />
+        </div>
+
+        <DataState
+          query={query}
+          rows={5}
+        >
+          {() =>
+            filtered.length === 0 ? (
+              <Empty
+                title={
+                  rows.length === 0
+                    ? 'No purchases found'
+                    : 'No matching purchases'
+                }
+              >
+                {rows.length === 0
+                  ? 'Your completed insurance purchases will appear here.'
+                  : 'Try another search or refund status filter.'}
+              </Empty>
+            ) : (
+              <Table
+                columns={columns}
+                rows={filtered}
+                rowKey="purchaseId"
+              />
+            )
+          }
+        </DataState>
+      </Panel>
+
+      {/* =====================================================
+          INFORMATION
+      ===================================================== */}
+
+      <div className="alert info">
+        <div className="row">
+          <Icon name="shield" size={18} />
+
+          <span>
+            Refund eligibility is determined by the backend.
+            Eligible purchases can be submitted for a refund
+            within the allowed payment window, provided no
+            disqualifying claim exists. Refund processing
+            depends on Razorpay and the payment provider.
+          </span>
+        </div>
+      </div>
+
+      {/* =====================================================
+          MODALS
+      ===================================================== */}
+
+      {selected && (
+        <PurchaseDetails
+          purchase={selected}
+          onClose={() => setSelected(null)}
+          onRefund={openRefund}
+        />
+      )}
+
+      {refundPurchase && (
+        <RefundRequestModal
+          key={refundPurchase.purchaseId}
+          purchase={refundPurchase}
+          onClose={() => setRefundPurchase(null)}
+          onSuccess={afterRefund}
+        />
+      )}
+    </div>
+  )
 }
