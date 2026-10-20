@@ -13,7 +13,6 @@ import javax.crypto.spec.SecretKeySpec;
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.htc.insurance.dto.PaymentOrderRequest;
 import com.htc.insurance.dto.PaymentOrderResponse;
@@ -42,6 +41,7 @@ public class PaymentService {
             BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
 
     private final InsurancePlanRepository insurancePlanRepository;
+    private final PaymentAttemptService paymentAttemptService;
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -53,21 +53,30 @@ public class PaymentService {
     private String currency;
 
     public PaymentService(
-            InsurancePlanRepository insurancePlanRepository) {
+            InsurancePlanRepository insurancePlanRepository,
+            PaymentAttemptService paymentAttemptService) {
+
         this.insurancePlanRepository = insurancePlanRepository;
+        this.paymentAttemptService = paymentAttemptService;
     }
 
     // =========================================================
     // CREATE ORDER USING BACKEND-CALCULATED PREMIUM
     // =========================================================
 
-    @Transactional(readOnly = true)
     public PaymentOrderResponse createOrder(
-            PaymentOrderRequest request) throws Exception {
+            PaymentOrderRequest request,
+            String authenticatedUsername) throws Exception {
 
         if (request == null) {
             throw new IllegalArgumentException(
                     "Payment request is required.");
+        }
+
+        if (authenticatedUsername == null
+                || authenticatedUsername.isBlank()) {
+            throw new IllegalArgumentException(
+                    "An authenticated user is required.");
         }
 
         if (request.getPlanId() == null
@@ -101,6 +110,10 @@ public class PaymentService {
                     + currency + " is supported.");
         }
 
+        // -----------------------------------------------------
+        // 1. Load and validate the insurance plan
+        // -----------------------------------------------------
+
         InsurancePlan plan = insurancePlanRepository
                 .findById(request.getPlanId())
                 .orElseThrow(() -> new IllegalArgumentException(
@@ -122,8 +135,15 @@ public class PaymentService {
                     "The selected insurance plan has invalid pricing.");
         }
 
-        BigDecimal coverageFactor = request.getCoverageAmount()
-                .divide(baseCoverage, 10, RoundingMode.HALF_UP);
+        // -----------------------------------------------------
+        // 2. Calculate the premium on the backend
+        // -----------------------------------------------------
+
+        BigDecimal coverageAmount = request.getCoverageAmount()
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal coverageFactor = coverageAmount.divide(
+                baseCoverage, 10, RoundingMode.HALF_UP);
 
         BigDecimal calculatedBasePremium = basePremium
                 .multiply(coverageFactor)
@@ -143,6 +163,7 @@ public class PaymentService {
                 .subtract(discount)
                 .setScale(2, RoundingMode.HALF_UP);
 
+        // Preserve the existing GST behavior.
         BigDecimal totalPremium = taxableAmount
                 .add(ZERO)
                 .setScale(2, RoundingMode.HALF_UP);
@@ -152,9 +173,94 @@ public class PaymentService {
                     "The calculated premium must be greater than zero.");
         }
 
-        // The frontend cannot choose the payable amount.
-        return createRazorpayOrder(
-                totalPremium, request.getReceipt());
+        // -----------------------------------------------------
+        // 3. Persist the attempt BEFORE contacting Razorpay
+        // -----------------------------------------------------
+
+        String attemptReference =
+                paymentAttemptService.createAttempt(
+                        authenticatedUsername,
+                        request.getPlanId(),
+                        coverageAmount,
+                        request.getDurationYears(),
+                        totalPremium,
+                        currency);
+
+        /*
+         * If the customer did not provide a receipt, use the
+         * persisted attempt reference. It can help identify the
+         * order during later reconciliation.
+         *
+         * A supplied receipt remains supported for compatibility.
+         */
+        String receipt = request.getReceipt();
+
+        if (receipt == null || receipt.isBlank()) {
+            receipt = attemptReference;
+        }
+
+        // -----------------------------------------------------
+        // 4. Create the Razorpay order and persist its ID
+        // -----------------------------------------------------
+
+        try {
+            PaymentOrderResponse response = createRazorpayOrder(
+                    totalPremium,
+                    receipt);
+
+            try {
+                paymentAttemptService.markOrderCreated(
+                        attemptReference,
+                        response.getOrderId());
+
+            } catch (Exception persistenceException) {
+
+                /*
+                 * Razorpay may already have created the order.
+                 * Never automatically create another order here.
+                 */
+                try {
+                    paymentAttemptService.markReconciliationRequired(
+                            attemptReference,
+                            "Razorpay order was created, but its ID "
+                            + "could not be saved.");
+                } catch (Exception ignored) {
+                    /*
+                     * If the database is unavailable, the previously
+                     * committed ORDER_CREATING record remains a signal
+                     * for reconciliation.
+                     */
+                }
+
+                throw new IllegalStateException(
+                        "The payment order could not be fully recorded. "
+                        + "Do not start another payment. Contact support "
+                        + "for payment reconciliation.",
+                        persistenceException);
+            }
+
+            return response;
+
+        } catch (Exception orderException) {
+
+            /*
+             * This includes uncertain network outcomes. A failed
+             * request does not prove that Razorpay created no order.
+             */
+            try {
+                paymentAttemptService.markReconciliationRequired(
+                        attemptReference,
+                        "Order creation outcome is uncertain; "
+                        + "reconciliation is required.");
+            } catch (Exception ignored) {
+                /*
+                 * Keep the original error. The attempt was committed
+                 * before the external Razorpay operation.
+                 */
+            }
+
+            throw orderException;
+        }
     }
 
     // =========================================================
@@ -249,9 +355,8 @@ public class PaymentService {
     // =========================================================
     // LEGACY VERIFICATION
     //
-    // Kept for existing controller compatibility.
-    // It still checks that the payment is captured and matches
-    // the Razorpay order. Purchase must use the secure overload.
+    // Kept for the existing PaymentController endpoint.
+    // Purchase confirmation must use the secure overload above.
     // =========================================================
 
     public boolean verifyPayment(
@@ -276,7 +381,7 @@ public class PaymentService {
         String paymentId = request.getRazorpayPaymentId().trim();
         String signature = request.getRazorpaySignature().trim();
 
-        // 1. Verify Razorpay's checkout signature.
+        // 1. Verify Razorpay checkout signature.
         String signatureData = orderId + "|" + paymentId;
 
         String generatedSignature = generateHmacSha256(
@@ -322,15 +427,13 @@ public class PaymentService {
             return false;
         }
 
-        // 3. If the purchase service supplied its own calculated
-        // amount, require an exact match with the Razorpay order.
+        // 3. Verify the server-calculated expected amount when supplied.
         if (expectedAmountInPaise != null
                 && !expectedAmountInPaise.equals(orderAmountInPaise)) {
             return false;
         }
 
-        // 4. Fetch the actual payment, not just the order.
-        // Razorpay's Java SDK exposes payments.fetch(paymentId).
+        // 4. Fetch the actual payment from Razorpay.
         var payment = razorpayClient.payments.fetch(paymentId);
 
         if (payment == null) {
@@ -353,7 +456,7 @@ public class PaymentService {
             return false;
         }
 
-        // 7. Verify the actual captured payment amount.
+        // 7. Verify the captured payment amount.
         Long paymentAmountInPaise = readAmountInPaise(
                 payment.get("amount"));
 
@@ -371,7 +474,6 @@ public class PaymentService {
             return false;
         }
 
-        // The payment is captured and matches the expected order.
         return true;
     }
 
@@ -386,9 +488,9 @@ public class PaymentService {
         }
 
         try {
-            return new BigDecimal(
-                    String.valueOf(amountObject))
+            return new BigDecimal(String.valueOf(amountObject))
                     .longValueExact();
+
         } catch (NumberFormatException
                 | ArithmeticException exception) {
             return null;
