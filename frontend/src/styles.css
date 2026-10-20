@@ -517,3 +517,38 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
     flex-basis: 34px;
   }
 }
+
+/* =========================================================
+   INSUREX — CONSISTENT SIDEBAR ICONS
+   Supports Lucide icons in both customer and admin layouts.
+   Preserves existing theme, navigation and responsive styles.
+========================================================= */
+.sidebar .nav a {
+  min-height: 42px;
+  text-decoration: none;
+}
+
+.sidebar .nav a > .sidebar-nav-icon {
+  display: block;
+  width: 21px;
+  height: 21px;
+  min-width: 21px;
+  flex: 0 0 21px;
+  stroke-width: 1.9;
+}
+
+.sidebar .nav a > span:not(.count) {
+  min-width: 0;
+  flex: 1;
+}
+
+.sidebar .nav a > .count {
+  margin-left: auto;
+  flex: 0 0 auto;
+}
+
+.sidebar-foot .icon-btn svg {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+}
