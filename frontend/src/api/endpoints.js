@@ -73,12 +73,15 @@ export const users = {
 // POLICIES
 // =====================================================
 export const policies = {
+  // Available policies for browsing and purchasing.
   available: () =>
     d(api.get('/policy/available')),
 
+  // Policies belonging to the authenticated customer.
   mine: () =>
     d(api.get('/policy/my-policies')),
 
+  // Existing all-policies endpoint; use only where authorized.
   getAll: () =>
     d(api.get('/policy/getAll')),
 
@@ -102,7 +105,7 @@ export const policies = {
 }
 
 // =====================================================
-// PLANS — REQUIRED BY CUSTOMER PLANS PAGE
+// PLANS
 // =====================================================
 export const plans = {
   available: () =>
@@ -116,12 +119,15 @@ export const plans = {
 // POLICY PURCHASES
 // =====================================================
 export const purchases = {
+  // Create a purchase.
   purchase: (body) =>
     d(api.post('/policy/purchase', body)),
 
+  // Purchases belonging to the authenticated customer.
   mine: () =>
     d(api.get('/policy/my-purchases')),
 
+  // Existing all-purchases endpoint; use only where authorized.
   getAll: () =>
     d(api.get('/policy/purchases')),
 
@@ -167,9 +173,11 @@ export const claims = {
   save: (body) =>
     d(api.post('/claims/save', body)),
 
+  // Claims belonging to the authenticated customer.
   mine: () =>
     d(api.get('/claims/my-claims')),
 
+  // Existing all-claims endpoint; use only where authorized.
   getAll: () =>
     d(api.get('/claims/getAll')),
 
@@ -252,6 +260,7 @@ export const reviews = {
 // CUSTOMER NOTIFICATIONS
 // =====================================================
 export const notifications = {
+  // Notifications belonging to the authenticated customer.
   mine: () =>
     d(api.get('/api/notifications/my')),
 
@@ -289,7 +298,7 @@ export const broadcast = {
 }
 
 // =====================================================
-// DEFAULT EXPORT — PRESERVE EXISTING IMPORT STYLE
+// DEFAULT EXPORT
 // =====================================================
 const endpoints = {
   auth,
