@@ -61,15 +61,11 @@ function safeDate(value) {
 }
 
 function getClaimDate(claim) {
-  return claim?.claimDate
-    ? date(claim.claimDate)
-    : 'Date unavailable'
+  return claim?.claimDate ? date(claim.claimDate) : 'Date unavailable'
 }
 
 function getExpiryDate(policy) {
-  return policy?.expiryDate
-    ? date(policy.expiryDate)
-    : 'Not available'
+  return policy?.expiryDate ? date(policy.expiryDate) : 'Not available'
 }
 
 function getClaimAmount(claim) {
@@ -95,6 +91,7 @@ function StatCard({ label, value, description, icon, to }) {
       >
         <div style={{ minWidth: 0 }}>
           <div className="label">{label}</div>
+
           <div
             className="value"
             style={{
@@ -104,6 +101,7 @@ function StatCard({ label, value, description, icon, to }) {
           >
             {value}
           </div>
+
           <div className="sub" style={{ marginTop: 5 }}>
             {description}
           </div>
@@ -158,6 +156,7 @@ function QueryError({ query, label }) {
       style={{ marginBottom: 12 }}
     >
       Could not load {label}. Please refresh the page or try again.
+
       <button
         type="button"
         className="btn sm"
@@ -253,7 +252,16 @@ export default function Dashboard() {
     [claimRows],
   )
 
-  const recentNotifications = notificationRows.slice(0, 5)
+  const recentNotifications = useMemo(
+    () =>
+      [...notificationRows]
+        .sort(
+          (a, b) =>
+            safeDate(b?.createdAt) - safeDate(a?.createdAt),
+        )
+        .slice(0, 5),
+    [notificationRows],
+  )
 
   const expiringPolicies = useMemo(
     () =>
@@ -289,14 +297,21 @@ export default function Dashboard() {
         className="grid"
         style={{
           display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
+          gridTemplateColumns:
+            'repeat(auto-fit, minmax(min(100%, 220px), 1fr))',
           gap: 14,
           marginBottom: 22,
         }}
       >
         <StatCard
           label="Active policies"
-          value={pol.isPending ? '…' : pol.isError ? '—' : activePolicies.length}
+          value={
+            pol.isPending
+              ? '…'
+              : pol.isError
+                ? '—'
+                : activePolicies.length
+          }
           description={
             pol.isError
               ? 'Unable to load policies'
@@ -322,7 +337,13 @@ export default function Dashboard() {
 
         <StatCard
           label="Claims in review"
-          value={clm.isPending ? '…' : clm.isError ? '—' : pendingClaims.length}
+          value={
+            clm.isPending
+              ? '…'
+              : clm.isError
+                ? '—'
+                : pendingClaims.length
+          }
           description={
             clm.isError
               ? 'Unable to load claims'
@@ -381,8 +402,7 @@ export default function Dashboard() {
 
                   <div className="grow">
                     <b>
-                      Claim #
-                      {claim.claimNumber ?? '—'}
+                      Claim #{claim.claimNumber ?? '—'}
                     </b>
 
                     <span className="muted">
@@ -444,4 +464,112 @@ export default function Dashboard() {
                   </div>
 
                   <div className="grow">
-                    <b>{notification.title || 'InsureX update'
+                    <b>
+                      {notification.title || 'InsureX update'}
+                    </b>
+
+                    <div
+                      className="muted"
+                      style={{ fontSize: 13, marginTop: 4 }}
+                    >
+                      {notification.message ||
+                        notification.description ||
+                        'You have a new InsureX notification.'}
+                    </div>
+
+                    <div
+                      className="faint"
+                      style={{ fontSize: 12, marginTop: 5 }}
+                    >
+                      {notification.createdAt
+                        ? timeAgo(notification.createdAt)
+                        : 'Recent update'}
+                    </div>
+                  </div>
+
+                  {isUnread(notification) && (
+                    <span
+                      className="status-badge"
+                      style={{
+                        fontSize: 11,
+                        padding: '4px 8px',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      New
+                    </span>
+                  )}
+                </div>
+              ))
+            }
+          </DataState>
+        </Panel>
+      </div>
+
+      <div style={{ marginTop: 22 }}>
+        <Panel
+          title="Policies nearing expiry"
+          flush
+          actions={
+            <Link className="btn sm" to="/app/policies">
+              View policies
+            </Link>
+          }
+        >
+          <DataState
+            query={pol}
+            empty={{
+              title: 'No policies available',
+              text: 'Your policy expiry information will appear here.',
+            }}
+          >
+            {() =>
+              expiringPolicies.map((policy, index) => (
+                <div
+                  className="list-item"
+                  key={policy.policyNumber ?? `policy-${index}`}
+                >
+                  <div className="dot-icon">
+                    <CalendarClock size={19} />
+                  </div>
+
+                  <div className="grow">
+                    <b>
+                      Policy #{policy.policyNumber ?? '—'}
+                    </b>
+
+                    <div
+                      className="muted"
+                      style={{ fontSize: 13, marginTop: 4 }}
+                    >
+                      {policy.coveredTypes ||
+                        policy.coverageType ||
+                        'Insurance policy'}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: 'right' }}>
+                    <StatusBadge
+                      value={
+                        isActive(policy.isActive)
+                          ? 'ACTIVE'
+                          : 'INACTIVE'
+                      }
+                    />
+
+                    <div
+                      className="faint"
+                      style={{ fontSize: 12, marginTop: 5 }}
+                    >
+                      Expires {getExpiryDate(policy)}
+                    </div>
+                  </div>
+                </div>
+              ))
+            }
+          </DataState>
+        </Panel>
+      </div>
+    </>
+  )
+}
