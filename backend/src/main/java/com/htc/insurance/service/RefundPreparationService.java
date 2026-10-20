@@ -1,14 +1,17 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.Locale;
 
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dto.RefundRequestDto;
+import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyPurchase;
 
 @Service
@@ -17,36 +20,50 @@ public class RefundPreparationService {
     private static final long REFUND_WINDOW_HOURS = 24;
 
     private final PolicyPurchaseDao policyPurchaseDao;
+    private final PolicyDao policyDao;
 
     public RefundPreparationService(
-            PolicyPurchaseDao policyPurchaseDao) {
+            PolicyPurchaseDao policyPurchaseDao,
+            PolicyDao policyDao) {
+
         this.policyPurchaseDao = policyPurchaseDao;
+        this.policyDao = policyDao;
     }
 
     /**
-     * Validates and commits the pending refund state.
+     * Validates refund eligibility and commits REFUND_PENDING.
      *
-     * This method must be invoked through the Spring-managed
-     * service bean so that its transaction commits before the
-     * caller contacts Razorpay.
+     * Also deactivates the linked policy so the customer
+     * cannot continue using it while the refund is pending.
+     *
+     * Both database changes occur in the same transaction.
+     *
+     * Razorpay must only be called after this method commits.
      */
     @Transactional
     public PolicyPurchase prepareRefund(
             RefundRequestDto request,
             String authenticatedUsername) {
 
+        // =====================================================
+        // VALIDATE REQUEST
+        // =====================================================
+
         if (request == null) {
             throw new IllegalArgumentException(
                     "Refund request is required.");
         }
 
-        if (request.getPurchaseId() == null) {
+        if (request.getPurchaseId() == null
+                || request.getPurchaseId() <= 0) {
+
             throw new IllegalArgumentException(
-                    "Purchase ID is required.");
+                    "A valid purchase ID is required.");
         }
 
         if (authenticatedUsername == null
                 || authenticatedUsername.isBlank()) {
+
             throw new IllegalArgumentException(
                     "Authenticated user is required.");
         }
@@ -65,25 +82,32 @@ public class RefundPreparationService {
                     "Refund reason cannot exceed 500 characters.");
         }
 
-        PolicyPurchase purchase =
-                policyPurchaseDao
-                        .getPurchaseByIdForUpdate(
-                                request.getPurchaseId())
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "Purchase not found."));
+        // =====================================================
+        // LOAD PURCHASE WITH DATABASE LOCK
+        // =====================================================
 
-        // Verify that this purchase belongs to the caller.
-        if (purchase.getPolicy() == null
-                || purchase.getPolicy().getPolicyHolder() == null
-                || purchase.getPolicy()
-                        .getPolicyHolder().getUser() == null) {
+        PolicyPurchase purchase = policyPurchaseDao
+                .getPurchaseByIdForUpdate(
+                        request.getPurchaseId())
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "Purchase not found."));
+
+        // =====================================================
+        // VALIDATE PURCHASE OWNERSHIP
+        // =====================================================
+
+        Policy policy = purchase.getPolicy();
+
+        if (policy == null
+                || policy.getPolicyHolder() == null
+                || policy.getPolicyHolder().getUser() == null) {
 
             throw new IllegalStateException(
                     "Purchase ownership information is unavailable.");
         }
 
-        String ownerUsername = purchase.getPolicy()
+        String ownerUsername = policy
                 .getPolicyHolder()
                 .getUser()
                 .getUsername();
@@ -92,12 +116,14 @@ public class RefundPreparationService {
                 || !ownerUsername.equalsIgnoreCase(
                         authenticatedUsername.trim())) {
 
-            throw new org.springframework.security.access
-                    .AccessDeniedException(
-                            "You are not authorized to refund this purchase.");
+            throw new AccessDeniedException(
+                    "You are not authorized to refund this purchase.");
         }
 
-        // Only completed payments may be refunded.
+        // =====================================================
+        // VALIDATE PAYMENT
+        // =====================================================
+
         String paymentStatus = purchase.getPaymentStatus();
 
         if (paymentStatus == null
@@ -108,7 +134,6 @@ public class RefundPreparationService {
                     "Only paid purchases can be refunded.");
         }
 
-        // Require a confirmed Razorpay payment ID.
         if (purchase.getRazorpayPaymentId() == null
                 || purchase.getRazorpayPaymentId().isBlank()) {
 
@@ -116,7 +141,10 @@ public class RefundPreparationService {
                     "The Razorpay payment ID is missing.");
         }
 
-        // One refund per purchase with the current entity design.
+        // =====================================================
+        // PREVENT DUPLICATE REFUNDS
+        // =====================================================
+
         String refundStatus = purchase.getRefundStatus();
 
         if (refundStatus != null
@@ -129,6 +157,10 @@ public class RefundPreparationService {
                     + refundStatus);
         }
 
+        // =====================================================
+        // VALIDATE REFUND AMOUNT
+        // =====================================================
+
         BigDecimal refundAmount = purchase.getTotalPremium();
 
         if (refundAmount == null
@@ -138,11 +170,15 @@ public class RefundPreparationService {
                     "The purchase has no valid refundable amount.");
         }
 
-        // Enforce the existing 24-hour eligibility rule.
+        // =====================================================
+        // ENFORCE 24-HOUR REFUND WINDOW
+        // =====================================================
+
         LocalDateTime paymentDateTime =
                 purchase.getPaymentDateTime();
 
         if (paymentDateTime == null) {
+
             throw new IllegalStateException(
                     "Payment timestamp is unavailable. "
                     + "Refund eligibility cannot be verified.");
@@ -151,6 +187,7 @@ public class RefundPreparationService {
         LocalDateTime now = LocalDateTime.now();
 
         if (paymentDateTime.isAfter(now)) {
+
             throw new IllegalStateException(
                     "The payment timestamp is invalid.");
         }
@@ -159,20 +196,40 @@ public class RefundPreparationService {
                 paymentDateTime.plusHours(REFUND_WINDOW_HOURS);
 
         if (!now.isBefore(deadline)) {
+
             throw new IllegalStateException(
                     "The 24-hour refund window has expired.");
         }
 
-        /*
-         * Persist the pending state before the external API call.
-         * Do not clear REFUND_PENDING automatically if the
-         * subsequent Razorpay response is uncertain.
-         */
+        // =====================================================
+        // SAVE REFUND PENDING STATE
+        // =====================================================
+
         purchase.setRefundStatus("REFUND_PENDING");
         purchase.setRefundAmount(refundAmount);
         purchase.setRefundReason(reason);
         purchase.setRefundId(null);
         purchase.setRefundDateTime(null);
+
+        // =====================================================
+        // DEACTIVATE LINKED POLICY
+        // =====================================================
+
+        /*
+         * The policy must no longer be available as
+         * active insurance coverage while the refund
+         * is pending.
+         *
+         * Do not delete the policy or purchase records.
+         */
+
+        policy.setIsActive(false);
+
+        // =====================================================
+        // PERSIST BOTH CHANGES ATOMICALLY
+        // =====================================================
+
+        policyDao.savePolicy(policy);
 
         return policyPurchaseDao.savePurchase(purchase);
     }
