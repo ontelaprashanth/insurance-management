@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -9,7 +8,6 @@ import {
   ShieldCheck,
   WalletCards,
   CircleAlert,
-  Clock3,
   CheckCircle2,
   Plus,
   RefreshCw,
@@ -28,7 +26,7 @@ import {
   StatusBadge,
 } from '../../components/ui'
 
-import { date, inr, inrShort, timeAgo } from '../../lib/format'
+import { date, inr, inrShort } from '../../lib/format'
 
 /* =========================================================
    SAFE DATA HELPERS
@@ -52,12 +50,6 @@ const text = (value, fallback = '—') =>
 
 const upper = (value) => String(value ?? '').toUpperCase()
 
-const getPolicyNumber = (item) =>
-  item?.policyNumber ??
-  item?.policy?.policyNumber ??
-  item?.policyId ??
-  'Policy'
-
 const getClaimNumber = (item) =>
   item?.claimNumber ?? item?.id ?? 'Claim'
 
@@ -76,8 +68,12 @@ const isUnread = (item) =>
   upper(item?.status) === 'UNREAD'
 
 const isActive = (item) => {
-  if (item?.isActive !== undefined) {
-    return item.isActive === true || item.isActive === 1
+  if (item?.isActive !== undefined && item?.isActive !== null) {
+    return (
+      item.isActive === true ||
+      item.isActive === 1 ||
+      upper(item.isActive) === 'TRUE'
+    )
   }
 
   return ['ACTIVE', 'APPROVED', 'SUCCESS'].includes(
@@ -174,6 +170,7 @@ function Stat({
         <div className="value" style={{ fontWeight: 800 }}>
           {loading ? '…' : value}
         </div>
+
         <div className="sub">{detail}</div>
       </Link>
     </div>
@@ -181,40 +178,41 @@ function Stat({
 }
 
 /* =========================================================
-   DASHBOARD
+   CUSTOMER DASHBOARD
 ========================================================= */
 
 export default function Dashboard() {
   const customerName = useMemo(() => getCustomerName(), [])
 
+  // Fetch only the logged-in customer's records.
   const p = useQuery({
     queryKey: ['my-policies'],
-    queryFn: () => policies.getAll(),
+    queryFn: () => policies.mine(),
     retry: 1,
   })
 
   const pu = useQuery({
     queryKey: ['my-purchases'],
-    queryFn: () => purchases.getAll(),
+    queryFn: () => purchases.mine(),
     retry: 1,
   })
 
   const c = useQuery({
     queryKey: ['my-claims'],
-    queryFn: () => claims.getAll(),
+    queryFn: () => claims.mine(),
     retry: 1,
   })
 
   const n = useQuery({
     queryKey: ['notifications'],
-    queryFn: () => notifications.getAll(),
+    queryFn: () => notifications.mine(),
     retry: 1,
   })
 
-  const policyItems = asArray(p?.data)
-  const purchaseItems = asArray(pu?.data)
-  const claimItems = asArray(c?.data)
-  const notificationItems = asArray(n?.data)
+  const policyItems = asArray(p.data)
+  const purchaseItems = asArray(pu.data)
+  const claimItems = asArray(c.data)
+  const notificationItems = asArray(n.data)
 
   const activePolicies = policyItems.filter(isActive)
 
@@ -226,6 +224,8 @@ export default function Dashboard() {
         item?.coverageAmount ??
         item?.coverAmount ??
         item?.policy?.sumInsured ??
+        item?.policy?.coverageAmount ??
+        item?.policy?.coverAmount ??
         0,
       ),
     0,
@@ -244,16 +244,16 @@ export default function Dashboard() {
   ).slice(0, 4)
 
   const isLoading =
-    Boolean(p?.isLoading) ||
-    Boolean(pu?.isLoading) ||
-    Boolean(c?.isLoading) ||
-    Boolean(n?.isLoading)
+    p.isLoading ||
+    pu.isLoading ||
+    c.isLoading ||
+    n.isLoading
 
   const hasError =
-    Boolean(p?.isError) ||
-    Boolean(pu?.isError) ||
-    Boolean(c?.isError) ||
-    Boolean(n?.isError)
+    p.isError ||
+    pu.isError ||
+    c.isError ||
+    n.isError
 
   const refresh = () => {
     void p.refetch()
@@ -284,10 +284,12 @@ export default function Dashboard() {
         <div className="alert warn">
           <div className="row">
             <CircleAlert size={18} />
+
             <div className="grow">
-              Some dashboard information could not be loaded. Check your
-              connection and try refreshing.
+              Some dashboard information could not be loaded.
+              Check your connection and try refreshing.
             </div>
+
             <button
               type="button"
               className="btn sm"
@@ -299,7 +301,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* SUMMARY STATS */}
+      {/* SUMMARY STATISTICS */}
       <section className="ledger">
         <Stat
           icon={ShieldCheck}
@@ -307,7 +309,7 @@ export default function Dashboard() {
           value={activePolicies.length}
           detail="Your active protection"
           to="/app/my-policies"
-          loading={p?.isLoading ?? false}
+          loading={p.isLoading}
         />
 
         <Stat
@@ -316,20 +318,16 @@ export default function Dashboard() {
           value={claimItems.length}
           detail="Claims submitted"
           to="/app/my-claims"
-          loading={c?.isLoading ?? false}
+          loading={c.isLoading}
         />
 
         <Stat
           icon={WalletCards}
           label="Total cover"
-          value={
-            totalCover > 0
-              ? inrShort(totalCover)
-              : '₹0'
-          }
+          value={totalCover > 0 ? inrShort(totalCover) : '₹0'}
           detail="Available policy cover"
           to="/app/my-policies"
-          loading={p?.isLoading ?? false}
+          loading={p.isLoading}
         />
 
         <Stat
@@ -338,7 +336,7 @@ export default function Dashboard() {
           value={unreadNotifications.length}
           detail="Unread updates"
           to="/app/notifications"
-          loading={n?.isLoading ?? false}
+          loading={n.isLoading}
         />
       </section>
 
@@ -348,7 +346,10 @@ export default function Dashboard() {
           <div className="panel-head">
             <div>
               <h3>Your protection</h3>
-              <p className="muted" style={{ marginTop: 5, fontSize: 13 }}>
+              <p
+                className="muted"
+                style={{ marginTop: 5, fontSize: 13 }}
+              >
                 An overview of your active insurance
               </p>
             </div>
@@ -371,9 +372,13 @@ export default function Dashboard() {
               </div>
 
               <div className="grow">
-                <div className="muted" style={{ fontSize: 13 }}>
+                <div
+                  className="muted"
+                  style={{ fontSize: 13 }}
+                >
                   Total insured amount
                 </div>
+
                 <div
                   style={{
                     fontSize: 28,
@@ -383,7 +388,7 @@ export default function Dashboard() {
                     overflowWrap: 'anywhere',
                   }}
                 >
-                  {p?.isLoading ? 'Loading…' : safeMoney(totalCover)}
+                  {p.isLoading ? 'Loading…' : safeMoney(totalCover)}
                 </div>
               </div>
             </div>
@@ -392,31 +397,39 @@ export default function Dashboard() {
 
             <div className="row spread">
               <span className="muted">Active policies</span>
-              <b>{p?.isLoading ? '—' : activePolicies.length}</b>
+              <b>{p.isLoading ? '—' : activePolicies.length}</b>
             </div>
 
             <div className="row spread">
               <span className="muted">Other policies</span>
               <b>
-                {p?.isLoading
+                {p.isLoading
                   ? '—'
-                  : Math.max(0, policyItems.length - activePolicies.length)}
+                  : Math.max(
+                      0,
+                      policyItems.length - activePolicies.length,
+                    )}
               </b>
             </div>
 
             <div className="row spread">
               <span className="muted">Purchases recorded</span>
-              <b>{pu?.isLoading ? '—' : purchaseItems.length}</b>
+              <b>{pu.isLoading ? '—' : purchaseItems.length}</b>
             </div>
 
-            {activePolicies.length === 0 && !p?.isLoading && (
-              <div className="alert info">
-                You do not have an active policy listed yet.
-                Explore available plans to find the right protection.
-              </div>
-            )}
+            {activePolicies.length === 0 &&
+              !p.isLoading &&
+              !p.isError && (
+                <div className="alert info">
+                  You do not have an active policy listed yet.
+                  Explore available plans to find the right protection.
+                </div>
+              )}
 
-            <Link to="/app/plans" className="btn primary block">
+            <Link
+              to="/app/plans"
+              className="btn primary block"
+            >
               <Plus size={17} />
               Explore insurance plans
             </Link>
@@ -427,7 +440,10 @@ export default function Dashboard() {
           <div className="panel-head">
             <div>
               <h3>Quick actions</h3>
-              <p className="muted" style={{ marginTop: 5, fontSize: 13 }}>
+              <p
+                className="muted"
+                style={{ marginTop: 5, fontSize: 13 }}
+              >
                 Common tasks in one place
               </p>
             </div>
@@ -442,12 +458,14 @@ export default function Dashboard() {
               <div className="dot-icon">
                 <ShieldCheck size={19} />
               </div>
+
               <div className="grow">
                 <b style={{ color: 'var(--ink)' }}>Explore plans</b>
                 <div className="muted" style={{ fontSize: 13 }}>
                   Compare available insurance
                 </div>
               </div>
+
               <ArrowRight size={17} />
             </Link>
 
@@ -465,12 +483,14 @@ export default function Dashboard() {
               >
                 <FileText size={19} />
               </div>
+
               <div className="grow">
                 <b style={{ color: 'var(--ink)' }}>Submit a claim</b>
                 <div className="muted" style={{ fontSize: 13 }}>
                   Start a new claim request
                 </div>
               </div>
+
               <ArrowRight size={17} />
             </Link>
 
@@ -482,12 +502,14 @@ export default function Dashboard() {
               <div className="dot-icon">
                 <WalletCards size={19} />
               </div>
+
               <div className="grow">
                 <b style={{ color: 'var(--ink)' }}>My policies</b>
                 <div className="muted" style={{ fontSize: 13 }}>
                   Review your policy details
                 </div>
               </div>
+
               <ArrowRight size={17} />
             </Link>
 
@@ -505,6 +527,7 @@ export default function Dashboard() {
               >
                 <Bell size={19} />
               </div>
+
               <div className="grow">
                 <b style={{ color: 'var(--ink)' }}>Notifications</b>
                 <div className="muted" style={{ fontSize: 13 }}>
@@ -513,6 +536,7 @@ export default function Dashboard() {
                     : 'View your latest updates'}
                 </div>
               </div>
+
               <ArrowRight size={17} />
             </Link>
           </div>
@@ -524,7 +548,10 @@ export default function Dashboard() {
         <div className="panel-head">
           <div>
             <h3>Recent claims</h3>
-            <p className="muted" style={{ marginTop: 5, fontSize: 13 }}>
+            <p
+              className="muted"
+              style={{ marginTop: 5, fontSize: 13 }}
+            >
               Track the latest claim activity
             </p>
           </div>
@@ -534,11 +561,30 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {c?.isLoading ? (
+        {c.isLoading ? (
           <div className="panel-body">
-            <div className="skeleton" style={{ height: 16, width: '45%' }} />
-            <div className="skeleton" style={{ height: 16, marginTop: 16, width: '75%' }} />
-            <div className="skeleton" style={{ height: 16, marginTop: 16, width: '60%' }} />
+            <div
+              className="skeleton"
+              style={{ height: 16, width: '45%' }}
+            />
+            <div
+              className="skeleton"
+              style={{ height: 16, marginTop: 16, width: '75%' }}
+            />
+            <div
+              className="skeleton"
+              style={{ height: 16, marginTop: 16, width: '60%' }}
+            />
+          </div>
+        ) : c.isError ? (
+          <div className="empty">
+            <CircleAlert
+              size={30}
+              color="var(--ink-3)"
+              style={{ marginBottom: 10 }}
+            />
+            <h4>Claims could not be loaded</h4>
+            <p>Refresh the dashboard to try again.</p>
           </div>
         ) : recentClaims.length === 0 ? (
           <div className="empty">
@@ -555,7 +601,10 @@ export default function Dashboard() {
           </div>
         ) : (
           recentClaims.map((item, index) => (
-            <div className="list-item" key={getClaimNumber(item) + '-' + index}>
+            <div
+              className="list-item"
+              key={`${getClaimNumber(item)}-${index}`}
+            >
               <div className="dot-icon">
                 <FileText size={18} />
               </div>
@@ -563,13 +612,24 @@ export default function Dashboard() {
               <div className="grow">
                 <div className="row wrap spread">
                   <b>{text(getClaimNumber(item))}</b>
-                  <StatusBadge status={text(item?.claimStatus ?? item?.status, 'PENDING')} />
+                  <StatusBadge
+                    status={text(
+                      item?.claimStatus ?? item?.status,
+                      'PENDING',
+                    )}
+                  />
                 </div>
 
-                <div className="muted" style={{ fontSize: 13, marginTop: 4 }}>
+                <div
+                  className="muted"
+                  style={{ fontSize: 13, marginTop: 4 }}
+                >
                   {safeFormatDate(getClaimDate(item))}
                   {' · '}
-                  {text(item?.claimType ?? item?.type, 'Insurance claim')}
+                  {text(
+                    item?.claimType ?? item?.type,
+                    'Insurance claim',
+                  )}
                 </div>
               </div>
 
@@ -589,7 +649,10 @@ export default function Dashboard() {
         <div className="panel-head">
           <div>
             <h3>Recent notifications</h3>
-            <p className="muted" style={{ marginTop: 5, fontSize: 13 }}>
+            <p
+              className="muted"
+              style={{ marginTop: 5, fontSize: 13 }}
+            >
               Important updates about your account
             </p>
           </div>
@@ -599,10 +662,26 @@ export default function Dashboard() {
           </Link>
         </div>
 
-        {n?.isLoading ? (
+        {n.isLoading ? (
           <div className="panel-body">
-            <div className="skeleton" style={{ height: 16, width: '55%' }} />
-            <div className="skeleton" style={{ height: 16, marginTop: 16, width: '80%' }} />
+            <div
+              className="skeleton"
+              style={{ height: 16, width: '55%' }}
+            />
+            <div
+              className="skeleton"
+              style={{ height: 16, marginTop: 16, width: '80%' }}
+            />
+          </div>
+        ) : n.isError ? (
+          <div className="empty">
+            <CircleAlert
+              size={30}
+              color="var(--ink-3)"
+              style={{ marginBottom: 10 }}
+            />
+            <h4>Notifications could not be loaded</h4>
+            <p>Refresh the dashboard to try again.</p>
           </div>
         ) : recentNotifications.length === 0 ? (
           <div className="empty">
@@ -618,7 +697,11 @@ export default function Dashboard() {
           recentNotifications.map((item, index) => (
             <div
               className={`list-item ${isUnread(item) ? 'unread' : ''}`}
-              key={String(item?.id ?? item?.notificationId ?? index)}
+              key={String(
+                item?.id ??
+                item?.notificationId ??
+                index,
+              )}
             >
               <div
                 className="dot-icon"
@@ -640,7 +723,10 @@ export default function Dashboard() {
 
               <div className="grow">
                 <b>
-                  {text(item?.title ?? item?.subject, 'Account update')}
+                  {text(
+                    item?.title ?? item?.subject,
+                    'Account update',
+                  )}
                 </b>
 
                 <p
@@ -652,12 +738,17 @@ export default function Dashboard() {
                   }}
                 >
                   {text(
-                    item?.message ?? item?.description ?? item?.content,
+                    item?.message ??
+                    item?.description ??
+                    item?.content,
                     'You have a new account notification.',
                   )}
                 </p>
 
-                <div className="faint" style={{ marginTop: 6, fontSize: 12 }}>
+                <div
+                  className="faint"
+                  style={{ marginTop: 6, fontSize: 12 }}
+                >
                   {safeFormatDate(getNotificationDate(item))}
                 </div>
               </div>
