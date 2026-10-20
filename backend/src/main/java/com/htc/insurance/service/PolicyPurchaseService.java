@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -77,8 +78,26 @@ public class PolicyPurchaseService {
                     "Purchase details are required.");
         }
 
+        String username = authentication.getName();
+
         // -------------------------------------------------
-        // RESOLVE PERMANENT CATALOGUE PLAN
+        // LOAD AND VALIDATE USER
+        // -------------------------------------------------
+
+        User user = userDao.getUserByUsername(username);
+
+        if (user == null) {
+            throw new IllegalArgumentException(
+                    "Logged-in user was not found.");
+        }
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new IllegalArgumentException(
+                    "Your account is inactive.");
+        }
+
+        // -------------------------------------------------
+        // VALIDATE PLAN
         // -------------------------------------------------
 
         Long planId = purchaseDto.getPlanId();
@@ -181,25 +200,7 @@ public class PolicyPurchaseService {
                 "Razorpay payment signature is required.");
 
         // -------------------------------------------------
-        // FIND AUTHENTICATED USER
-        // -------------------------------------------------
-
-        String username = authentication.getName();
-
-        User user = userDao.getUserByUsername(username);
-
-        if (user == null) {
-            throw new IllegalArgumentException(
-                    "Logged-in user was not found.");
-        }
-
-        if (!Boolean.TRUE.equals(user.getIsActive())) {
-            throw new IllegalArgumentException(
-                    "Your account is inactive.");
-        }
-
-        // -------------------------------------------------
-        // FIND POLICY HOLDER
+        // LOAD POLICY HOLDER
         // -------------------------------------------------
 
         PolicyHolder policyHolder =
@@ -211,25 +212,62 @@ public class PolicyPurchaseService {
         }
 
         // -------------------------------------------------
-        // PREVENT DUPLICATE PAYMENT / ORDER
+        // IDEMPOTENT RETRY HANDLING
+        //
+        // Return an existing purchase only when BOTH Razorpay
+        // identifiers match the same purchase belonging to
+        // the currently authenticated user.
         // -------------------------------------------------
 
         PolicyPurchase existingPayment =
                 policyPurchaseDao.getPurchaseByTransactionId(
                         razorpayPaymentId);
 
-        if (existingPayment != null) {
-            throw new IllegalArgumentException(
-                    "This Razorpay payment has already been processed.");
-        }
-
         PolicyPurchase existingOrder =
                 policyPurchaseDao.getPurchaseByRazorpayOrderId(
                         razorpayOrderId);
 
-        if (existingOrder != null) {
+        if (existingPayment != null || existingOrder != null) {
+
+            if (existingPayment == null
+                    || existingOrder == null
+                    || existingPayment.getPurchaseId() == null
+                    || !existingPayment.getPurchaseId().equals(
+                            existingOrder.getPurchaseId())) {
+
+                throw new IllegalArgumentException(
+                        "This payment or order is already associated with another purchase.");
+            }
+
+            PolicyPurchase existing = existingPayment;
+
+            boolean samePayment =
+                    razorpayPaymentId.equals(
+                            existing.getRazorpayPaymentId())
+                    && razorpayPaymentId.equals(
+                            existing.getTransactionId());
+
+            boolean sameOrder =
+                    razorpayOrderId.equals(
+                            existing.getRazorpayOrderId());
+
+            boolean sameUser =
+                    existing.getPolicy() != null
+                    && existing.getPolicy().getPolicyHolder() != null
+                    && existing.getPolicy()
+                            .getPolicyHolder().getUser() != null
+                    && username.equals(
+                            existing.getPolicy()
+                                    .getPolicyHolder()
+                                    .getUser()
+                                    .getUsername());
+
+            if (samePayment && sameOrder && sameUser) {
+                return buildPurchaseResponse(existing);
+            }
+
             throw new IllegalArgumentException(
-                    "This Razorpay order has already been processed.");
+                    "This payment or order cannot be reused.");
         }
 
         // -------------------------------------------------
@@ -251,7 +289,10 @@ public class PolicyPurchaseService {
 
         BigDecimal gstAmount = taxableAmount
                 .multiply(GST_RATE)
-                .divide(new BigDecimal("100"), 2, RoundingMode.HALF_UP);
+                .divide(
+                        new BigDecimal("100"),
+                        2,
+                        RoundingMode.HALF_UP);
 
         BigDecimal totalPremium = taxableAmount
                 .add(gstAmount)
@@ -263,7 +304,7 @@ public class PolicyPurchaseService {
         }
 
         // -------------------------------------------------
-        // VERIFY RAZORPAY SIGNATURE AND EXPECTED AMOUNT
+        // VERIFY PAYMENT WITH RAZORPAY
         // -------------------------------------------------
 
         PaymentVerificationRequest verificationRequest =
@@ -280,18 +321,21 @@ public class PolicyPurchaseService {
                     verificationRequest,
                     totalPremium);
         } catch (Exception exception) {
-            throw new IllegalArgumentException(
-                    "Unable to verify Razorpay payment. No policy was created.",
+            throw new IllegalStateException(
+                    "Unable to verify Razorpay payment. "
+                    + "No policy was created. If payment was deducted, "
+                    + "please contact support before paying again.",
                     exception);
         }
 
         if (!paymentVerified) {
             throw new IllegalArgumentException(
-                    "Razorpay payment verification failed. No policy was created.");
+                    "Payment could not be verified as captured. "
+                    + "No policy was created.");
         }
 
         // -------------------------------------------------
-        // CREATE CUSTOMER-OWNED POLICY AFTER VERIFICATION
+        // CREATE POLICY
         // -------------------------------------------------
 
         LocalDate startDate = LocalDate.now();
@@ -302,7 +346,6 @@ public class PolicyPurchaseService {
 
         Policy policy = new Policy();
 
-        // Always use the canonical coverage type from the database.
         policy.setCoveredTypes(coveredType.trim());
         policy.setIsActive(true);
         policy.setStartDate(startDate);
@@ -311,6 +354,12 @@ public class PolicyPurchaseService {
         policy.setPolicyHolder(policyHolder);
 
         Policy savedPolicy = policyDao.savePolicy(policy);
+
+        if (savedPolicy == null
+                || savedPolicy.getPolicyNumber() == null) {
+            throw new IllegalStateException(
+                    "Policy could not be saved.");
+        }
 
         // -------------------------------------------------
         // CREATE PURCHASE RECORD
@@ -336,6 +385,7 @@ public class PolicyPurchaseService {
 
         purchase.setPaymentMethod("RAZORPAY");
         purchase.setPaymentStatus("PAID");
+
         purchase.setRazorpayOrderId(razorpayOrderId);
         purchase.setRazorpayPaymentId(razorpayPaymentId);
         purchase.setTransactionId(razorpayPaymentId);
@@ -353,6 +403,12 @@ public class PolicyPurchaseService {
 
         PolicyPurchase savedPurchase =
                 policyPurchaseDao.savePurchase(purchase);
+
+        if (savedPurchase == null
+                || savedPurchase.getPurchaseId() == null) {
+            throw new IllegalStateException(
+                    "Purchase record could not be saved.");
+        }
 
         return buildPurchaseResponse(savedPurchase);
     }
@@ -430,6 +486,7 @@ public class PolicyPurchaseService {
 
         response.setPaymentMethod(purchase.getPaymentMethod());
         response.setPaymentStatus(purchase.getPaymentStatus());
+
         response.setTransactionId(purchase.getTransactionId());
         response.setRazorpayOrderId(purchase.getRazorpayOrderId());
         response.setRazorpayPaymentId(purchase.getRazorpayPaymentId());
@@ -459,7 +516,7 @@ public class PolicyPurchaseService {
 
             response.setRefundEligible(
                     !alreadyRefunded
-                            && LocalDateTime.now().isBefore(deadline));
+                    && LocalDateTime.now().isBefore(deadline));
         } else {
             response.setRefundDeadline(null);
             response.setRefundEligible(false);
@@ -492,11 +549,6 @@ public class PolicyPurchaseService {
                     "The selected plan has an invalid base coverage amount.");
         }
 
-        /*
-         * Keep this precision aligned with PaymentService.
-         * Round the final premium to two decimal places only
-         * after multiplying by the base premium and duration.
-         */
         BigDecimal coverageMultiplier = coverageAmount.divide(
                 baseCoverage,
                 10,
@@ -529,13 +581,14 @@ public class PolicyPurchaseService {
     }
 
     // =====================================================
-    // VALIDATION HELPERS
+    // AUTHENTICATION VALIDATION
     // =====================================================
 
     private void validateAuthentication(
             Authentication authentication) {
 
         if (authentication == null
+                || !authentication.isAuthenticated()
                 || authentication.getName() == null
                 || authentication.getName().isBlank()) {
 
@@ -544,7 +597,13 @@ public class PolicyPurchaseService {
         }
     }
 
-    private String requireText(String value, String message) {
+    // =====================================================
+    // TEXT VALIDATION
+    // =====================================================
+
+    private String requireText(
+            String value,
+            String message) {
 
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(message);
