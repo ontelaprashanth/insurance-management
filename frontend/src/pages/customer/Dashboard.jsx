@@ -1,3 +1,4 @@
+
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -43,7 +44,6 @@ const isUnread = (item) =>
 
 const safeDate = (value) => {
   if (!value) return 0
-
   const parsed = new Date(value).getTime()
   return Number.isNaN(parsed) ? 0 : parsed
 }
@@ -68,16 +68,15 @@ const sum = (items, getValue) =>
 
 function getCustomerName() {
   try {
-    const possibleKeys = [
+    const keys = [
       'insurex_user',
       'insurexUser',
       'user',
       'currentUser',
     ]
 
-    for (const key of possibleKeys) {
+    for (const key of keys) {
       const stored = localStorage.getItem(key)
-
       if (!stored) continue
 
       try {
@@ -91,17 +90,13 @@ function getCustomerName() {
           return name.trim()
         }
       } catch {
-        if (
-          typeof stored === 'string' &&
-          !stored.startsWith('{') &&
-          !stored.startsWith('[')
-        ) {
+        if (!stored.startsWith('{') && !stored.startsWith('[')) {
           return stored.trim()
         }
       }
     }
   } catch {
-    // Storage may be unavailable; use the generic greeting.
+    // Storage may be unavailable.
   }
 
   return 'Customer'
@@ -109,60 +104,18 @@ function getCustomerName() {
 
 function Stat({ icon: StatIcon, label, value, detail, to, loading }) {
   return (
-    <div
-      style={{
-        minWidth: 0,
-        padding: '18px 20px',
-        display: 'flex',
-        flexDirection: 'column',
-        justifyContent: 'center',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 8,
-          marginBottom: 5,
-        }}
-      >
+    <div className="customer-stat">
+      <div className="customer-stat-heading">
         <StatIcon size={19} strokeWidth={2} />
-
-        <span className="label" style={{ fontWeight: 700 }}>
-          {label}
-        </span>
+        <span className="label">{label}</span>
       </div>
 
-      <Link
-        to={to}
-        style={{
-          display: 'block',
-          color: 'inherit',
-          textDecoration: 'none',
-          minWidth: 0,
-        }}
-      >
-        <div
-          className="value"
-          style={{
-            fontWeight: 800,
-            fontSize: 'clamp(23px, 2vw, 30px)',
-            lineHeight: 1.25,
-            marginTop: 8,
-            overflowWrap: 'anywhere',
-          }}
-        >
+      <Link className="customer-stat-link" to={to}>
+        <div className="customer-stat-value">
           {loading ? '…' : value}
         </div>
 
-        <div
-          className="sub"
-          style={{
-            marginTop: 6,
-            fontWeight: 500,
-            lineHeight: 1.5,
-          }}
-        >
+        <div className="sub customer-stat-detail">
           {detail}
         </div>
       </Link>
@@ -304,13 +257,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div
-        className="ledger"
-        style={{
-          marginBottom: 20,
-          alignItems: 'stretch',
-        }}
-      >
+      <div className="ledger customer-dashboard-ledger">
         <Stat
           icon={ShieldCheck}
           label="Active policies"
@@ -364,7 +311,6 @@ export default function Dashboard() {
             <div className="empty">
               <h4>No claims yet</h4>
               <p>Your submitted claims will appear here.</p>
-
               <Link className="btn sm" to="/app/claim-submit">
                 Submit a claim
               </Link>
@@ -377,11 +323,7 @@ export default function Dashboard() {
               >
                 <div className="grow" style={{ minWidth: 0 }}>
                   <b>Claim #{getClaimNumber(item)}</b>
-
-                  <div
-                    className="faint"
-                    style={{ fontSize: 13, marginTop: 4 }}
-                  >
+                  <div className="faint" style={{ fontSize: 13, marginTop: 4 }}>
                     Policy #{getPolicyNumber(item)}
                     {' · '}
                     {date(getClaimDate(item))}
@@ -400,7 +342,6 @@ export default function Dashboard() {
                   <b className="num">
                     {inr(getClaimAmount(item))}
                   </b>
-
                   <StatusBadge value={item?.status || 'PENDING'} />
                 </div>
               </div>
@@ -453,10 +394,7 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  <div
-                    className="faint"
-                    style={{ fontSize: 12, marginTop: 5 }}
-                  >
+                  <div className="faint" style={{ fontSize: 12, marginTop: 5 }}>
                     {timeAgo(getNotificationDate(item))}
                   </div>
                 </div>
@@ -481,32 +419,21 @@ export default function Dashboard() {
       </div>
 
       <Panel title="Quick actions">
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns:
-              'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
-            gap: 12,
-          }}
-        >
+        <div className="customer-quick-actions">
           <Link className="btn" to="/app/plans">
-            <ShieldCheck size={17} />
-            Browse policies
+            <ShieldCheck size={17} /> Browse policies
           </Link>
 
           <Link className="btn" to="/app/my-policies">
-            <WalletCards size={17} />
-            My policies
+            <WalletCards size={17} /> My policies
           </Link>
 
           <Link className="btn" to="/app/claim-submit">
-            <FileText size={17} />
-            Submit a claim
+            <FileText size={17} /> Submit a claim
           </Link>
 
           <Link className="btn" to="/app/notifications">
-            <Bell size={17} />
-            Notifications
+            <Bell size={17} /> Notifications
           </Link>
         </div>
       </Panel>
