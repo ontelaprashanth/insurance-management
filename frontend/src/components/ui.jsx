@@ -106,26 +106,23 @@ export function Logo({ size = 32 }) {
       className="logo"
       width={size}
       height={size}
-      viewBox="0 0 32 32"
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
       aria-hidden="true"
+      focusable="false"
+      style={{ display: 'block', flexShrink: 0, overflow: 'visible' }}
     >
-      <rect
-        width="32"
-        height="32"
-        rx="8"
-        fill="#1f5b5d"
-      />
-
+      {/* Inset artwork prevents the shield from touching/clipping the edges. */}
+      <rect x="1" y="1" width="38" height="38" rx="11" fill="#1F5B5D" />
       <path
-        d="M16 6l8 3v6c0 5-3.4 8.6-8 11-4.6-2.4-8-6-8-11V9z"
+        d="M20 7.5 30 11.3v8.1c0 6.3-4.1 11.2-10 14-5.9-2.8-10-7.7-10-14v-8.1L20 7.5Z"
         fill="#E9A23B"
       />
-
       <path
-        d="M12.5 15.5l2.6 2.6 4.6-5"
+        d="m15.2 20.2 3.3 3.3 6.7-7"
         stroke="#0F3D3E"
-        strokeWidth="2.2"
-        fill="none"
+        strokeWidth="2.7"
         strokeLinecap="round"
         strokeLinejoin="round"
       />
