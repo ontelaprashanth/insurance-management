@@ -6,6 +6,7 @@ import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -30,11 +31,15 @@ public class PolicyPurchaseController {
     public PolicyPurchaseController(
             PolicyPurchaseService policyPurchaseService,
             RazorpayRefundService razorpayRefundService) {
+
         this.policyPurchaseService = policyPurchaseService;
         this.razorpayRefundService = razorpayRefundService;
     }
 
+    // ==========================================
     // USER - PURCHASE INSURANCE POLICY
+    // POST /policy/purchase
+    // ==========================================
 
     @PostMapping("/purchase")
     @PreAuthorize("hasRole('USER')")
@@ -47,34 +52,59 @@ public class PolicyPurchaseController {
                     "Purchase details are required.");
         }
 
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
+            throw new AccessDeniedException(
+                    "Authentication is required.");
+        }
+
         PurchasePolicyDto response =
                 policyPurchaseService.purchasePolicy(
-                        purchaseDto, authentication);
+                        purchaseDto,
+                        authentication);
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(response);
     }
 
+    // ==========================================
     // ADMIN - GET ALL PURCHASES
+    // GET /policy/purchases
+    // ==========================================
 
     @GetMapping("/purchases")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<PurchasePolicyDto>> getAllPurchases() {
+
         return ResponseEntity.ok(
                 policyPurchaseService.getAllPurchases());
     }
 
+    // ==========================================
     // USER - GET MY PURCHASES
+    // GET /policy/my-purchases
+    // ==========================================
 
     @GetMapping("/my-purchases")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<PurchasePolicyDto>> getMyPurchases(
             Authentication authentication) {
+
+        if (authentication == null
+                || !authentication.isAuthenticated()) {
+            throw new AccessDeniedException(
+                    "Authentication is required.");
+        }
+
         return ResponseEntity.ok(
-                policyPurchaseService.getMyPurchases(authentication));
+                policyPurchaseService.getMyPurchases(
+                        authentication));
     }
 
-    // USER - REQUEST FULL REFUND FOR THEIR OWN PURCHASE
+    // ==========================================
+    // USER - REQUEST FULL REFUND
+    // POST /policy/purchases/{purchaseId}/refund
+    // ==========================================
 
     @PostMapping("/purchases/{purchaseId}/refund")
     @PreAuthorize("hasRole('USER')")
@@ -83,29 +113,43 @@ public class PolicyPurchaseController {
             @Valid @RequestBody RefundRequestDto request,
             Authentication authentication) throws Exception {
 
-        if (authentication == null
-                || !authentication.isAuthenticated()) {
+        if (purchaseId == null || purchaseId <= 0) {
             throw new IllegalArgumentException(
+                    "A valid purchase ID is required.");
+        }
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
+
+            throw new AccessDeniedException(
                     "Authentication is required.");
         }
 
-        var updatedPurchase =
-                razorpayRefundService.requestFullRefund(
-                        purchaseId,
-                        authentication.getName(),
-                        request.getReason());
+        if (request == null
+                || request.getRefundReason() == null
+                || request.getRefundReason().isBlank()) {
 
-        /*
-         * Return the established purchase DTO format rather than exposing
-         * the JPA entity or creating a new response format.
-         */
-        return ResponseEntity.ok(
-                policyPurchaseService.getMyPurchases(authentication)
-                        .stream()
-                        .filter(p -> purchaseId.equals(p.getPurchaseId()))
-                        .findFirst()
-                        .orElseThrow(() -> new IllegalStateException(
-                                "Refund was processed, but the purchase response "
-                                + "could not be loaded.")));
+            throw new IllegalArgumentException(
+                    "Refund reason is required.");
+        }
+
+        // Service must validate ownership, payment status,
+        // refund eligibility and duplicate refund protection.
+        razorpayRefundService.requestFullRefund(
+                purchaseId,
+                authentication.getName(),
+                request.getRefundReason().trim());
+
+        // Return the established DTO, not the JPA entity.
+        return policyPurchaseService.getMyPurchases(authentication)
+                .stream()
+                .filter(p -> purchaseId.equals(p.getPurchaseId()))
+                .findFirst()
+                .map(ResponseEntity::ok)
+                .orElseThrow(() -> new IllegalStateException(
+                        "Refund was processed, but the purchase response "
+                        + "could not be loaded."));
     }
 }
