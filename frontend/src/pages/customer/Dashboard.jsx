@@ -18,7 +18,6 @@ import {
 
 import {
   DataState,
-  Icon,
   PageHeader,
   Panel,
   StatusBadge,
@@ -45,6 +44,7 @@ const isUnread = (item) =>
 
 const safeDate = (value) => {
   if (!value) return 0
+
   const parsed = new Date(value).getTime()
   return Number.isNaN(parsed) ? 0 : parsed
 }
@@ -67,7 +67,7 @@ const getClaimNumber = (item) =>
 const sum = (items, getValue) =>
   items.reduce((total, item) => total + Number(getValue(item) || 0), 0)
 
-function Stat({ icon, label, value, detail, to, loading }) {
+function Stat({ icon: StatIcon, label, value, detail, to, loading }) {
   return (
     <div
       style={{
@@ -86,7 +86,8 @@ function Stat({ icon, label, value, detail, to, loading }) {
           marginBottom: 5,
         }}
       >
-        <Icon name={icon} />
+        <StatIcon size={19} strokeWidth={2} />
+
         <span className="label" style={{ fontWeight: 700 }}>
           {label}
         </span>
@@ -253,7 +254,7 @@ export default function Dashboard() {
         <div style={{ marginBottom: 16 }}>
           <DataState
             title="Some dashboard information could not be loaded"
-            description="Refresh to load your latest information."
+            description="Refresh to try loading your latest information."
             action={
               <button className="btn sm" onClick={refreshAll}>
                 Refresh dashboard
@@ -263,7 +264,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Dashboard statistics */}
+      {/* Statistics — same layout as the Admin Dashboard */}
       <div
         className="ledger"
         style={{
@@ -272,7 +273,7 @@ export default function Dashboard() {
         }}
       >
         <Stat
-          icon="shield-check"
+          icon={ShieldCheck}
           label="Active policies"
           value={activePolicies.length}
           detail={`${P.length} policies in total`}
@@ -281,7 +282,7 @@ export default function Dashboard() {
         />
 
         <Stat
-          icon="file-text"
+          icon={FileText}
           label="My claims"
           value={C.length}
           detail={`${pendingClaims.length} awaiting review`}
@@ -290,7 +291,7 @@ export default function Dashboard() {
         />
 
         <Stat
-          icon="wallet-cards"
+          icon={WalletCards}
           label="Total cover"
           value={inrShort(totalCover)}
           detail={`${validPurchases.length} paid purchases`}
@@ -299,7 +300,7 @@ export default function Dashboard() {
         />
 
         <Stat
-          icon="bell"
+          icon={Bell}
           label="Notifications"
           value={unreadNotifications.length}
           detail={`${N.length} notifications in total`}
@@ -325,6 +326,7 @@ export default function Dashboard() {
             <div className="empty">
               <h4>No claims yet</h4>
               <p>Your submitted claims will appear here.</p>
+
               <Link className="btn sm" to="/app/claim-submit">
                 Submit a claim
               </Link>
@@ -338,7 +340,10 @@ export default function Dashboard() {
                 <div className="grow" style={{ minWidth: 0 }}>
                   <b>Claim #{getClaimNumber(item)}</b>
 
-                  <div className="faint" style={{ fontSize: 13 }}>
+                  <div
+                    className="faint"
+                    style={{ fontSize: 13, marginTop: 4 }}
+                  >
                     Policy #{getPolicyNumber(item)}
                     {' · '}
                     {date(getClaimDate(item))}
@@ -357,6 +362,7 @@ export default function Dashboard() {
                   <b className="num">
                     {inr(getClaimAmount(item))}
                   </b>
+
                   <StatusBadge value={item?.status || 'PENDING'} />
                 </div>
               </div>
@@ -409,7 +415,10 @@ export default function Dashboard() {
                     </div>
                   )}
 
-                  <div className="faint" style={{ fontSize: 12, marginTop: 5 }}>
+                  <div
+                    className="faint"
+                    style={{ fontSize: 12, marginTop: 5 }}
+                  >
                     {timeAgo(getNotificationDate(item))}
                   </div>
                 </div>
@@ -444,19 +453,23 @@ export default function Dashboard() {
           }}
         >
           <Link className="btn" to="/app/plans">
-            <ShieldCheck size={17} /> Browse policies
+            <ShieldCheck size={17} />
+            Browse policies
           </Link>
 
           <Link className="btn" to="/app/my-policies">
-            <WalletCards size={17} /> My policies
+            <WalletCards size={17} />
+            My policies
           </Link>
 
           <Link className="btn" to="/app/claim-submit">
-            <FileText size={17} /> Submit a claim
+            <FileText size={17} />
+            Submit a claim
           </Link>
 
           <Link className="btn" to="/app/notifications">
-            <Bell size={17} /> Notifications
+            <Bell size={17} />
+            Notifications
           </Link>
         </div>
       </Panel>
