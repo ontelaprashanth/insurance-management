@@ -6,6 +6,7 @@ import java.time.LocalDateTime;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.htc.insurance.dao.ClaimsDao;
@@ -41,27 +42,23 @@ public class RefundPreparationService {
     // =========================================================
 
     /**
-     * Validates refund eligibility and commits REFUND_PENDING.
+     * Validates refund eligibility and prepares a refund.
      *
-     * Rules:
-     * 1. Purchase must belong to authenticated user.
-     * 2. Payment must be PAID.
-     * 3. Razorpay payment ID must exist.
-     * 4. No previous refund request may exist.
-     * 5. Refund amount must be positive.
-     * 6. Request must be within 24 hours of payment.
-     * 7. Policy must have no existing claims.
+     * Database locking order:
      *
-     * On successful validation:
-     * - Mark purchase as REFUND_PENDING.
-     * - Record refund amount and reason.
-     * - Deactivate linked policy.
-     * - Save both changes in one transaction.
+     * 1. Read purchase to identify policy.
+     * 2. Lock policy row.
+     * 3. Lock purchase row.
+     * 4. Revalidate purchase and refund eligibility.
+     * 5. Check whether claims exist.
+     * 6. Mark refund pending and deactivate policy.
      *
-     * Razorpay must be called only after this
-     * transaction commits successfully.
+     * All database changes are committed atomically.
+     *
+     * Razorpay refund creation must happen only after
+     * this transaction successfully commits.
      */
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public PolicyPurchase prepareRefund(
             RefundRequestDto request,
             String authenticatedUsername) {
@@ -75,9 +72,9 @@ public class RefundPreparationService {
                     "Refund request is required.");
         }
 
-        if (request.getPurchaseId() == null
-                || request.getPurchaseId() <= 0) {
+        Long purchaseId = request.getPurchaseId();
 
+        if (purchaseId == null || purchaseId <= 0) {
             throw new IllegalArgumentException(
                     "A valid purchase ID is required.");
         }
@@ -88,6 +85,8 @@ public class RefundPreparationService {
             throw new IllegalArgumentException(
                     "Authenticated user is required.");
         }
+
+        String username = authenticatedUsername.trim();
 
         String reason = request.getRefundReason() == null
                 ? ""
@@ -104,25 +103,88 @@ public class RefundPreparationService {
         }
 
         // =====================================================
-        // LOAD PURCHASE WITH DATABASE LOCK
+        // STEP 1 - READ PURCHASE WITHOUT LOCK
+        // =====================================================
+
+        /*
+         * This first read is used only to identify
+         * the policy that needs to be locked.
+         *
+         * Do not trust payment or refund status from
+         * this preliminary purchase lookup.
+         */
+
+        PolicyPurchase initialPurchase =
+                policyPurchaseDao.getPurchaseById(purchaseId);
+
+        if (initialPurchase == null) {
+            throw new IllegalArgumentException(
+                    "Purchase not found.");
+        }
+
+        if (initialPurchase.getPolicy() == null
+                || initialPurchase.getPolicy()
+                        .getPolicyNumber() == null) {
+
+            throw new IllegalStateException(
+                    "Purchase policy information is unavailable.");
+        }
+
+        Long policyNumber = initialPurchase
+                .getPolicy()
+                .getPolicyNumber();
+
+        // =====================================================
+        // STEP 2 - LOCK POLICY ROW FIRST
+        // =====================================================
+
+        /*
+         * ClaimsService.saveClaims() obtains this same
+         * policy lock before checking eligibility.
+         *
+         * If a claim is being submitted, this refund
+         * operation waits until that transaction ends.
+         */
+
+        Policy policy = policyDao.getPolicyByIdForUpdate(
+                policyNumber);
+
+        if (policy == null) {
+            throw new IllegalStateException(
+                    "The purchased policy no longer exists.");
+        }
+
+        // =====================================================
+        // STEP 3 - LOCK PURCHASE ROW SECOND
         // =====================================================
 
         PolicyPurchase purchase = policyPurchaseDao
-                .getPurchaseByIdForUpdate(
-                        request.getPurchaseId())
+                .getPurchaseByIdForUpdate(purchaseId)
                 .orElseThrow(() ->
                         new IllegalArgumentException(
                                 "Purchase not found."));
 
         // =====================================================
-        // VALIDATE PURCHASE OWNERSHIP
+        // REVALIDATE PURCHASE-POLICY ASSOCIATION
         // =====================================================
 
-        Policy policy = purchase.getPolicy();
+        if (purchase.getPolicy() == null
+                || purchase.getPolicy()
+                        .getPolicyNumber() == null
+                || !policyNumber.equals(
+                        purchase.getPolicy()
+                                .getPolicyNumber())) {
 
-        if (policy == null
-                || policy.getPolicyNumber() == null
-                || policy.getPolicyHolder() == null
+            throw new IllegalStateException(
+                    "Purchase policy information changed. "
+                    + "Please retry your refund request.");
+        }
+
+        // =====================================================
+        // VALIDATE OWNERSHIP
+        // =====================================================
+
+        if (policy.getPolicyHolder() == null
                 || policy.getPolicyHolder().getUser() == null) {
 
             throw new IllegalStateException(
@@ -136,8 +198,7 @@ public class RefundPreparationService {
                 .getUsername();
 
         if (ownerUsername == null
-                || !ownerUsername.equalsIgnoreCase(
-                        authenticatedUsername.trim())) {
+                || !ownerUsername.equalsIgnoreCase(username)) {
 
             throw new AccessDeniedException(
                     "You are not authorized to refund "
@@ -175,14 +236,19 @@ public class RefundPreparationService {
 
         String refundStatus = purchase.getRefundStatus();
 
-        if (refundStatus == null
-                || !"NOT_REFUNDED".equalsIgnoreCase(
+        /*
+         * Allow NOT_REFUNDED and legacy null values.
+         * Any other status blocks another refund.
+         */
+
+        if (refundStatus != null
+                && !"NOT_REFUNDED".equalsIgnoreCase(
                         refundStatus.trim())) {
 
             throw new IllegalStateException(
-                    "This purchase is not eligible for "
-                    + "a new refund request. Current status: "
-                    + refundStatus);
+                    "This purchase already has a refund "
+                    + "in progress or has been refunded. "
+                    + "Current status: " + refundStatus);
         }
 
         // =====================================================
@@ -207,7 +273,6 @@ public class RefundPreparationService {
                 purchase.getPaymentDateTime();
 
         if (paymentDateTime == null) {
-
             throw new IllegalStateException(
                     "Payment timestamp is unavailable. "
                     + "Refund eligibility cannot be verified.");
@@ -216,27 +281,35 @@ public class RefundPreparationService {
         LocalDateTime now = LocalDateTime.now();
 
         if (paymentDateTime.isAfter(now)) {
-
             throw new IllegalStateException(
                     "The payment timestamp is invalid.");
         }
 
         LocalDateTime deadline =
-                paymentDateTime.plusHours(
-                        REFUND_WINDOW_HOURS);
+                paymentDateTime.plusHours(REFUND_WINDOW_HOURS);
 
         if (!now.isBefore(deadline)) {
-
             throw new IllegalStateException(
                     "The 24-hour refund window has expired.");
         }
 
         // =====================================================
-        // CHECK EXISTING CLAIMS
+        // BLOCK REFUND IF ANY CLAIM EXISTS
         // =====================================================
 
-        if (hasExistingClaims(
-                policy.getPolicyNumber())) {
+        /*
+         * All claim statuses count:
+         *
+         * PENDING
+         * APPROVED
+         * REJECTED
+         * SETTLED
+         *
+         * Even a rejected claim makes the policy
+         * ineligible for automatic refund.
+         */
+
+        if (hasExistingClaims(policyNumber)) {
 
             throw new IllegalStateException(
                     "Refund cannot be requested because "
@@ -246,56 +319,49 @@ public class RefundPreparationService {
         }
 
         // =====================================================
-        // MARK REFUND AS PENDING
+        // MARK REFUND PENDING
         // =====================================================
 
-        purchase.setRefundStatus(
-                "REFUND_PENDING");
+        purchase.setRefundStatus("REFUND_PENDING");
 
-        purchase.setRefundAmount(
-                refundAmount);
+        purchase.setRefundAmount(refundAmount);
 
-        purchase.setRefundReason(
-                reason);
+        purchase.setRefundReason(reason);
 
         purchase.setRefundId(null);
 
         purchase.setRefundDateTime(null);
 
         // =====================================================
-        // DEACTIVATE LINKED POLICY
+        // DEACTIVATE POLICY
         // =====================================================
 
         /*
-         * Once a refund request passes validation,
-         * the customer must not continue using
-         * the policy as active insurance coverage.
+         * Once a refund is prepared, the policy is
+         * deactivated to prevent new claims.
          *
-         * The policy and purchase records are retained
-         * for history, audit and reconciliation.
+         * Keep the policy and purchase records
+         * for payment and refund history.
          */
 
         policy.setIsActive(false);
 
         // =====================================================
-        // SAVE POLICY AND PURCHASE ATOMICALLY
+        // SAVE BOTH RECORDS IN ONE TRANSACTION
         // =====================================================
 
         policyDao.savePolicy(policy);
 
-        return policyPurchaseDao.savePurchase(
-                purchase);
+        return policyPurchaseDao.savePurchase(purchase);
     }
 
     // =========================================================
-    // CHECK WHETHER POLICY HAS EXISTING CLAIMS
+    // CHECK EXISTING CLAIMS
     // =========================================================
 
-    private boolean hasExistingClaims(
-            Long policyNumber) {
+    private boolean hasExistingClaims(Long policyNumber) {
 
         if (policyNumber == null) {
-
             throw new IllegalStateException(
                     "Policy number is required.");
         }
