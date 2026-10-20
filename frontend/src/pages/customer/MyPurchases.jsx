@@ -1,5 +1,7 @@
+
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+
 import {
   AlertCircle,
   CheckCircle2,
@@ -8,7 +10,6 @@ import {
   FileText,
   RotateCcw,
   ShieldCheck,
-  X,
 } from 'lucide-react'
 
 import { purchases } from '../../api/endpoints'
@@ -30,10 +31,13 @@ import {
 import {
   date,
   dateTime,
-  inr,
   inr2,
   inrShort,
 } from '../../lib/format'
+
+/* =========================================================
+   HELPERS
+========================================================= */
 
 const FIELDS = [
   'purchaseId',
@@ -93,7 +97,10 @@ function refundStatusText(value) {
     return 'Not refunded'
   }
 
-  if (status === 'REFUND_PENDING' || status === 'PENDING') {
+  if (
+    status === 'REFUND_PENDING' ||
+    status === 'PENDING'
+  ) {
     return 'Refund pending'
   }
 
@@ -111,11 +118,7 @@ function refundStatusText(value) {
     return 'Under verification'
   }
 
-  if (
-    status === 'REFUNDED' ||
-    status === 'FULLY_REFUNDED' ||
-    status === 'PROCESSED'
-  ) {
+  if (isRefunded({ refundStatus: status })) {
     return 'Refunded'
   }
 
@@ -125,6 +128,10 @@ function refundStatusText(value) {
 
   return String(value)
 }
+
+/* =========================================================
+   REFUND STATUS
+========================================================= */
 
 function RefundStatus({ purchase }) {
   const status = normalizeStatus(purchase?.refundStatus)
@@ -156,8 +163,16 @@ function RefundStatus({ purchase }) {
     )
   }
 
-  return <StatusBadge value={purchase?.refundStatus || 'NOT_REFUNDED'} />
+  return (
+    <StatusBadge
+      value={purchase?.refundStatus || 'NOT_REFUNDED'}
+    />
+  )
 }
+
+/* =========================================================
+   REFUND REQUEST MODAL
+========================================================= */
 
 function RefundModal({
   purchase,
@@ -172,20 +187,25 @@ function RefundModal({
   if (!purchase) return null
 
   const trimmedReason = reason.trim()
+
   const reasonValid =
-    trimmedReason.length > 0 && trimmedReason.length <= 500
+    trimmedReason.length > 0 &&
+    trimmedReason.length <= 500
+
+  const eligible = canRequestRefund(purchase)
+
+  const canSubmit =
+    !submitting &&
+    reasonValid &&
+    confirmed &&
+    eligible
+
+  const formId = `insurex-refund-form-${purchase.purchaseId}`
 
   async function submit(event) {
     event.preventDefault()
 
-    if (
-      submitting ||
-      !reasonValid ||
-      !confirmed ||
-      !canRequestRefund(purchase)
-    ) {
-      return
-    }
+    if (!canSubmit) return
 
     await onSubmit({
       purchaseId: purchase.purchaseId,
@@ -210,14 +230,10 @@ function RefundModal({
           <Button
             variant="dark"
             loading={submitting}
-            disabled={
-              submitting ||
-              !reasonValid ||
-              !confirmed
-            }
+            disabled={!canSubmit}
             onClick={() =>
               document
-                .getElementById('insurex-refund-form')
+                .getElementById(formId)
                 ?.requestSubmit()
             }
           >
@@ -228,7 +244,7 @@ function RefundModal({
       }
     >
       <form
-        id="insurex-refund-form"
+        id={formId}
         className="stack"
         onSubmit={submit}
       >
@@ -238,7 +254,10 @@ function RefundModal({
           </div>
 
           <div className="grow">
-            <b>{purchase.coveredTypes || 'Insurance policy'}</b>
+            <b>
+              {purchase.coveredTypes || 'Insurance policy'}
+            </b>
+
             <div className="muted">
               Purchase #{purchase.purchaseId}
               {purchase.policyNumber
@@ -249,22 +268,26 @@ function RefundModal({
 
           <div className="refund-amount">
             <span>Full refund</span>
-            <strong>{money(purchase.totalPremium)}</strong>
+            <strong>
+              {money(purchase.totalPremium)}
+            </strong>
           </div>
         </div>
 
         <div className="alert info">
           <Clock3 size={17} />
           <span>
-            Refund requests are available only while the backend
-            confirms that the purchase is eligible. Refund processing
-            may take additional time after the request is submitted.
+            Refund requests are available only while the
+            backend confirms that the purchase is eligible.
+            Refund processing may take additional time after
+            the request is submitted.
           </span>
         </div>
 
         <div className="field">
           <label htmlFor="refund-reason">
-            Reason for refund <span aria-hidden="true">*</span>
+            Reason for refund
+            <span aria-hidden="true"> *</span>
           </label>
 
           <textarea
@@ -296,9 +319,10 @@ function RefundModal({
           />
 
           <span>
-            I confirm that I want to request a full refund for this
-            purchase. I understand that submitting the request does
-            not itself confirm that the refund has been completed.
+            I confirm that I want to request a full refund
+            for this purchase. I understand that submitting
+            the request does not itself confirm that the
+            refund has been completed.
           </span>
         </label>
 
@@ -312,6 +336,10 @@ function RefundModal({
     </Modal>
   )
 }
+
+/* =========================================================
+   PURCHASE DETAILS MODAL
+========================================================= */
 
 export function PurchaseDetail({
   p,
@@ -354,7 +382,10 @@ export function PurchaseDetail({
           </div>
 
           <div className="grow">
-            <h3>{p.coveredTypes || 'Insurance policy'}</h3>
+            <h3>
+              {p.coveredTypes || 'Insurance policy'}
+            </h3>
+
             <p>
               Purchase #{p.purchaseId}
               {p.policyNumber
@@ -371,14 +402,18 @@ export function PurchaseDetail({
             ['Plan', p.coveredTypes],
             [
               'Policy number',
-              p.policyNumber ? `#${p.policyNumber}` : '—',
+              p.policyNumber
+                ? `#${p.policyNumber}`
+                : '—',
             ],
             ['Customer', p.username],
             ['Coverage', money(p.coverageAmount)],
             [
               'Duration',
               `${p.durationYears || '—'} ${
-                Number(p.durationYears) === 1 ? 'year' : 'years'
+                Number(p.durationYears) === 1
+                  ? 'year'
+                  : 'years'
               }`,
             ],
             ['Purchase date', date(p.purchaseDate)],
@@ -402,8 +437,12 @@ export function PurchaseDetail({
           <dt>GST ({p.gstRate ?? 0}%)</dt>
           <dd>{money(p.gstAmount)}</dd>
 
-          <dt className="total">Total paid</dt>
-          <dd className="total">{money(p.totalPremium)}</dd>
+          <dt className="total">
+            Total paid
+          </dt>
+          <dd className="total">
+            {money(p.totalPremium)}
+          </dd>
         </dl>
 
         <div className="divider" />
@@ -416,11 +455,26 @@ export function PurchaseDetail({
               'Payment status',
               <StatusBadge value={p.paymentStatus} />,
             ],
-            ['Payment method', p.paymentMethod || '—'],
-            ['Payment date', dateTime(p.paymentDateTime)],
-            ['Transaction ID', p.transactionId || '—'],
-            ['Razorpay order ID', p.razorpayOrderId || '—'],
-            ['Razorpay payment ID', p.razorpayPaymentId || '—'],
+            [
+              'Payment method',
+              p.paymentMethod || '—',
+            ],
+            [
+              'Payment date',
+              dateTime(p.paymentDateTime),
+            ],
+            [
+              'Transaction ID',
+              p.transactionId || '—',
+            ],
+            [
+              'Razorpay order ID',
+              p.razorpayOrderId || '—',
+            ],
+            [
+              'Razorpay payment ID',
+              p.razorpayPaymentId || '—',
+            ],
           ]}
         />
 
@@ -431,8 +485,14 @@ export function PurchaseDetail({
         <Details
           items={[
             ['Name', p.nomineeName || '—'],
-            ['Relationship', p.nomineeRelation || '—'],
-            ['Mobile', p.nomineeContact || '—'],
+            [
+              'Relationship',
+              p.nomineeRelation || '—',
+            ],
+            [
+              'Mobile',
+              p.nomineeContact || '—',
+            ],
           ]}
         />
 
@@ -442,8 +502,14 @@ export function PurchaseDetail({
 
         <Details
           items={[
-            ['Refund status', <RefundStatus purchase={p} />],
-            ['Refund deadline', dateTime(p.refundDeadline)],
+            [
+              'Refund status',
+              <RefundStatus purchase={p} />,
+            ],
+            [
+              'Refund deadline',
+              dateTime(p.refundDeadline),
+            ],
             [
               'Eligible for refund',
               p.refundEligible ? 'Yes' : 'No',
@@ -454,9 +520,18 @@ export function PurchaseDetail({
                 ? money(p.refundAmount)
                 : '—',
             ],
-            ['Refund ID', p.refundId || '—'],
-            ['Refund reason', p.refundReason || '—'],
-            ['Refund updated', dateTime(p.refundDateTime)],
+            [
+              'Refund ID',
+              p.refundId || '—',
+            ],
+            [
+              'Refund reason',
+              p.refundReason || '—',
+            ],
+            [
+              'Refund updated',
+              dateTime(p.refundDateTime),
+            ],
           ]}
         />
 
@@ -464,8 +539,9 @@ export function PurchaseDetail({
           <div className="alert info">
             <Clock3 size={17} />
             <span>
-              This purchase is currently eligible for a full refund.
-              Submit the request before the displayed deadline.
+              This purchase is currently eligible for a
+              full refund. Submit the request before the
+              displayed deadline.
             </span>
           </div>
         )}
@@ -474,9 +550,9 @@ export function PurchaseDetail({
           <div className="alert info">
             <Clock3 size={17} />
             <span>
-              Your refund is pending or being verified. Do not submit
-              another request. Check this page again for the latest
-              status.
+              Your refund is pending or being verified.
+              Do not submit another request. Check this
+              page again for the latest status.
             </span>
           </div>
         )}
@@ -485,7 +561,8 @@ export function PurchaseDetail({
           <div className="alert success">
             <CheckCircle2 size={17} />
             <span>
-              The purchase is marked as refunded by the backend.
+              The purchase is marked as refunded
+              by the backend.
             </span>
           </div>
         )}
@@ -494,9 +571,10 @@ export function PurchaseDetail({
           <div className="refund-not-available">
             <AlertCircle size={17} />
             <span>
-              A refund request is not currently available for this
-              purchase. This can happen when the eligibility period
-              has ended or the purchase is not paid.
+              A refund request is not currently available
+              for this purchase. This can happen when
+              eligibility has ended or the purchase
+              is not paid.
             </span>
           </div>
         )}
@@ -505,13 +583,17 @@ export function PurchaseDetail({
   )
 }
 
+/* =========================================================
+   PAYMENTS PAGE
+========================================================= */
+
 export default function MyPurchases() {
   const queryClient = useQueryClient()
 
   const q = useQuery({
     queryKey: ['my-purchases'],
     queryFn: purchases.mine,
-    staleTime: 15_000,
+    staleTime: 15000,
     refetchOnWindowFocus: true,
   })
 
@@ -520,6 +602,7 @@ export default function MyPurchases() {
   const [refundError, setRefundError] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [pageError, setPageError] = useState('')
+  const [pageSuccess, setPageSuccess] = useState('')
 
   const [search, setSearch, filteredRows] = useFilter(
     q.data,
@@ -528,45 +611,135 @@ export default function MyPurchases() {
 
   const rows = useMemo(
     () =>
-      (filteredRows || []).slice().sort(
-        (a, b) =>
-          Number(b.purchaseId || 0) -
-          Number(a.purchaseId || 0),
-      ),
+      (filteredRows || [])
+        .slice()
+        .sort(
+          (a, b) =>
+            Number(b.purchaseId || 0) -
+            Number(a.purchaseId || 0),
+        ),
     [filteredRows],
   )
 
-  async function submitRefund({ purchaseId, refundReason }) {
+  const allPurchases = Array.isArray(q.data)
+    ? q.data
+    : []
+
+  const totalPaid = allPurchases.reduce(
+    (sum, purchase) =>
+      isPaid(purchase)
+        ? sum + Number(purchase.totalPremium || 0)
+        : sum,
+    0,
+  )
+
+  const refundCount = allPurchases.filter(
+    (purchase) =>
+      isRefundPending(purchase) ||
+      isRefunded(purchase),
+  ).length
+
+  async function refreshPurchases() {
+    setPageError('')
+
+    try {
+      const result = await q.refetch()
+
+      if (result.error) {
+        throw result.error
+      }
+
+      setPageSuccess('')
+    } catch (error) {
+      setPageError(errorMessage(error))
+    }
+  }
+
+  async function submitRefund({
+    purchaseId,
+    refundReason,
+  }) {
     if (submitting) return
 
     setSubmitting(true)
     setRefundError('')
     setPageError('')
+    setPageSuccess('')
+
+    let result
 
     try {
-      // Only this operation determines whether submission succeeded.
-      await purchases.refund(purchaseId, { refundReason })
-    } catch (err) {
-      setRefundError(errorMessage(err,
-        'The refund request could not be submitted. Please check its status before retrying.'))
+      // Confirmed endpoint: POST /refund/request
+      result = await purchases.refund(purchaseId, {
+        refundReason,
+      })
+
+      if (result?.success === false) {
+        throw new Error(
+          result.message ||
+          'The backend rejected the refund request.',
+        )
+      }
+    } catch (error) {
+      console.error(
+        'InsureX refund request failed:',
+        error,
+      )
+
+      const uncertain =
+        error.code === 'ERR_NETWORK' ||
+        error.code === 'ECONNABORTED' ||
+        error.code === 'ETIMEDOUT'
+
+      setRefundError(
+        uncertain
+          ? 'The refund result could not be confirmed. Refresh your purchases and verify the status before trying again.'
+          : errorMessage(error),
+      )
+
       setSubmitting(false)
       return
     }
 
+    // The backend accepted the refund request.
+    // This does not mean the money has been returned.
     setRefundPurchase(null)
     setOpen(null)
-    setSubmitting(false)
 
-    // Refresh after successful submission. A refresh failure does not mean
-    // that the refund submission failed; never automatically repeat POST.
+    setPageSuccess(
+      result?.message ||
+      'Your refund request has been accepted. Processing may take additional time.',
+    )
+
     try {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ['my-purchases'] }),
-        queryClient.invalidateQueries({ queryKey: ['my-policies'] }),
-        queryClient.invalidateQueries({ queryKey: ['insurance-plans'] }),
+        queryClient.invalidateQueries({
+          queryKey: ['my-policies'],
+          refetchType: 'none',
+        }),
+        queryClient.invalidateQueries({
+          queryKey: ['insurance-plans'],
+          refetchType: 'none',
+        }),
       ])
-    } catch (err) {
-      setPageError('Refund request submitted, but the latest status could not be refreshed. Use Refresh to check its status.')
+
+      // Refresh authoritative purchase data.
+      const refreshed = await q.refetch()
+
+      if (refreshed.error) {
+        throw refreshed.error
+      }
+    } catch (error) {
+      console.error(
+        'InsureX purchase refresh failed:',
+        error,
+      )
+
+      setPageError(
+        'Your refund request was accepted, but the latest status could not be loaded. Please refresh Payments.',
+      )
+    } finally {
+      setSubmitting(false)
     }
   }
 
@@ -577,9 +750,23 @@ export default function MyPurchases() {
         subtitle="Review receipts, payment details and refund requests."
       />
 
+      {pageSuccess && (
+        <div
+          className="alert success"
+          role="status"
+        >
+          <CheckCircle2 size={17} />
+          <span>{pageSuccess}</span>
+        </div>
+      )}
+
       {pageError && (
-        <div className="alert error" role="alert">
-          {pageError}
+        <div
+          className="alert error"
+          role="alert"
+        >
+          <AlertCircle size={17} />
+          <span>{pageError}</span>
         </div>
       )}
 
@@ -591,9 +778,13 @@ export default function MyPurchases() {
             </div>
 
             <div>
-              <div className="muted">Purchases</div>
+              <div className="muted">
+                Purchases
+              </div>
               <strong>
-                {q.isLoading ? '…' : (q.data || []).length}
+                {q.isLoading
+                  ? '…'
+                  : allPurchases.length}
               </strong>
             </div>
           </div>
@@ -606,20 +797,13 @@ export default function MyPurchases() {
             </div>
 
             <div>
-              <div className="muted">Total paid</div>
+              <div className="muted">
+                Total paid
+              </div>
               <strong>
                 {q.isLoading
                   ? '…'
-                  : money(
-                      (q.data || []).reduce(
-                        (sum, purchase) =>
-                          isPaid(purchase)
-                            ? sum +
-                              Number(purchase.totalPremium || 0)
-                            : sum,
-                        0,
-                      ),
-                    )}
+                  : money(totalPaid)}
               </strong>
             </div>
           </div>
@@ -632,15 +816,13 @@ export default function MyPurchases() {
             </div>
 
             <div>
-              <div className="muted">Refund requests</div>
+              <div className="muted">
+                Refund requests
+              </div>
               <strong>
                 {q.isLoading
                   ? '…'
-                  : (q.data || []).filter(
-                      (purchase) =>
-                        isRefundPending(purchase) ||
-                        isRefunded(purchase),
-                    ).length}
+                  : refundCount}
               </strong>
             </div>
           </div>
@@ -656,12 +838,8 @@ export default function MyPurchases() {
           />
 
           <Button
-            onClick={() =>
-              queryClient.invalidateQueries({
-                queryKey: ['my-purchases'],
-              })
-            }
-            disabled={q.isFetching}
+            onClick={refreshPurchases}
+            disabled={q.isFetching || submitting}
           >
             <RotateCcw size={15} />
             Refresh
@@ -687,7 +865,9 @@ export default function MyPurchases() {
                   render: (p) => (
                     <div className="purchase-ref">
                       <b>#{p.purchaseId}</b>
-                      <span>{date(p.purchaseDate)}</span>
+                      <span>
+                        {date(p.purchaseDate)}
+                      </span>
                     </div>
                   ),
                 },
@@ -696,7 +876,9 @@ export default function MyPurchases() {
                   header: 'Insurance plan',
                   render: (p) => (
                     <div className="purchase-plan">
-                      <b>{p.coveredTypes || 'Insurance'}</b>
+                      <b>
+                        {p.coveredTypes || 'Insurance'}
+                      </b>
                       <span>
                         {p.policyNumber
                           ? `Policy #${p.policyNumber}`
@@ -708,25 +890,31 @@ export default function MyPurchases() {
                 {
                   key: 'coverageAmount',
                   header: 'Coverage',
-                  render: (p) => inrShort(p.coverageAmount),
+                  render: (p) =>
+                    inrShort(p.coverageAmount),
                 },
                 {
                   key: 'totalPremium',
                   header: 'Paid',
                   render: (p) => (
-                    <b>{money(p.totalPremium)}</b>
+                    <b>
+                      {money(p.totalPremium)}
+                    </b>
                   ),
                 },
                 {
                   key: 'paymentDateTime',
                   header: 'Payment date',
-                  render: (p) => dateTime(p.paymentDateTime),
+                  render: (p) =>
+                    dateTime(p.paymentDateTime),
                 },
                 {
                   key: 'paymentStatus',
                   header: 'Payment',
                   render: (p) => (
-                    <StatusBadge value={p.paymentStatus} />
+                    <StatusBadge
+                      value={p.paymentStatus}
+                    />
                   ),
                 },
                 {
@@ -756,6 +944,7 @@ export default function MyPurchases() {
                         <Button
                           size="sm"
                           variant="dark"
+                          disabled={submitting}
                           onClick={(event) => {
                             event?.stopPropagation?.()
                             setRefundError('')
@@ -788,9 +977,11 @@ export default function MyPurchases() {
 
       {refundPurchase && (
         <RefundModal
+          key={refundPurchase.purchaseId}
           purchase={refundPurchase}
           onClose={() => {
             if (submitting) return
+
             setRefundPurchase(null)
             setRefundError('')
           }}
@@ -961,10 +1152,6 @@ export default function MyPurchases() {
           .payment-summary-grid {
             grid-template-columns: 1fr;
             gap: 10px;
-          }
-
-          .payment-summary {
-            align-items: center;
           }
 
           .purchase-detail-banner {
