@@ -1,73 +1,88 @@
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
-import { claims, policies, purchases, settlements, users } from '../../api/endpoints'
-import { Button, Panel, PageHeader, StatusBadge } from '../../components/ui'
-import { date, inr, inrShort } from '../../lib/format'
-
-const sum = (rows, f) => rows.reduce((s, r) => s + Number(f(r) || 0), 0)
+import { claims, notifications, policies, purchases } from '../../api/endpoints'
+import { DataState, Icon, PageHeader, Panel, StatusBadge } from '../../components/ui'
+import { useAuth } from '../../auth/AuthContext'
+import { date, inr, inrShort, timeAgo } from '../../lib/format'
 
 export default function Dashboard() {
-  const u = useQuery({ queryKey: ['a-users'], queryFn: users.getAll })
-  const p = useQuery({ queryKey: ['a-policies'], queryFn: policies.getAll })
-  const pu = useQuery({ queryKey: ['a-purchases'], queryFn: purchases.getAll })
-  const c = useQuery({ queryKey: ['a-claims'], queryFn: claims.getAll })
-  const s = useQuery({ queryKey: ['a-settlements'], queryFn: settlements.getAll })
+  const { user } = useAuth()
+  const pol = useQuery({ queryKey: ['my-policies'], queryFn: policies.mine })
+  const pur = useQuery({ queryKey: ['my-purchases'], queryFn: purchases.mine })
+  const clm = useQuery({ queryKey: ['my-claims'], queryFn: claims.mine })
+  const ntf = useQuery({ queryKey: ['notifications'], queryFn: notifications.mine })
 
-  const U = u.data || [], P = p.data || [], PU = pu.data || [], C = c.data || [], S = s.data || []
-  const customers = U.filter((x) => x.role === 'USER')
-  const paid = PU.filter((x) => String(x.paymentStatus).toUpperCase() !== 'FAILED')
-  const revenue = sum(paid.filter((x) => String(x.refundStatus).toUpperCase() !== 'REFUNDED'), (x) => x.totalPremium)
-  const pending = C.filter((x) => x.status === 'PENDING')
-  const byStatus = { PENDING: pending.length, APPROVED: C.filter((x) => x.status === 'APPROVED').length, REJECTED: C.filter((x) => x.status === 'REJECTED').length }
-  const maxBar = Math.max(1, ...Object.values(byStatus))
-  const pendingSettle = S.filter((x) => x.settlementStatus === 'PENDING')
-  const settled = S.filter((x) => x.settlementStatus === 'SETTLED')
-  const ld = (q) => q.isLoading
+  const active = (pol.data || []).filter((p) => p.isActive).length
+  const totalCover = (pur.data || []).filter((p) => String(p.paymentStatus || '').toUpperCase() !== 'FAILED').reduce((s, p) => s + Number(p.coverageAmount || 0), 0)
+  const open = (clm.data || []).filter((c) => c.status === 'PENDING').length
+  const unread = (ntf.data || []).filter((n) => !n.isRead).length
 
   return (
     <>
-      <PageHeader title="Admin dashboard" subtitle="What needs a decision today, and how the book looks." />
+      <PageHeader title={`Hello, ${user?.username}`} subtitle="Here is where your cover and claims stand today.">
+        <Link className="btn primary" to="/app/plans">Buy insurance</Link>
+      </PageHeader>
 
       <div className="ledger" style={{ marginBottom: 20 }}>
-        <div><div className="label">Customers</div><div className="value">{ld(u) ? '…' : customers.length}</div><div className="sub">{customers.filter((x) => x.isActive).length} active</div></div>
-        <div><div className="label">Active policies</div><div className="value">{ld(p) ? '…' : P.filter((x) => x.isActive).length}</div><div className="sub">{P.length} in total</div></div>
-        <div><div className="label">Premium collected</div><div className="value">{ld(pu) ? '…' : inrShort(revenue)}</div><div className="sub">{paid.length} purchases</div></div>
-        <div><div className="label">Claims awaiting review</div><div className="value">{ld(c) ? '…' : pending.length}</div><div className="sub">{C.length} claims in all</div></div>
+        <div><div className="label">Active policies</div><div className="value">{pol.isLoading ? '…' : active}</div><div className="sub">of {(pol.data || []).length} total</div></div>
+        <div><div className="label">Total cover</div><div className="value">{pur.isLoading ? '…' : inrShort(totalCover)}</div><div className="sub">across purchases</div></div>
+        <div><div className="label">Claims in review</div><div className="value">{clm.isLoading ? '…' : open}</div><div className="sub">{(clm.data || []).length} filed in all</div></div>
+        <div><div className="label">Unread alerts</div><div className="value">{ntf.isLoading ? '…' : unread}</div><div className="sub"><Link to="/app/notifications">Open notifications</Link></div></div>
       </div>
 
-      <div className="two-col" style={{ marginBottom: 20 }}>
-        <Panel title="Claims review queue" flush actions={<Link className="btn sm" to="/admin/claims">Open claims</Link>}>
-          {pending.length === 0 ? (
-            <div className="empty"><h4>Queue is clear</h4><p>New claims will show up here for review.</p></div>
-          ) : pending.slice().sort((a, b) => a.claimNumber - b.claimNumber).slice(0, 6).map((x) => (
-            <div className="list-item" key={x.claimNumber}>
-              <div className="grow"><b>Claim #{x.claimNumber}</b> <span className="muted">· {x.claimType}</span><div className="faint" style={{ fontSize: 13 }}>Policy #{x.policyNumber} · filed {date(x.claimDate)}</div></div>
-              <b className="num">{inr(x.amount)}</b>
-              <Link className="btn sm dark" to="/admin/claims" state={{ open: x.claimNumber }}>Review</Link>
-            </div>
-          ))}
-        </Panel>
-
-        <Panel title="Claims by status">
-          <div className="bars">
-            {[['PENDING', 'Pending', '#E9A23B'], ['APPROVED', 'Approved', '#2f8a57'], ['REJECTED', 'Rejected', '#D4503C']].map(([k, label, color]) => (
-              <div className="bar-row" key={k}>
-                <span>{label}</span>
-                <div className="bar-track"><div className="bar-fill" style={{ width: `${(byStatus[k] / maxBar) * 100}%`, background: color }} /></div>
-                <b className="num" style={{ textAlign: 'right' }}>{byStatus[k]}</b>
+      <div className="two-col">
+        <Panel title="Recent claims" flush actions={<Link className="btn sm" to="/app/claims">View all</Link>}>
+          <DataState query={clm} empty={{ title: 'No claims yet', text: 'If something happens, file a claim from any active policy.' }} emptyAction={<Link className="btn dark" to="/app/policies">Go to my policies</Link>}>
+            {(rows) => rows.slice().sort((a, b) => b.claimNumber - a.claimNumber).slice(0, 5).map((c) => (
+              <div className="list-item" key={c.claimNumber}>
+                <div className="dot-icon"><Icon name="claim" /></div>
+                <div className="grow">
+                  <b>Claim #{c.claimNumber}</b> <span className="muted">· {c.claimType}</span>
+                  <div className="faint" style={{ fontSize: 13 }}>Policy #{c.policyNumber} · filed {date(c.claimDate)}</div>
+                </div>
+                <div style={{ textAlign: 'right' }}>
+                  <StatusBadge value={c.status} />
+                  <div className="num" style={{ fontSize: 13.5, marginTop: 4 }}>{inr(c.status === 'APPROVED' ? c.approvedAmount : c.amount)}</div>
+                </div>
               </div>
             ))}
-          </div>
+          </DataState>
+        </Panel>
+
+        <Panel title="Latest alerts" flush actions={<Link className="btn sm" to="/app/notifications">View all</Link>}>
+          <DataState query={ntf} empty={{ title: 'Nothing new', text: 'Offers, payment receipts and claim updates show up here.' }}>
+            {(rows) => rows.slice(0, 5).map((n) => (
+              <div className={`list-item ${n.isRead ? '' : 'unread'}`} key={n.notificationId}>
+                <div className="dot-icon"><Icon name="bell" /></div>
+                <div className="grow">
+                  <b>{n.title}</b>
+                  <div className="muted" style={{ fontSize: 13.5 }}>{n.message}</div>
+                  <div className="faint" style={{ fontSize: 12.5 }}>{timeAgo(n.createdAt)}</div>
+                </div>
+              </div>
+            ))}
+          </DataState>
         </Panel>
       </div>
 
-      <Panel title="Settlements" flush actions={<Link className="btn sm" to="/admin/settlements">Open settlements</Link>}>
-        <div className="ledger" style={{ border: 0, borderRadius: 0 }}>
-          <div><div className="label">Pending payouts</div><div className="value">{ld(s) ? '…' : pendingSettle.length}</div><div className="sub">{inr(sum(pendingSettle, (x) => x.amount))} to pay</div></div>
-          <div><div className="label">Settled</div><div className="value">{ld(s) ? '…' : settled.length}</div><div className="sub">{inr(sum(settled, (x) => x.amount))} paid out</div></div>
-          <div><div className="label">Approved, not yet settled</div><div className="value">{ld(c) || ld(s) ? '…' : C.filter((x) => x.status === 'APPROVED' && !S.some((t) => t.claimNumber === x.claimNumber)).length}</div><div className="sub">claims needing a settlement</div></div>
-          <div><div className="label">Latest settlement</div><div className="value" style={{ fontSize: 20 }}>{S.length ? date(S.slice().sort((a, b) => b.settlementNumber - a.settlementNumber)[0].settlementDate) : '—'}</div><div className="sub">{S.length ? <StatusBadge value={S.slice().sort((a, b) => b.settlementNumber - a.settlementNumber)[0].settlementStatus} /> : 'none yet'}</div></div>
-        </div>
+      <Panel title="Policies by expiry date" flush className="" actions={<Link className="btn sm" to="/app/policies">All policies</Link>}>
+        <DataState query={pol} empty={{ title: 'No policies yet', text: 'Pick a cover, set the amount and pay securely online.' }} emptyAction={<Link className="btn primary" to="/app/plans">Browse plans</Link>}>
+          {(rows) => (
+            <div className="table-wrap">
+              <table className="tbl">
+                <thead><tr><th>Policy</th><th>Cover</th><th>Expires</th><th>Status</th></tr></thead>
+                <tbody>
+                  {rows.slice().sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate)).slice(0, 4).map((p) => (
+                    <tr key={p.policyNumber}>
+                      <td>#{p.policyNumber}</td><td>{p.coveredTypes}</td><td>{date(p.expiryDate)}</td>
+                      <td><StatusBadge value={p.isActive ? 'ACTIVE' : 'INACTIVE'} /></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </DataState>
       </Panel>
     </>
   )
