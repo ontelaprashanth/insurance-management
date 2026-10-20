@@ -1,6 +1,11 @@
 
 import { useEffect, useState, useCallback } from 'react'
-import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom'
+import {
+  NavLink,
+  Outlet,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { useAuth } from '../auth/AuthContext'
@@ -8,21 +13,55 @@ import { notifications } from '../api/endpoints'
 import { Icon, Logo } from './ui'
 import { initials } from '../lib/format'
 
+/* =========================================================
+   INSUREX — CUSTOMER NAVIGATION
+========================================================= */
+
 const USER_NAV = [
   {
     group: 'Overview',
     items: [
-      { to: '/app', label: 'Dashboard', icon: 'home', end: true },
-      { to: '/app/plans', label: 'Buy insurance', icon: 'shield' },
+      {
+        to: '/app',
+        label: 'Dashboard',
+        icon: 'home',
+        end: true,
+      },
+      {
+        to: '/app/plans',
+        label: 'Buy insurance',
+        icon: 'shield',
+      },
     ],
   },
   {
     group: 'My cover',
     items: [
-      { to: '/app/policies', label: 'My policies', icon: 'badge' },
-      { to: '/app/purchases', label: 'Payments', icon: 'receipt' },
-      { to: '/app/claims', label: 'My claims', icon: 'claim' },
-      { to: '/app/reviews', label: 'Reviews', icon: 'star' },
+      {
+        to: '/app/policies',
+        label: 'My policies',
+        icon: 'badge',
+      },
+      {
+        to: '/app/purchases',
+        label: 'Payments',
+        icon: 'receipt',
+      },
+      {
+        to: '/app/refunds',
+        label: 'Refunds',
+        icon: 'cash',
+      },
+      {
+        to: '/app/claims',
+        label: 'My claims',
+        icon: 'claim',
+      },
+      {
+        to: '/app/reviews',
+        label: 'Reviews',
+        icon: 'star',
+      },
     ],
   },
   {
@@ -34,50 +73,100 @@ const USER_NAV = [
         icon: 'bell',
         badge: true,
       },
-      { to: '/app/profile', label: 'Profile', icon: 'user' },
+      {
+        to: '/app/profile',
+        label: 'Profile',
+        icon: 'user',
+      },
     ],
   },
 ]
+
+/* =========================================================
+   INSUREX — ADMIN NAVIGATION
+========================================================= */
 
 const ADMIN_NAV = [
   {
     group: 'Overview',
     items: [
-      { to: '/admin', label: 'Dashboard', icon: 'chart', end: true },
+      {
+        to: '/admin',
+        label: 'Dashboard',
+        icon: 'chart',
+        end: true,
+      },
     ],
   },
   {
     group: 'Customers',
     items: [
-      { to: '/admin/users', label: 'Users', icon: 'users' },
-      { to: '/admin/policy-holders', label: 'Policy holders', icon: 'user' },
+      {
+        to: '/admin/users',
+        label: 'Users',
+        icon: 'users',
+      },
+      {
+        to: '/admin/policy-holders',
+        label: 'Policy holders',
+        icon: 'user',
+      },
     ],
   },
   {
     group: 'Insurance',
     items: [
-      { to: '/admin/policies', label: 'Policies', icon: 'shield' },
-      { to: '/admin/purchases', label: 'Purchases', icon: 'receipt' },
+      {
+        to: '/admin/policies',
+        label: 'Policies',
+        icon: 'shield',
+      },
+      {
+        to: '/admin/purchases',
+        label: 'Purchases',
+        icon: 'receipt',
+      },
     ],
   },
   {
     group: 'Claims',
     items: [
-      { to: '/admin/claims', label: 'Claims', icon: 'claim' },
-      { to: '/admin/settlements', label: 'Settlements', icon: 'cash' },
-      { to: '/admin/reviews', label: 'Reviews', icon: 'star' },
+      {
+        to: '/admin/claims',
+        label: 'Claims',
+        icon: 'claim',
+      },
+      {
+        to: '/admin/settlements',
+        label: 'Settlements',
+        icon: 'cash',
+      },
+      {
+        to: '/admin/reviews',
+        label: 'Reviews',
+        icon: 'star',
+      },
     ],
   },
   {
     group: 'Communicate',
     items: [
-      { to: '/admin/broadcast', label: 'Broadcast', icon: 'megaphone' },
+      {
+        to: '/admin/broadcast',
+        label: 'Broadcast',
+        icon: 'megaphone',
+      },
     ],
   },
 ]
 
+/* =========================================================
+   MAIN APPLICATION LAYOUT
+========================================================= */
+
 export default function Layout({ role }) {
   const { user, logout } = useAuth()
+
   const [open, setOpen] = useState(false)
 
   const { pathname } = useLocation()
@@ -85,9 +174,44 @@ export default function Layout({ role }) {
 
   const nav = role === 'ADMIN' ? ADMIN_NAV : USER_NAV
 
+  /* Close mobile sidebar after navigation */
+
   useEffect(() => {
     setOpen(false)
   }, [pathname])
+
+  /* Lock background scrolling while mobile menu is open */
+
+  useEffect(() => {
+    if (!open) return
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+    }
+  }, [open])
+
+  /* Close sidebar with Escape */
+
+  useEffect(() => {
+    if (!open) return
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') {
+        setOpen(false)
+      }
+    }
+
+    document.addEventListener('keydown', handleEscape)
+
+    return () => {
+      document.removeEventListener('keydown', handleEscape)
+    }
+  }, [open])
+
+  /* Customer unread notifications */
 
   const unread = useQuery({
     queryKey: ['notifications', 'unread'],
@@ -96,7 +220,9 @@ export default function Layout({ role }) {
     refetchInterval: 60_000,
   })
 
-  const unreadCount = unread.data?.count || 0
+  const unreadCount = Number(unread.data?.count || 0)
+
+  /* Logout */
 
   const handleLogout = useCallback(() => {
     logout()
@@ -105,6 +231,9 @@ export default function Layout({ role }) {
 
   return (
     <div className="shell">
+
+      {/* MOBILE BACKDROP */}
+
       {open && (
         <div
           className="scrim"
@@ -113,27 +242,41 @@ export default function Layout({ role }) {
         />
       )}
 
+      {/* SIDEBAR */}
+
       <aside
         className={`sidebar ${open ? 'open' : ''}`}
         aria-label="Main navigation"
       >
+
+        {/* BRAND */}
+
         <NavLink
           to={role === 'ADMIN' ? '/admin' : '/app'}
           className="brand"
         >
           <Logo />
+
           <span>
             InsureX
+
             <small>
-              {role === 'ADMIN' ? 'Admin console' : 'Customer portal'}
+              {role === 'ADMIN'
+                ? 'Admin console'
+                : 'Customer portal'}
             </small>
           </span>
         </NavLink>
 
+        {/* NAVIGATION */}
+
         <nav className="nav">
           {nav.map((group) => (
             <div key={group.group}>
-              <div className="nav-group">{group.group}</div>
+
+              <div className="nav-group">
+                {group.group}
+              </div>
 
               {group.items.map((item) => (
                 <NavLink
@@ -145,26 +288,40 @@ export default function Layout({ role }) {
                   }
                 >
                   <Icon name={item.icon} />
-                  {item.label}
+
+                  <span>{item.label}</span>
 
                   {item.badge && unreadCount > 0 && (
-                    <span className="count">{unreadCount}</span>
+                    <span className="count">
+                      {unreadCount > 99
+                        ? '99+'
+                        : unreadCount}
+                    </span>
                   )}
                 </NavLink>
               ))}
+
             </div>
           ))}
         </nav>
 
+        {/* ACCOUNT FOOTER */}
+
         <div className="sidebar-foot">
+
           <div className="avatar">
             {initials(user?.username)}
           </div>
 
           <div className="who">
-            <b>{user?.username || 'InsureX user'}</b>
+            <b>
+              {user?.username || 'InsureX user'}
+            </b>
+
             <span>
-              {role === 'ADMIN' ? 'Administrator' : 'Customer'}
+              {role === 'ADMIN'
+                ? 'Administrator'
+                : 'Customer'}
             </span>
           </div>
 
@@ -177,30 +334,49 @@ export default function Layout({ role }) {
           >
             <Icon name="logout" />
           </button>
+
         </div>
       </aside>
 
+      {/* MAIN CONTENT */}
+
       <div className="main">
+
+        {/* MOBILE TOPBAR */}
+
         <header className="topbar">
+
           <button
             className="btn ghost icon-btn"
-            onClick={() => setOpen((current) => !current)}
-            aria-label={open ? 'Close menu' : 'Open menu'}
+            onClick={() =>
+              setOpen((current) => !current)
+            }
+            aria-label={
+              open ? 'Close menu' : 'Open menu'
+            }
             aria-expanded={open}
+            aria-controls="insurex-sidebar"
             type="button"
           >
             <Icon name="menu" />
           </button>
 
-          <span className="brand">
+          <NavLink
+            to={role === 'ADMIN' ? '/admin' : '/app'}
+            className="brand"
+          >
             <Logo size={26} />
-            InsureX
-          </span>
+            <span>InsureX</span>
+          </NavLink>
+
         </header>
+
+        {/* PAGE CONTENT */}
 
         <main className="content">
           <Outlet />
         </main>
+
       </div>
     </div>
   )
