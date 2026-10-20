@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -5,20 +6,27 @@ import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Objects;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
-import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyHolderDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dao.UserDao;
+
 import com.htc.insurance.dto.PaymentVerificationRequest;
 import com.htc.insurance.dto.PurchasePolicyDto;
+
 import com.htc.insurance.entity.InsurancePlan;
 import com.htc.insurance.entity.PaymentAttempt;
 import com.htc.insurance.entity.PaymentAttemptStatus;
@@ -26,10 +34,14 @@ import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyHolder;
 import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.User;
+
 import com.htc.insurance.repository.InsurancePlanRepository;
 
 @Service
 public class PolicyPurchaseService {
+
+    private static final Logger log =
+            LoggerFactory.getLogger(PolicyPurchaseService.class);
 
     private static final BigDecimal MINIMUM_COVERAGE =
             new BigDecimal("1000000.00");
@@ -37,13 +49,12 @@ public class PolicyPurchaseService {
     private static final BigDecimal MAXIMUM_COVERAGE =
             new BigDecimal("10000000.00");
 
+    private static final BigDecimal DISCOUNT_RATE =
+            new BigDecimal("0.05");
+
     private static final BigDecimal GST_RATE =
-            BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            new BigDecimal("0.00");
 
-    private static final BigDecimal MULTI_YEAR_DISCOUNT_RATE =
-            new BigDecimal("5.00");
-
-    private final ClaimsDao claimsDao;
     private final PolicyDao policyDao;
     private final PolicyHolderDao policyHolderDao;
     private final UserDao userDao;
@@ -53,7 +64,6 @@ public class PolicyPurchaseService {
     private final InsurancePlanRepository insurancePlanRepository;
 
     public PolicyPurchaseService(
-            ClaimsDao claimsDao,
             PolicyDao policyDao,
             PolicyHolderDao policyHolderDao,
             UserDao userDao,
@@ -62,7 +72,6 @@ public class PolicyPurchaseService {
             PaymentAttemptService paymentAttemptService,
             InsurancePlanRepository insurancePlanRepository) {
 
-        this.claimsDao = claimsDao;
         this.policyDao = policyDao;
         this.policyHolderDao = policyHolderDao;
         this.userDao = userDao;
@@ -72,11 +81,11 @@ public class PolicyPurchaseService {
         this.insurancePlanRepository = insurancePlanRepository;
     }
 
-    // =====================================================
-    // PURCHASE POLICY WITH PAYMENT RECOVERY
-    // =====================================================
+    // =========================================================
+    // USER - PURCHASE INSURANCE POLICY
+    // =========================================================
 
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public PurchasePolicyDto purchasePolicy(
             PurchasePolicyDto purchaseDto,
             Authentication authentication) {
@@ -90,6 +99,701 @@ public class PolicyPurchaseService {
 
         String username = authentication.getName();
 
-        // LOAD AND VALIDATE USER
+        // =====================================================
+        // VALIDATE CUSTOMER
+        // =====================================================
 
         User user = userDao.getUserByUsername(username);
+
+        if (user == null) {
+            throw new IllegalArgumentException(
+                    "Customer account was not found.");
+        }
+
+        if (!Boolean.TRUE.equals(user.getIsActive())) {
+            throw new IllegalStateException(
+                    "Customer account is inactive.");
+        }
+
+        PolicyHolder holder =
+                policyHolderDao.getPolicyHolderByUsername(username);
+
+        if (holder == null) {
+            throw new IllegalStateException(
+                    "Policy-holder profile was not found.");
+        }
+
+        if (holder.getUser() == null
+                || !Objects.equals(
+                        holder.getUser().getUserId(),
+                        user.getUserId())) {
+
+            throw new AccessDeniedException(
+                    "Policy-holder ownership verification failed.");
+        }
+
+        validatePurchaseRequest(purchaseDto);
+
+        String orderId =
+                purchaseDto.getRazorpayOrderId().trim();
+
+        String paymentId =
+                purchaseDto.getRazorpayPaymentId().trim();
+
+        String signature =
+                purchaseDto.getRazorpaySignature().trim();
+
+        // =====================================================
+        // PAYMENT ATTEMPT
+        // =====================================================
+
+        PaymentAttempt attempt =
+                paymentAttemptService.getAttemptByOrderId(orderId);
+
+        if (attempt == null) {
+            throw new IllegalStateException(
+                    "Payment attempt was not found.");
+        }
+
+        if (!username.equals(attempt.getUsername())) {
+            throw new AccessDeniedException(
+                    "Payment order belongs to another customer.");
+        }
+
+        if (!Objects.equals(
+                purchaseDto.getPlanId(),
+                attempt.getPlanId())) {
+
+            throw new IllegalArgumentException(
+                    "Plan does not match the payment order.");
+        }
+
+        if (!Objects.equals(
+                purchaseDto.getDurationYears(),
+                attempt.getDurationYears())) {
+
+            throw new IllegalArgumentException(
+                    "Duration does not match the payment order.");
+        }
+
+        if (attempt.getCoverageAmount() == null
+                || purchaseDto.getCoverageAmount().compareTo(
+                        attempt.getCoverageAmount()) != 0) {
+
+            throw new IllegalArgumentException(
+                    "Coverage does not match the payment order.");
+        }
+
+        if (!"INR".equalsIgnoreCase(attempt.getCurrency())) {
+            throw new IllegalArgumentException(
+                    "Unsupported payment currency.");
+        }
+
+        // =====================================================
+        // CHECK EXISTING PURCHASE
+        // =====================================================
+
+        PolicyPurchase existing =
+                policyPurchaseDao.getPurchaseByRazorpayOrderId(orderId);
+
+        if (existing != null) {
+
+            validateExistingPurchase(
+                    existing,
+                    username,
+                    paymentId);
+
+            // A retry must not create another policy.
+            return toDto(existing);
+        }
+
+        if (attempt.getRazorpayPaymentId() != null
+                && !paymentId.equals(
+                        attempt.getRazorpayPaymentId())) {
+
+            throw new IllegalStateException(
+                    "Payment ID conflicts with the recorded attempt.");
+        }
+
+        if (attempt.getStatus()
+                == PaymentAttemptStatus.PURCHASE_COMPLETED) {
+
+            throw new IllegalStateException(
+                    "Payment attempt is completed, but its "
+                    + "purchase record could not be found.");
+        }
+
+        // =====================================================
+        // LOAD PLAN
+        // =====================================================
+
+        InsurancePlan plan = insurancePlanRepository
+                .findById(attempt.getPlanId())
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "Insurance plan was not found."));
+
+        if (!Boolean.TRUE.equals(plan.getIsActive())) {
+            throw new IllegalStateException(
+                    "Insurance plan is inactive.");
+        }
+
+        // =====================================================
+        // CALCULATE PREMIUM
+        // =====================================================
+
+        PremiumBreakdown premium = calculatePremium(
+                plan,
+                attempt.getCoverageAmount(),
+                attempt.getDurationYears());
+
+        if (attempt.getCalculatedPremium() == null
+                || premium.totalPremium.compareTo(
+                        attempt.getCalculatedPremium()) != 0) {
+
+            throw new IllegalStateException(
+                    "Calculated premium does not match "
+                    + "the payment attempt.");
+        }
+
+        // =====================================================
+        // VERIFY RAZORPAY PAYMENT
+        // =====================================================
+
+        PaymentVerificationRequest verification =
+                new PaymentVerificationRequest();
+
+        verification.setRazorpayOrderId(orderId);
+        verification.setRazorpayPaymentId(paymentId);
+        verification.setRazorpaySignature(signature);
+
+        try {
+
+            boolean verified = paymentService.verifyPayment(
+                    verification,
+                    attempt.getCalculatedPremium());
+
+            if (!verified) {
+                throw new IllegalStateException(
+                        "Payment verification was unsuccessful.");
+            }
+
+        } catch (Exception ex) {
+
+            throw new IllegalStateException(
+                    "Razorpay payment verification failed.",
+                    ex);
+        }
+
+        // Store the verified payment state independently.
+        // If the purchase transaction fails later, the
+        // payment attempt remains available for recovery.
+
+        paymentAttemptService.markPaymentVerified(
+                orderId,
+                paymentId);
+
+        // =====================================================
+        // CREATE POLICY
+        // =====================================================
+
+        LocalDate today = LocalDate.now();
+        LocalDateTime now = LocalDateTime.now();
+
+        Policy policy = new Policy();
+
+        policy.setCoveredTypes(plan.getCoveredType());
+        policy.setIsActive(true);
+        policy.setStartDate(today);
+        policy.setDurationYears(attempt.getDurationYears());
+
+        policy.setExpiryDate(
+                today.plusYears(attempt.getDurationYears())
+                        .minusDays(1));
+
+        policy.setPolicyHolder(holder);
+
+        Policy savedPolicy = policyDao.savePolicy(policy);
+
+        // =====================================================
+        // SAVE PURCHASE
+        // =====================================================
+
+        PolicyPurchase purchase = new PolicyPurchase();
+
+        purchase.setPolicy(savedPolicy);
+
+        purchase.setCoverageAmount(
+                attempt.getCoverageAmount());
+
+        purchase.setBasePremium(
+                premium.basePremium);
+
+        purchase.setDiscountAmount(
+                premium.discountAmount);
+
+        purchase.setTaxableAmount(
+                premium.taxableAmount);
+
+        purchase.setGstRate(
+                premium.gstRate);
+
+        purchase.setGstAmount(
+                premium.gstAmount);
+
+        purchase.setTotalPremium(
+                premium.totalPremium);
+
+        purchase.setNomineeName(
+                trimToNull(purchaseDto.getNomineeName()));
+
+        purchase.setNomineeRelation(
+                trimToNull(purchaseDto.getNomineeRelation()));
+
+        purchase.setNomineeContact(
+                trimToNull(purchaseDto.getNomineeContact()));
+
+        purchase.setPaymentMethod("RAZORPAY");
+        purchase.setPaymentStatus("PAID");
+
+        purchase.setTransactionId(paymentId);
+        purchase.setRazorpayOrderId(orderId);
+        purchase.setRazorpayPaymentId(paymentId);
+
+        purchase.setPaymentDate(today);
+        purchase.setPaymentDateTime(now);
+        purchase.setPurchaseDate(today);
+        purchase.setCreatedAt(now);
+
+        purchase.setRefundStatus("NOT_REFUNDED");
+
+        PolicyPurchase savedPurchase;
+
+        try {
+
+            savedPurchase =
+                    policyPurchaseDao.savePurchase(purchase);
+
+        } catch (DataIntegrityViolationException ex) {
+
+            // Let the transaction roll back.
+            // A later retry can retrieve an existing
+            // committed purchase by Razorpay order ID.
+
+            log.warn(
+                    "Purchase persistence conflict for order {}",
+                    orderId,
+                    ex);
+
+            throw ex;
+        }
+
+        // =====================================================
+        // COMPLETE ATTEMPT AFTER COMMIT
+        // =====================================================
+
+        if (!TransactionSynchronizationManager
+                .isSynchronizationActive()) {
+
+            throw new IllegalStateException(
+                    "Purchase transaction synchronization "
+                    + "is unavailable.");
+        }
+
+        TransactionSynchronizationManager
+                .registerSynchronization(
+                        new TransactionSynchronization() {
+
+                            @Override
+                            public void afterCommit() {
+
+                                try {
+
+                                    paymentAttemptService
+                                            .markPurchaseCompleted(
+                                                    orderId,
+                                                    paymentId);
+
+                                } catch (Exception ex) {
+
+                                    log.error(
+                                            "Purchase committed, but payment "
+                                            + "attempt completion requires "
+                                            + "reconciliation. Order: {}",
+                                            orderId,
+                                            ex);
+                                }
+                            }
+                        });
+
+        log.info(
+                "Insurance policy purchase completed. "
+                + "Purchase ID: {}, Order ID: {}",
+                savedPurchase.getPurchaseId(),
+                orderId);
+
+        return toDto(savedPurchase);
+    }
+
+    // =========================================================
+    // ADMIN - ALL PURCHASES
+    // =========================================================
+
+    @Transactional(readOnly = true)
+    public List<PurchasePolicyDto> getAllPurchases() {
+
+        return policyPurchaseDao.getAllPurchases()
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    // =========================================================
+    // USER - MY PURCHASES
+    // =========================================================
+
+    @Transactional(readOnly = true)
+    public List<PurchasePolicyDto> getMyPurchases(
+            Authentication authentication) {
+
+        validateAuthentication(authentication);
+
+        return policyPurchaseDao
+                .getPurchasesByUsername(authentication.getName())
+                .stream()
+                .map(this::toDto)
+                .toList();
+    }
+
+    // =========================================================
+    // AUTHENTICATION VALIDATION
+    // =========================================================
+
+    private void validateAuthentication(
+            Authentication authentication) {
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
+
+            throw new AccessDeniedException(
+                    "Authentication is required.");
+        }
+    }
+
+    // =========================================================
+    // PURCHASE REQUEST VALIDATION
+    // =========================================================
+
+    private void validatePurchaseRequest(
+            PurchasePolicyDto dto) {
+
+        if (dto.getPlanId() == null) {
+            throw new IllegalArgumentException(
+                    "Insurance plan is required.");
+        }
+
+        if (dto.getCoverageAmount() == null
+                || dto.getCoverageAmount()
+                        .compareTo(MINIMUM_COVERAGE) < 0
+                || dto.getCoverageAmount()
+                        .compareTo(MAXIMUM_COVERAGE) > 0) {
+
+            throw new IllegalArgumentException(
+                    "Coverage must be between INR 10 lakh "
+                    + "and INR 1 crore.");
+        }
+
+        if (dto.getDurationYears() == null
+                || dto.getDurationYears() < 1
+                || dto.getDurationYears() > 5) {
+
+            throw new IllegalArgumentException(
+                    "Policy duration must be between "
+                    + "1 and 5 years.");
+        }
+
+        if (isBlank(dto.getRazorpayOrderId())
+                || isBlank(dto.getRazorpayPaymentId())
+                || isBlank(dto.getRazorpaySignature())) {
+
+            throw new IllegalArgumentException(
+                    "Razorpay order ID, payment ID "
+                    + "and signature are required.");
+        }
+    }
+
+    // =========================================================
+    // EXISTING PURCHASE VALIDATION
+    // =========================================================
+
+    private void validateExistingPurchase(
+            PolicyPurchase purchase,
+            String username,
+            String paymentId) {
+
+        if (purchase.getPolicy() == null
+                || purchase.getPolicy().getPolicyHolder() == null
+                || purchase.getPolicy()
+                        .getPolicyHolder().getUser() == null) {
+
+            throw new IllegalStateException(
+                    "Existing purchase ownership is invalid.");
+        }
+
+        String owner = purchase.getPolicy()
+                .getPolicyHolder()
+                .getUser()
+                .getUsername();
+
+        if (!username.equals(owner)) {
+            throw new AccessDeniedException(
+                    "Purchase belongs to another customer.");
+        }
+
+        if (!paymentId.equals(
+                purchase.getRazorpayPaymentId())) {
+
+            throw new IllegalStateException(
+                    "Payment reference does not match "
+                    + "the existing purchase.");
+        }
+
+        if (!"PAID".equalsIgnoreCase(
+                purchase.getPaymentStatus())) {
+
+            throw new IllegalStateException(
+                    "Existing purchase is not marked as paid.");
+        }
+    }
+
+    // =========================================================
+    // PREMIUM CALCULATION
+    // Matches the shared PaymentService pricing rules
+    // =========================================================
+
+    private PremiumBreakdown calculatePremium(
+            InsurancePlan plan,
+            BigDecimal coverage,
+            Integer durationYears) {
+
+        if (plan.getBaseCoverage() == null
+                || plan.getBaseCoverage()
+                        .compareTo(BigDecimal.ZERO) <= 0
+                || plan.getBasePremium() == null
+                || plan.getBasePremium()
+                        .compareTo(BigDecimal.ZERO) <= 0) {
+
+            throw new IllegalStateException(
+                    "Insurance plan pricing is invalid.");
+        }
+
+        BigDecimal coverageFactor = coverage.divide(
+                plan.getBaseCoverage(),
+                10,
+                RoundingMode.HALF_UP);
+
+        BigDecimal basePremium = plan.getBasePremium()
+                .multiply(coverageFactor)
+                .multiply(BigDecimal.valueOf(durationYears))
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal discountAmount = BigDecimal.ZERO
+                .setScale(2, RoundingMode.HALF_UP);
+
+        if (durationYears >= 2) {
+
+            discountAmount = basePremium
+                    .multiply(DISCOUNT_RATE)
+                    .setScale(2, RoundingMode.HALF_UP);
+        }
+
+        BigDecimal taxableAmount = basePremium
+                .subtract(discountAmount)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal gstAmount = taxableAmount
+                .multiply(GST_RATE)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        BigDecimal totalPremium = taxableAmount
+                .add(gstAmount)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        return new PremiumBreakdown(
+                basePremium,
+                discountAmount,
+                taxableAmount,
+                GST_RATE,
+                gstAmount,
+                totalPremium);
+    }
+
+    // =========================================================
+    // ENTITY TO DTO
+    // =========================================================
+
+    private PurchasePolicyDto toDto(
+            PolicyPurchase purchase) {
+
+        PurchasePolicyDto dto = new PurchasePolicyDto();
+
+        dto.setPurchaseId(purchase.getPurchaseId());
+
+        Policy policy = purchase.getPolicy();
+
+        if (policy != null) {
+
+            dto.setPolicyNumber(
+                    policy.getPolicyNumber());
+
+            dto.setCoveredTypes(
+                    policy.getCoveredTypes());
+
+            dto.setDurationYears(
+                    policy.getDurationYears());
+
+            if (policy.getPolicyHolder() != null
+                    && policy.getPolicyHolder()
+                            .getUser() != null) {
+
+                dto.setUsername(
+                        policy.getPolicyHolder()
+                                .getUser()
+                                .getUsername());
+            }
+        }
+
+        dto.setCoverageAmount(
+                purchase.getCoverageAmount());
+
+        dto.setNomineeName(
+                purchase.getNomineeName());
+
+        dto.setNomineeRelation(
+                purchase.getNomineeRelation());
+
+        dto.setNomineeContact(
+                purchase.getNomineeContact());
+
+        dto.setPaymentMethod(
+                purchase.getPaymentMethod());
+
+        dto.setPaymentStatus(
+                purchase.getPaymentStatus());
+
+        dto.setTransactionId(
+                purchase.getTransactionId());
+
+        dto.setRazorpayOrderId(
+                purchase.getRazorpayOrderId());
+
+        dto.setRazorpayPaymentId(
+                purchase.getRazorpayPaymentId());
+
+        dto.setBasePremium(
+                purchase.getBasePremium());
+
+        dto.setDiscountAmount(
+                purchase.getDiscountAmount());
+
+        dto.setTaxableAmount(
+                purchase.getTaxableAmount());
+
+        dto.setGstRate(
+                purchase.getGstRate());
+
+        dto.setGstAmount(
+                purchase.getGstAmount());
+
+        dto.setTotalPremium(
+                purchase.getTotalPremium());
+
+        dto.setPaymentDate(
+                purchase.getPaymentDate());
+
+        dto.setPaymentDateTime(
+                purchase.getPaymentDateTime());
+
+        dto.setPurchaseDate(
+                purchase.getPurchaseDate());
+
+        dto.setCreatedAt(
+                purchase.getCreatedAt());
+
+        // Refund details
+
+        dto.setRefundStatus(
+                purchase.getRefundStatus());
+
+        dto.setRefundId(
+                purchase.getRefundId());
+
+        dto.setRefundAmount(
+                purchase.getRefundAmount());
+
+        dto.setRefundReason(
+                purchase.getRefundReason());
+
+        dto.setRefundDateTime(
+                purchase.getRefundDateTime());
+
+        // Eligibility must be calculated by the
+        // authoritative refund rules, not guessed here.
+
+        dto.setRefundEligible(null);
+        dto.setRefundDeadline(null);
+
+        // Never expose a payment signature in responses.
+        dto.setRazorpaySignature(null);
+
+        return dto;
+    }
+
+    // =========================================================
+    // HELPERS
+    // =========================================================
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String trimToNull(String value) {
+
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        return value.trim();
+    }
+
+    // =========================================================
+    // PREMIUM BREAKDOWN
+    // =========================================================
+
+    private static class PremiumBreakdown {
+
+        private final BigDecimal basePremium;
+        private final BigDecimal discountAmount;
+        private final BigDecimal taxableAmount;
+        private final BigDecimal gstRate;
+        private final BigDecimal gstAmount;
+        private final BigDecimal totalPremium;
+
+        private PremiumBreakdown(
+                BigDecimal basePremium,
+                BigDecimal discountAmount,
+                BigDecimal taxableAmount,
+                BigDecimal gstRate,
+                BigDecimal gstAmount,
+                BigDecimal totalPremium) {
+
+            this.basePremium = basePremium;
+            this.discountAmount = discountAmount;
+            this.taxableAmount = taxableAmount;
+            this.gstRate = gstRate;
+            this.gstAmount = gstAmount;
+            this.totalPremium = totalPremium;
+        }
+    }
+}
