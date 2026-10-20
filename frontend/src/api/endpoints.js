@@ -1,15 +1,14 @@
 /* =========================================================
    INSUREX — CENTRAL API ENDPOINTS
-   Authentication • Users • Policies • Claims • Payments
-   Settlements • Reviews • Notifications • Broadcast
+   Authentication • Users • Policies • Claims
+   Payments • Settlements • Reviews • Notifications
 ========================================================= */
 
-import api from './client'
+// Your Axios client file must export `api`.
+// If the code you supplied is saved as src/api/api.js,
+// this import is correct.
+import { api } from './api'
 
-/**
- * Return the response payload when available.
- * Axios responses normally contain the payload in response.data.
- */
 const d = (request) => request.then((response) => response.data)
 
 /* =========================================================
@@ -20,13 +19,10 @@ export const auth = {
   login: (body) => d(api.post('/api/auth/login', body)),
   signup: (body) => d(api.post('/api/auth/signup', body)),
   register: (body) => d(api.post('/api/auth/signup', body)),
-  logout: () => d(api.post('/api/auth/logout')),
+  sendOtp: (body) => d(api.post('/api/auth/send-otp', body)),
+  verifyOtp: (body) => d(api.post('/api/auth/verify-otp', body)),
   forgotPassword: (body) =>
     d(api.post('/api/auth/forgot-password', body)),
-  verifyOtp: (body) =>
-    d(api.post('/api/auth/verify-otp', body)),
-  sendOtp: (body) =>
-    d(api.post('/api/auth/send-otp', body)),
   resetPassword: (body) =>
     d(api.post('/api/auth/reset-password', body)),
 }
@@ -38,21 +34,15 @@ export const auth = {
 export const users = {
   getAll: () => d(api.get('/user/getAll')),
   get: (id) => d(api.get(`/user/get/${encodeURIComponent(id)}`)),
-  getByUsername: (username) =>
-    d(api.get(`/user/username/${encodeURIComponent(username)}`)),
-  getByEmail: (email) =>
-    d(api.get(`/user/email/${encodeURIComponent(email)}`)),
   save: (body) => d(api.post('/user/save', body)),
   update: (id, body) =>
     d(api.put(`/user/update/${encodeURIComponent(id)}`, body)),
   remove: (id) =>
     d(api.delete(`/user/delete/${encodeURIComponent(id)}`)),
-  profile: () => d(api.get('/user/profile')),
-  updateProfile: (body) => d(api.put('/user/profile', body)),
 }
 
 /* =========================================================
-   INSURANCE PLANS
+   PLANS
 ========================================================= */
 
 export const plans = {
@@ -160,10 +150,12 @@ export const claims = {
 
 /* =========================================================
    PAYMENTS
+   Verify these routes against your payment controller.
 ========================================================= */
 
 export const payment = {
-  createOrder: (body) => d(api.post('/payment/create-order', body)),
+  createOrder: (body) =>
+    d(api.post('/payment/create-order', body)),
   verify: (body) => d(api.post('/payment/verify', body)),
   pay: (body) => d(api.post('/payment/pay', body)),
   mine: () => d(api.get('/payment/my-payments')),
@@ -184,12 +176,6 @@ export const settlements = {
     d(api.put(`/settlement/update/${encodeURIComponent(id)}`, body)),
   remove: (id) =>
     d(api.delete(`/settlement/delete/${encodeURIComponent(id)}`)),
-  byClaim: (claimNumber) =>
-    d(
-      api.get(
-        `/settlement/claim/${encodeURIComponent(claimNumber)}`,
-      ),
-    ),
 }
 
 /* =========================================================
@@ -222,13 +208,19 @@ export const notifications = {
 }
 
 /* =========================================================
-   BROADCAST NOTIFICATIONS
+   BROADCAST
+   Verify these routes against your notification controller.
 ========================================================= */
 
 export const broadcast = {
-  send: (body) => d(api.post('/api/notifications/broadcast', body)),
+  send: (body) =>
+    d(api.post('/api/notifications/broadcast', body)),
   getAll: () => d(api.get('/api/notifications/broadcast')),
 }
+
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
 
 export default {
   auth,
