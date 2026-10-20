@@ -1,4 +1,3 @@
-
 import { api } from './client'
 
 const d = (p) => p.then((r) => r.data)
@@ -7,7 +6,8 @@ const d = (p) => p.then((r) => r.data)
 // AUTHENTICATION
 // =====================================================
 export const auth = {
-  login: (body) => d(api.post('/api/auth/login', body)),
+  login: (body) =>
+    d(api.post('/api/auth/login', body)),
 
   sendOtp: (identifier) =>
     d(api.post('/api/auth/send-otp', { identifier })),
@@ -21,25 +21,31 @@ export const auth = {
   resetPassword: (body) =>
     d(api.post('/api/auth/reset-password', body)),
 
-  session: () => d(api.get('/api/session')),
+  session: () =>
+    d(api.get('/api/session')),
 }
 
 // =====================================================
 // USERS
 // =====================================================
 export const users = {
-  register: (body) => d(api.post('/user/save', body)),
+  register: (body) =>
+    d(api.post('/user/save', body)),
 
-  me: () => d(api.get('/user/me')),
+  me: () =>
+    d(api.get('/user/me')),
 
-  updateMe: (body) => d(api.put('/user/me', body)),
+  updateMe: (body) =>
+    d(api.put('/user/me', body)),
 
   changePassword: (body) =>
     d(api.put('/user/me/password', body)),
 
-  getAll: () => d(api.get('/user/getAll')),
+  getAll: () =>
+    d(api.get('/user/getAll')),
 
-  get: (id) => d(api.get(`/user/get/${id}`)),
+  get: (id) =>
+    d(api.get(`/user/get/${id}`)),
 
   update: (id, body) =>
     d(api.put(`/user/update/${id}`, body)),
@@ -70,15 +76,20 @@ export const plans = {
 // CUSTOMER-OWNED POLICIES
 // =====================================================
 export const policies = {
-  available: () => d(api.get('/policy/available')),
+  available: () =>
+    d(api.get('/policy/available')),
 
-  mine: () => d(api.get('/policy/my-policies')),
+  mine: () =>
+    d(api.get('/policy/my-policies')),
 
-  getAll: () => d(api.get('/policy/getAll')),
+  getAll: () =>
+    d(api.get('/policy/getAll')),
 
-  get: (n) => d(api.get(`/policy/get/${n}`)),
+  get: (n) =>
+    d(api.get(`/policy/get/${n}`)),
 
-  save: (body) => d(api.post('/policy/save', body)),
+  save: (body) =>
+    d(api.post('/policy/save', body)),
 
   update: (n, body) =>
     d(api.put(`/policy/update/${n}`, body)),
@@ -97,14 +108,28 @@ export const policies = {
 // POLICY PURCHASES
 // =====================================================
 export const purchases = {
+  // Purchase a policy after successful payment verification.
   purchase: (body) =>
     d(api.post('/policy/purchase', body)),
 
+  // Get the authenticated customer's purchases.
   mine: () =>
     d(api.get('/policy/my-purchases')),
 
+  // Admin: get all purchases.
   getAll: () =>
     d(api.get('/policy/purchases')),
+
+  // Customer: request a full refund for their own purchase.
+  // Backend: POST /policy/purchases/{purchaseId}/refund
+  // Request body: { refundReason: '...' }
+  refund: (purchaseId, body) =>
+    d(
+      api.post(
+        `/policy/purchases/${encodeURIComponent(purchaseId)}/refund`,
+        body,
+      ),
+    ),
 }
 
 // =====================================================
@@ -193,7 +218,7 @@ export const settlements = {
     d(
       api.put(`/settlement/reject/${n}`, {
         rejectionReason,
-      })
+      }),
     ),
 
   remove: (n) =>
