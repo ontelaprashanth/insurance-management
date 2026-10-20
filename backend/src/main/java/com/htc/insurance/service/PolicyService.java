@@ -14,10 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyHolderDao;
+import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dao.UserDao;
 import com.htc.insurance.dto.PolicyDto;
 import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyHolder;
+import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.User;
 import com.htc.insurance.mapper.PolicyMapper;
 
@@ -40,6 +42,9 @@ public class PolicyService {
     @Autowired
     private NotificationService notificationService;
 
+    @Autowired
+    private PolicyPurchaseDao policyPurchaseDao;
+
     // =========================================================
     // VALIDATE POLICY
     // =========================================================
@@ -47,21 +52,26 @@ public class PolicyService {
     private void validatePolicyDetails(PolicyDto dto) {
 
         if (dto == null) {
-            throw new RuntimeException("Policy details are required.");
+            throw new RuntimeException(
+                    "Policy details are required.");
         }
 
         if (dto.getCoveredTypes() == null
                 || dto.getCoveredTypes().trim().isEmpty()) {
-            throw new RuntimeException("Insurance cover type is required.");
+
+            throw new RuntimeException(
+                    "Insurance cover type is required.");
         }
 
         if (dto.getStartDate() == null) {
-            throw new RuntimeException("Policy start date is required.");
+            throw new RuntimeException(
+                    "Policy start date is required.");
         }
 
         Integer duration = dto.getDurationYears();
 
         if (duration == null || duration < 1 || duration > 5) {
+
             throw new RuntimeException(
                     "Policy duration must be between 1 and 5 years.");
         }
@@ -81,7 +91,8 @@ public class PolicyService {
                 policyHolderDao.getPolicyHolderById(holderId);
 
         if (holder == null) {
-            throw new RuntimeException("Policy holder not found.");
+            throw new RuntimeException(
+                    "Policy holder not found.");
         }
 
         return holder;
@@ -96,7 +107,8 @@ public class PolicyService {
 
         return policy != null
                 && policy.getExpiryDate() != null
-                && !policy.getExpiryDate().isAfter(LocalDate.now());
+                && !policy.getExpiryDate().isAfter(
+                        LocalDate.now());
     }
 
     // =========================================================
@@ -140,14 +152,17 @@ public class PolicyService {
         validatePolicyDetails(policyDto);
 
         PolicyHolder holder =
-                resolvePolicyHolder(policyDto.getPolicyHolderId());
+                resolvePolicyHolder(
+                        policyDto.getPolicyHolderId());
 
         Policy policy =
-                policyMapper.convertPolicyDtoToEntity(policyDto);
+                policyMapper.convertPolicyDtoToEntity(
+                        policyDto);
 
         policy.setPolicyHolder(holder);
         policy.setStartDate(policyDto.getStartDate());
-        policy.setDurationYears(policyDto.getDurationYears());
+        policy.setDurationYears(
+                policyDto.getDurationYears());
 
         LocalDate expiryDate = policyDto.getStartDate()
                 .plusYears(policyDto.getDurationYears());
@@ -159,14 +174,16 @@ public class PolicyService {
 
         boolean requestedActive =
                 policyDto.getIsActive() == null
-                        || Boolean.TRUE.equals(policyDto.getIsActive());
+                        || Boolean.TRUE.equals(
+                                policyDto.getIsActive());
 
         policy.setIsActive(
                 alreadyExpired
                         ? Boolean.FALSE
                         : requestedActive);
 
-        Policy savedPolicy = policyDao.savePolicy(policy);
+        Policy savedPolicy =
+                policyDao.savePolicy(policy);
 
         createPolicyNotification(
                 holder,
@@ -177,6 +194,7 @@ public class PolicyService {
                 "POLICY");
 
         if (alreadyExpired) {
+
             createPolicyNotification(
                     holder,
                     "Policy Expired",
@@ -188,7 +206,8 @@ public class PolicyService {
                     "POLICY");
         }
 
-        return policyMapper.convertPolicyEntityToDto(savedPolicy);
+        return policyMapper.convertPolicyEntityToDto(
+                savedPolicy);
     }
 
     // =========================================================
@@ -211,10 +230,12 @@ public class PolicyService {
     public PolicyDto getPolicyById(Long policyNumber) {
 
         if (policyNumber == null) {
-            throw new RuntimeException("Policy number is required.");
+            throw new RuntimeException(
+                    "Policy number is required.");
         }
 
-        Policy policy = policyDao.getPolicyById(policyNumber);
+        Policy policy =
+                policyDao.getPolicyById(policyNumber);
 
         if (policy == null) {
             return null;
@@ -222,7 +243,8 @@ public class PolicyService {
 
         policy = expireIfNecessary(policy);
 
-        return policyMapper.convertPolicyEntityToDto(policy);
+        return policyMapper.convertPolicyEntityToDto(
+                policy);
     }
 
     // =========================================================
@@ -234,7 +256,8 @@ public class PolicyService {
             PolicyDto policyDto) {
 
         if (policyNumber == null) {
-            throw new RuntimeException("Policy number is required.");
+            throw new RuntimeException(
+                    "Policy number is required.");
         }
 
         validatePolicyDetails(policyDto);
@@ -246,17 +269,21 @@ public class PolicyService {
             return null;
         }
 
-        // Process an already-expired policy before applying updates.
-        existingPolicy = expireIfNecessary(existingPolicy);
+        existingPolicy =
+                expireIfNecessary(existingPolicy);
 
         PolicyHolder holder =
-                resolvePolicyHolder(policyDto.getPolicyHolderId());
+                resolvePolicyHolder(
+                        policyDto.getPolicyHolderId());
 
         existingPolicy.setCoveredTypes(
                 policyDto.getCoveredTypes().trim());
 
-        existingPolicy.setStartDate(policyDto.getStartDate());
-        existingPolicy.setDurationYears(policyDto.getDurationYears());
+        existingPolicy.setStartDate(
+                policyDto.getStartDate());
+
+        existingPolicy.setDurationYears(
+                policyDto.getDurationYears());
 
         LocalDate expiryDate = policyDto.getStartDate()
                 .plusYears(policyDto.getDurationYears());
@@ -264,8 +291,7 @@ public class PolicyService {
         existingPolicy.setExpiryDate(expiryDate);
         existingPolicy.setPolicyHolder(holder);
 
-        // Preserve the existing active/inactive state.
-        // Never activate a policy whose new expiry date has passed.
+        // Preserve existing active/inactive state.
         if (hasExpired(existingPolicy)) {
             existingPolicy.setIsActive(Boolean.FALSE);
         }
@@ -281,7 +307,8 @@ public class PolicyService {
                         + " has been updated successfully.",
                 "POLICY");
 
-        return policyMapper.convertPolicyEntityToDto(savedPolicy);
+        return policyMapper.convertPolicyEntityToDto(
+                savedPolicy);
     }
 
     // =========================================================
@@ -291,22 +318,35 @@ public class PolicyService {
     public void deletePolicy(Long policyNumber) {
 
         if (policyNumber == null) {
-            throw new RuntimeException("Policy number is required.");
+            throw new RuntimeException(
+                    "Policy number is required.");
         }
 
-        Policy policy = policyDao.getPolicyById(policyNumber);
+        Policy policy =
+                policyDao.getPolicyById(policyNumber);
 
         if (policy == null) {
-            throw new RuntimeException("Policy not found.");
+            throw new RuntimeException(
+                    "Policy not found.");
         }
 
         if (policy.getClaims() != null
                 && !policy.getClaims().isEmpty()) {
+
             throw new RuntimeException(
                     "Policy cannot be deleted because it has claims.");
         }
 
-        PolicyHolder holder = policy.getPolicyHolder();
+        // Preserve the purchase/payment audit trail.
+        if (hasPurchaseRecord(policyNumber)) {
+
+            throw new IllegalStateException(
+                    "Purchased policies cannot be deleted. "
+                    + "Deactivate the policy instead.");
+        }
+
+        PolicyHolder holder =
+                policy.getPolicyHolder();
 
         policyDao.deletePolicy(policyNumber);
 
@@ -327,11 +367,16 @@ public class PolicyService {
 
         Policy policy = requirePolicy(policyNumber);
 
-        if (hasExpired(policy)) {
+        // A refunding or refunded policy must not be activated.
+        if (hasBlockingRefund(policyNumber)) {
 
-            // Persist the inactive state before reporting the error.
-            policy.setIsActive(Boolean.FALSE);
-            policyDao.updatePolicy(policy);
+            throw new IllegalStateException(
+                    "This policy has a refund in progress "
+                    + "or has already been refunded. "
+                    + "It cannot be activated.");
+        }
+
+        if (hasExpired(policy)) {
 
             throw new RuntimeException(
                     "Expired policies cannot be activated. "
@@ -340,7 +385,8 @@ public class PolicyService {
 
         policy.setIsActive(Boolean.TRUE);
 
-        Policy updated = policyDao.updatePolicy(policy);
+        Policy updated =
+                policyDao.updatePolicy(policy);
 
         createPolicyNotification(
                 updated.getPolicyHolder(),
@@ -350,7 +396,8 @@ public class PolicyService {
                         + " has been activated.",
                 "POLICY");
 
-        return policyMapper.convertPolicyEntityToDto(updated);
+        return policyMapper.convertPolicyEntityToDto(
+                updated);
     }
 
     // =========================================================
@@ -363,7 +410,8 @@ public class PolicyService {
 
         policy.setIsActive(Boolean.FALSE);
 
-        Policy updated = policyDao.updatePolicy(policy);
+        Policy updated =
+                policyDao.updatePolicy(policy);
 
         createPolicyNotification(
                 updated.getPolicyHolder(),
@@ -373,7 +421,8 @@ public class PolicyService {
                         + " has been deactivated.",
                 "POLICY");
 
-        return policyMapper.convertPolicyEntityToDto(updated);
+        return policyMapper.convertPolicyEntityToDto(
+                updated);
     }
 
     // =========================================================
@@ -383,64 +432,161 @@ public class PolicyService {
     private Policy requirePolicy(Long policyNumber) {
 
         if (policyNumber == null) {
-            throw new RuntimeException("Policy number is required.");
+            throw new RuntimeException(
+                    "Policy number is required.");
         }
 
-        Policy policy = policyDao.getPolicyById(policyNumber);
+        Policy policy =
+                policyDao.getPolicyById(policyNumber);
 
         if (policy == null) {
-            throw new RuntimeException("Policy not found.");
+            throw new RuntimeException(
+                    "Policy not found.");
         }
 
         return policy;
     }
 
     // =========================================================
-    // GET CUSTOMER'S POLICIES
+    // GET CUSTOMER'S ACTIVE POLICIES
     // =========================================================
 
-    public List<PolicyDto> getPoliciesByUsername(String username) {
+    public List<PolicyDto> getPoliciesByUsername(
+            String username) {
 
-        if (username == null || username.trim().isEmpty()) {
-            throw new RuntimeException("Username is required.");
+        if (username == null
+                || username.trim().isEmpty()) {
+
+            throw new RuntimeException(
+                    "Username is required.");
         }
 
-        User user = userDao.getUserByUsername(username);
+        User user =
+                userDao.getUserByUsername(
+                        username.trim());
 
         if (user == null) {
-            throw new RuntimeException("User not found.");
+            throw new RuntimeException(
+                    "User not found.");
         }
+
+        LocalDate today = LocalDate.now();
 
         return policyDao.getAllPolicies()
                 .stream()
+
+                .filter(policy -> policy != null)
+
+                // Only policies belonging to this customer
                 .filter(policy ->
                         policy.getPolicyHolder() != null
-                                && policy.getPolicyHolder().getUser() != null
-                                && policy.getPolicyHolder().getUser()
-                                        .getUserId()
-                                        .equals(user.getUserId()))
+                        && policy.getPolicyHolder()
+                                .getUser() != null
+                        && user.getUserId() != null
+                        && user.getUserId().equals(
+                                policy.getPolicyHolder()
+                                        .getUser()
+                                        .getUserId()))
+
+                // Process expiry using existing logic
                 .map(this::expireIfNecessary)
-                .map(policyMapper::convertPolicyEntityToDto)
+
+                // Only active policies
+                .filter(policy ->
+                        Boolean.TRUE.equals(
+                                policy.getIsActive()))
+
+                // Coverage must have started
+                .filter(policy ->
+                        policy.getStartDate() != null
+                        && !policy.getStartDate()
+                                .isAfter(today))
+
+                // Coverage must not have expired
+                .filter(policy ->
+                        policy.getExpiryDate() != null
+                        && policy.getExpiryDate()
+                                .isAfter(today))
+
+                // Exclude policies with refund activity
+                .filter(policy ->
+                        !hasBlockingRefund(
+                                policy.getPolicyNumber()))
+
+                .map(
+                        policyMapper::convertPolicyEntityToDto)
+
                 .collect(Collectors.toList());
     }
 
     // =========================================================
-    // NORMALIZE COVER TYPE FOR DUPLICATE DETECTION
-    //
-    // Examples:
-    // "Health"          -> "health"
-    // "Health Insurance" -> "health"
-    // "  HEALTH  "      -> "health"
+    // CHECK IF POLICY HAS A PURCHASE RECORD
     // =========================================================
 
-    private String normalizeCoverType(String coveredTypes) {
+    private boolean hasPurchaseRecord(Long policyNumber) {
+
+        if (policyNumber == null) {
+            return false;
+        }
+
+        return policyPurchaseDao.getAllPurchases()
+                .stream()
+                .anyMatch(purchase ->
+                        purchase != null
+                        && purchase.getPolicy() != null
+                        && policyNumber.equals(
+                                purchase.getPolicy()
+                                        .getPolicyNumber()));
+    }
+
+    // =========================================================
+    // PREVENT REFUNDED POLICY REACTIVATION
+    // =========================================================
+
+    private boolean hasBlockingRefund(Long policyNumber) {
+
+        if (policyNumber == null) {
+            return false;
+        }
+
+        return policyPurchaseDao.getAllPurchases()
+                .stream()
+                .filter(purchase ->
+                        purchase != null
+                        && purchase.getPolicy() != null
+                        && policyNumber.equals(
+                                purchase.getPolicy()
+                                        .getPolicyNumber()))
+                .anyMatch(purchase ->
+                        isRefundBlocking(
+                                purchase.getRefundStatus()));
+    }
+
+    private boolean isRefundBlocking(String refundStatus) {
+
+        if (refundStatus == null
+                || refundStatus.isBlank()) {
+            return true;
+        }
+
+        return !"NOT_REFUNDED".equalsIgnoreCase(
+                refundStatus.trim());
+    }
+
+    // =========================================================
+    // NORMALIZE COVER TYPE FOR DUPLICATE DETECTION
+    // =========================================================
+
+    private String normalizeCoverType(
+            String coveredTypes) {
 
         if (coveredTypes == null) {
             return "";
         }
 
         return coveredTypes.trim()
-                .replaceAll("(?i)\\s+insurance\\s*$", "")
+                .replaceAll(
+                        "(?i)\\s+insurance\\s*$", "")
                 .trim()
                 .replaceAll("\\s+", " ")
                 .toLowerCase(Locale.ROOT);
@@ -448,9 +594,6 @@ public class PolicyService {
 
     // =========================================================
     // AVAILABLE POLICIES - CUSTOMER BUY INSURANCE PAGE
-    //
-    // Returns one eligible policy per normalized cover type.
-    // This method is read-only and does not perform expiry writes.
     // =========================================================
 
     @Transactional(readOnly = true)
@@ -461,40 +604,46 @@ public class PolicyService {
         Map<String, Policy> uniquePolicies =
                 new LinkedHashMap<>();
 
-        for (Policy policy : policyDao.getAllPolicies()) {
+        for (Policy policy :
+                policyDao.getAllPolicies()) {
 
             if (policy == null) {
                 continue;
             }
 
-            if (!Boolean.TRUE.equals(policy.getIsActive())) {
+            if (!Boolean.TRUE.equals(
+                    policy.getIsActive())) {
                 continue;
             }
 
             if (policy.getStartDate() == null
-                    || policy.getStartDate().isAfter(today)) {
+                    || policy.getStartDate()
+                            .isAfter(today)) {
                 continue;
             }
 
             if (policy.getExpiryDate() == null
-                    || !policy.getExpiryDate().isAfter(today)) {
+                    || !policy.getExpiryDate()
+                            .isAfter(today)) {
                 continue;
             }
 
-            String key = normalizeCoverType(
-                    policy.getCoveredTypes());
+            String key =
+                    normalizeCoverType(
+                            policy.getCoveredTypes());
 
             if (key.isEmpty()) {
                 continue;
             }
 
-            // Keep the first eligible record for each cover type.
-            uniquePolicies.putIfAbsent(key, policy);
+            uniquePolicies.putIfAbsent(
+                    key, policy);
         }
 
         return uniquePolicies.values()
                 .stream()
-                .map(policyMapper::convertPolicyEntityToDto)
+                .map(
+                        policyMapper::convertPolicyEntityToDto)
                 .collect(Collectors.toList());
     }
 
@@ -509,13 +658,16 @@ public class PolicyService {
             String type) {
 
         try {
+
             if (policyHolder == null) {
                 return;
             }
 
-            User user = policyHolder.getUser();
+            User user =
+                    policyHolder.getUser();
 
-            if (user == null || user.getUserId() == null) {
+            if (user == null
+                    || user.getUserId() == null) {
                 return;
             }
 
@@ -526,10 +678,13 @@ public class PolicyService {
                     type);
 
         } catch (Exception e) {
+
             System.err.println(
                     "Policy notification failed: "
-                            + e.getClass().getSimpleName()
-                            + " - " + e.getMessage());
+                            + e.getClass()
+                                    .getSimpleName()
+                            + " - "
+                            + e.getMessage());
         }
     }
 }
