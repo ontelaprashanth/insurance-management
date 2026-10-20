@@ -3,7 +3,6 @@ package com.htc.insurance.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
-import java.util.List;
 
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
@@ -15,7 +14,6 @@ import com.htc.insurance.dao.PolicyPurchaseDao;
 
 import com.htc.insurance.dto.RefundRequestDto;
 
-import com.htc.insurance.entity.Claims;
 import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyPurchase;
 
@@ -45,12 +43,23 @@ public class RefundPreparationService {
     /**
      * Validates refund eligibility and commits REFUND_PENDING.
      *
-     * Rejects automatic refunds when claims already exist.
+     * Rules:
+     * 1. Purchase must belong to authenticated user.
+     * 2. Payment must be PAID.
+     * 3. Razorpay payment ID must exist.
+     * 4. No previous refund request may exist.
+     * 5. Refund amount must be positive.
+     * 6. Request must be within 24 hours of payment.
+     * 7. Policy must have no existing claims.
      *
-     * Deactivates the policy within the same transaction.
+     * On successful validation:
+     * - Mark purchase as REFUND_PENDING.
+     * - Record refund amount and reason.
+     * - Deactivate linked policy.
+     * - Save both changes in one transaction.
      *
-     * Razorpay must only be called after this transaction
-     * commits successfully.
+     * Razorpay must be called only after this
+     * transaction commits successfully.
      */
     @Transactional
     public PolicyPurchase prepareRefund(
@@ -106,7 +115,7 @@ public class RefundPreparationService {
                                 "Purchase not found."));
 
         // =====================================================
-        // VERIFY OWNERSHIP
+        // VALIDATE PURCHASE OWNERSHIP
         // =====================================================
 
         Policy policy = purchase.getPolicy();
@@ -117,7 +126,8 @@ public class RefundPreparationService {
                 || policy.getPolicyHolder().getUser() == null) {
 
             throw new IllegalStateException(
-                    "Purchase ownership information is unavailable.");
+                    "Purchase ownership information "
+                    + "is unavailable.");
         }
 
         String ownerUsername = policy
@@ -130,11 +140,12 @@ public class RefundPreparationService {
                         authenticatedUsername.trim())) {
 
             throw new AccessDeniedException(
-                    "You are not authorized to refund this purchase.");
+                    "You are not authorized to refund "
+                    + "this purchase.");
         }
 
         // =====================================================
-        // VERIFY PAYMENT
+        // VALIDATE PAYMENT STATUS
         // =====================================================
 
         String paymentStatus = purchase.getPaymentStatus();
@@ -146,6 +157,10 @@ public class RefundPreparationService {
             throw new IllegalStateException(
                     "Only paid purchases can be refunded.");
         }
+
+        // =====================================================
+        // VALIDATE RAZORPAY PAYMENT ID
+        // =====================================================
 
         if (purchase.getRazorpayPaymentId() == null
                 || purchase.getRazorpayPaymentId().isBlank()) {
@@ -160,13 +175,13 @@ public class RefundPreparationService {
 
         String refundStatus = purchase.getRefundStatus();
 
-        if (refundStatus != null
-                && !"NOT_REFUNDED".equalsIgnoreCase(
+        if (refundStatus == null
+                || !"NOT_REFUNDED".equalsIgnoreCase(
                         refundStatus.trim())) {
 
             throw new IllegalStateException(
-                    "This purchase already has a refund in progress "
-                    + "or has previously been refunded. Current status: "
+                    "This purchase is not eligible for "
+                    + "a new refund request. Current status: "
                     + refundStatus);
         }
 
@@ -180,7 +195,8 @@ public class RefundPreparationService {
                 || refundAmount.compareTo(BigDecimal.ZERO) <= 0) {
 
             throw new IllegalStateException(
-                    "The purchase has no valid refundable amount.");
+                    "The purchase has no valid "
+                    + "refundable amount.");
         }
 
         // =====================================================
@@ -206,7 +222,8 @@ public class RefundPreparationService {
         }
 
         LocalDateTime deadline =
-                paymentDateTime.plusHours(REFUND_WINDOW_HOURS);
+                paymentDateTime.plusHours(
+                        REFUND_WINDOW_HOURS);
 
         if (!now.isBefore(deadline)) {
 
@@ -215,10 +232,11 @@ public class RefundPreparationService {
         }
 
         // =====================================================
-        // BLOCK REFUNDS WHEN CLAIMS EXIST
+        // CHECK EXISTING CLAIMS
         // =====================================================
 
-        if (hasExistingClaims(policy.getPolicyNumber())) {
+        if (hasExistingClaims(
+                policy.getPolicyNumber())) {
 
             throw new IllegalStateException(
                     "Refund cannot be requested because "
@@ -228,54 +246,61 @@ public class RefundPreparationService {
         }
 
         // =====================================================
-        // SAVE REFUND PENDING STATE
+        // MARK REFUND AS PENDING
         // =====================================================
 
-        purchase.setRefundStatus("REFUND_PENDING");
-        purchase.setRefundAmount(refundAmount);
-        purchase.setRefundReason(reason);
+        purchase.setRefundStatus(
+                "REFUND_PENDING");
+
+        purchase.setRefundAmount(
+                refundAmount);
+
+        purchase.setRefundReason(
+                reason);
+
         purchase.setRefundId(null);
+
         purchase.setRefundDateTime(null);
 
         // =====================================================
-        // DEACTIVATE POLICY
+        // DEACTIVATE LINKED POLICY
         // =====================================================
+
+        /*
+         * Once a refund request passes validation,
+         * the customer must not continue using
+         * the policy as active insurance coverage.
+         *
+         * The policy and purchase records are retained
+         * for history, audit and reconciliation.
+         */
 
         policy.setIsActive(false);
 
         // =====================================================
-        // SAVE BOTH IN SAME TRANSACTION
+        // SAVE POLICY AND PURCHASE ATOMICALLY
         // =====================================================
 
         policyDao.savePolicy(policy);
 
-        return policyPurchaseDao.savePurchase(purchase);
+        return policyPurchaseDao.savePurchase(
+                purchase);
     }
 
     // =========================================================
     // CHECK WHETHER POLICY HAS EXISTING CLAIMS
     // =========================================================
 
-    private boolean hasExistingClaims(Long policyNumber) {
+    private boolean hasExistingClaims(
+            Long policyNumber) {
 
         if (policyNumber == null) {
+
             throw new IllegalStateException(
                     "Policy number is required.");
         }
 
-        List<Claims> claims = claimsDao.getAllClaims();
-
-        if (claims == null) {
-            throw new IllegalStateException(
-                    "Unable to verify existing claims.");
-        }
-
-        return claims.stream()
-                .filter(claim -> claim != null)
-                .filter(claim -> claim.getPolicy() != null)
-                .anyMatch(claim ->
-                        policyNumber.equals(
-                                claim.getPolicy()
-                                        .getPolicyNumber()));
+        return claimsDao.existsClaimsByPolicyNumber(
+                policyNumber);
     }
 }
