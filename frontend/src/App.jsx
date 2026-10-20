@@ -7,7 +7,9 @@ import {
 } from 'react-router-dom'
 
 import { useAuth } from './auth/AuthContext'
+
 import Layout from './components/Layout'
+import LoadingScreen from './components/LoadingScreen'
 
 /* =========================================================
    PUBLIC PAGES
@@ -56,6 +58,7 @@ import AdminBroadcast from './pages/admin/Broadcast'
    Refund Tracking
    Claims & Notifications
    Admin Management
+   Animated Loading Screen
 ========================================================= */
 
 /* =========================================================
@@ -71,31 +74,15 @@ const home = (user) => {
 }
 
 /* =========================================================
-   APPLICATION LOADING SCREEN
+   ANIMATED APPLICATION LOADING SCREEN
 ========================================================= */
 
 function Splash() {
   return (
-    <div
-      role="status"
-      aria-label="Loading InsureX"
-      style={{
-        display: 'grid',
-        placeItems: 'center',
-        minHeight: '100vh',
-        minHeight: '100dvh',
-        padding: 24,
-      }}
-    >
-      <span
-        className="spinner"
-        style={{
-          width: 28,
-          height: 28,
-          color: 'var(--fjord)',
-        }}
-      />
-    </div>
+    <LoadingScreen
+      message="Verifying your secure session..."
+      fullScreen
+    />
   )
 }
 
@@ -103,6 +90,7 @@ function Splash() {
    PROTECTED ROUTES
 
    - Wait for session initialization.
+   - Show branded loading animation.
    - Redirect unauthenticated users to login.
    - Restrict access by user role.
 ========================================================= */
@@ -172,8 +160,8 @@ function GuestOnly({ children }) {
    ROOT PAGE
 
    Guest -> Landing
-   USER  -> Customer dashboard
-   ADMIN -> Admin dashboard
+   USER  -> Customer Dashboard
+   ADMIN -> Admin Dashboard
 ========================================================= */
 
 function RootPage() {
