@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
@@ -52,6 +54,7 @@ public class ClaimsService {
     // USER + ADMIN - SUBMIT NEW CLAIM
     // =========================================================
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ClaimsDto saveClaims(
             ClaimsDto claimsDto,
             Authentication authentication) {
@@ -89,10 +92,19 @@ public class ClaimsService {
         }
 
         // =====================================================
-        // FIND POLICY
+        // STEP 1 - LOCK POLICY ROW
         // =====================================================
 
-        Policy policy = policyDao.getPolicyById(
+        /*
+         * Both claim submission and refund preparation
+         * must lock the same policy before checking
+         * whether the operation is allowed.
+         *
+         * The lock remains held until this transaction
+         * commits or rolls back.
+         */
+
+        Policy policy = policyDao.getPolicyByIdForUpdate(
                 claimsDto.getPolicyNumber());
 
         if (policy == null) {
@@ -119,10 +131,29 @@ public class ClaimsService {
         }
 
         // =====================================================
+        // STEP 2 - LOCK ASSOCIATED PURCHASE ROW
+        // =====================================================
+
+        /*
+         * A legacy policy might not have a purchase
+         * record. Preserve the previous behavior for
+         * such policies.
+         *
+         * For purchased policies, read refund status
+         * while holding the purchase write lock.
+         */
+
+        PolicyPurchase purchase = policyPurchaseDao
+                .getPurchaseByPolicyNumberForUpdate(
+                        policy.getPolicyNumber())
+                .orElse(null);
+
+        // =====================================================
         // CHECK POLICY ACTIVE STATUS
         // =====================================================
 
         if (!Boolean.TRUE.equals(policy.getIsActive())) {
+
             throw new RuntimeException(
                     "Claims cannot be submitted "
                     + "for an inactive policy.");
@@ -142,21 +173,24 @@ public class ClaimsService {
         }
 
         if (policy.getStartDate().isAfter(today)) {
+
             throw new RuntimeException(
                     "Your policy coverage has not started yet.");
         }
 
         if (!policy.getExpiryDate().isAfter(today)) {
+
             throw new RuntimeException(
                     "Your policy has expired. "
                     + "New claims cannot be submitted.");
         }
 
         // =====================================================
-        // CHECK REFUND STATUS
+        // CHECK REFUND STATUS UNDER DATABASE LOCK
         // =====================================================
 
-        if (hasBlockingRefund(policy, username)) {
+        if (hasBlockingRefund(purchase)) {
+
             throw new RuntimeException(
                     "Claims cannot be submitted because "
                     + "a refund has been requested or "
@@ -176,16 +210,16 @@ public class ClaimsService {
                     "Unable to create claim.");
         }
 
-        // Always use the verified policy.
+        // Always use the verified, locked policy.
         claims.setPolicy(policy);
 
-        // Never trust claim date from the client.
+        // Never trust claim date supplied by client.
         claims.setClaimDate(today);
 
         // New claims must start as pending.
         claims.setStatus(ClaimStatus.PENDING);
 
-        // Clear any client-supplied admin decision fields.
+        // Clear client-supplied admin decision fields.
         claims.setApprovedAmount(null);
         claims.setAdminRemarks(null);
         claims.setRejectionReason(null);
@@ -216,51 +250,29 @@ public class ClaimsService {
     }
 
     // =========================================================
-    // CHECK REFUND STATUS FOR A POLICY
+    // CHECK REFUND STATUS FOR LOCKED PURCHASE
     // =========================================================
 
     private boolean hasBlockingRefund(
-            Policy policy,
-            String username) {
+            PolicyPurchase purchase) {
 
-        if (policy == null
-                || policy.getPolicyNumber() == null) {
-
-            throw new IllegalStateException(
-                    "Policy details are unavailable.");
+        // Preserve support for legacy policies
+        // that have no purchase record.
+        if (purchase == null) {
+            return false;
         }
 
-        List<PolicyPurchase> purchases =
-                policyPurchaseDao.getPurchasesByUsername(
-                        username);
+        String refundStatus = purchase.getRefundStatus();
 
-        if (purchases == null) {
-            throw new IllegalStateException(
-                    "Unable to verify policy refund status.");
+        // Unknown status: block new claims.
+        if (refundStatus == null
+                || refundStatus.isBlank()) {
+            return true;
         }
 
-        return purchases.stream()
-                .filter(purchase -> purchase != null)
-                .filter(purchase ->
-                        purchase.getPolicy() != null
-                        && policy.getPolicyNumber().equals(
-                                purchase.getPolicy()
-                                        .getPolicyNumber()))
-                .anyMatch(purchase -> {
-
-                    String refundStatus =
-                            purchase.getRefundStatus();
-
-                    // Unknown refund status: do not allow claim.
-                    if (refundStatus == null
-                            || refundStatus.isBlank()) {
-                        return true;
-                    }
-
-                    // Only NOT_REFUNDED permits claims.
-                    return !"NOT_REFUNDED".equalsIgnoreCase(
-                            refundStatus.trim());
-                });
+        // Only NOT_REFUNDED allows claim submission.
+        return !"NOT_REFUNDED".equalsIgnoreCase(
+                refundStatus.trim());
     }
 
     // =========================================================
@@ -297,9 +309,17 @@ public class ClaimsService {
                 authentication.getName());
 
         if (user == null || user.getUserId() == null) {
+
             throw new RuntimeException(
                     "Logged-in user not found.");
         }
+
+        /*
+         * Do not filter by policy active status or
+         * refund status here.
+         *
+         * Historical claims must remain visible.
+         */
 
         List<Claims> allClaims =
                 claimsDao.getAllClaims();
@@ -367,6 +387,8 @@ public class ClaimsService {
                         .stream()
                         .anyMatch(authority ->
                                 "ROLE_ADMIN".equals(
+                                        authority.getAuthority())
+                                || "ADMIN".equals(
                                         authority.getAuthority()));
 
         if (isAdmin) {
@@ -403,6 +425,7 @@ public class ClaimsService {
                 .getUserId();
 
         if (!ownerId.equals(user.getUserId())) {
+
             throw new RuntimeException(
                     "You are not authorized to view this claim.");
         }
@@ -520,8 +543,8 @@ public class ClaimsService {
             return null;
         }
 
-        // Only pending claims can be approved.
         if (claim.getStatus() != ClaimStatus.PENDING) {
+
             throw new RuntimeException(
                     "Only pending claims can be approved.");
         }
@@ -531,6 +554,7 @@ public class ClaimsService {
         // =====================================================
 
         if (decisionDto.getApprovedAmount() == null) {
+
             throw new RuntimeException(
                     "Approved amount is required.");
         }
@@ -543,6 +567,7 @@ public class ClaimsService {
         }
 
         if (claim.getAmount() == null) {
+
             throw new RuntimeException(
                     "Claim amount is not available.");
         }
@@ -612,8 +637,8 @@ public class ClaimsService {
             return null;
         }
 
-        // Only pending claims can be rejected.
         if (claim.getStatus() != ClaimStatus.PENDING) {
+
             throw new RuntimeException(
                     "Only pending claims can be rejected.");
         }
@@ -634,7 +659,6 @@ public class ClaimsService {
         // =====================================================
 
         claim.setStatus(ClaimStatus.REJECTED);
-
         claim.setApprovedAmount(null);
 
         claim.setAdminRemarks(
@@ -676,11 +700,11 @@ public class ClaimsService {
                 claimsDao.getClaimsById(claimNumber);
 
         if (existingClaim == null) {
+
             throw new RuntimeException(
                     "Claim not found: " + claimNumber);
         }
 
-        // Remember the customer before deleting.
         Policy policy = existingClaim.getPolicy();
 
         User customer = null;
