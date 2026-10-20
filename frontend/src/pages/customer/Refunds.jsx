@@ -507,6 +507,56 @@ export default function Refunds() {
 
   return (
     <>
+      <style>{`
+        /* Scoped layout: only the customer Refunds page */
+        .ix-refunds-toolbar { gap: 12px; align-items: center; }
+        .ix-refunds-toolbar > * { max-width: 100%; }
+        .ix-refunds-table {
+          width: 100%; max-width: 100%; min-width: 0;
+          overflow-x: auto; overflow-y: hidden;
+          -webkit-overflow-scrolling: touch;
+        }
+        .ix-refunds-table .table-wrap {
+          width: 100%; max-width: 100%;
+          overflow-x: auto; -webkit-overflow-scrolling: touch;
+        }
+        .ix-refunds-table table {
+          width: 100%; min-width: 1020px;
+          table-layout: fixed; border-collapse: collapse;
+        }
+        .ix-refunds-table th, .ix-refunds-table td {
+          box-sizing: border-box; padding: 16px 14px;
+          vertical-align: middle; white-space: nowrap;
+        }
+        .ix-refunds-table th:nth-child(1),
+        .ix-refunds-table td:nth-child(1) { width: 9%; }
+        .ix-refunds-table th:nth-child(2),
+        .ix-refunds-table td:nth-child(2) { width: 23%; }
+        .ix-refunds-table th:nth-child(3),
+        .ix-refunds-table td:nth-child(3) { width: 14%; }
+        .ix-refunds-table th:nth-child(4),
+        .ix-refunds-table td:nth-child(4) { width: 15%; }
+        .ix-refunds-table th:nth-child(5),
+        .ix-refunds-table td:nth-child(5) { width: 16%; }
+        .ix-refunds-table th:nth-child(6),
+        .ix-refunds-table td:nth-child(6) { width: 13%; }
+        .ix-refunds-table th:nth-child(7),
+        .ix-refunds-table td:nth-child(7) { width: 10%; text-align: right; }
+        .ix-refunds-purchase { display: block; font-weight: 700; }
+        .ix-refunds-plan { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+        .ix-refunds-plan strong { display: block; font-weight: 700; white-space: nowrap; }
+        .ix-refunds-plan .muted { display: block; font-size: 13px; white-space: nowrap; }
+        .ix-refunds-amount, .ix-refunds-updated { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums; }
+        .ix-refunds-status { display: inline-flex; white-space: nowrap; }
+        .ix-refunds-status * { white-space: nowrap !important; word-break: normal !important; overflow-wrap: normal !important; }
+        .ix-refunds-action { display: inline-flex; align-items: center; justify-content: flex-end; white-space: nowrap; }
+        .ix-refunds-action button { white-space: nowrap; flex-shrink: 0; }
+        @media (max-width: 700px) {
+          .ix-refunds-table table { min-width: 940px; }
+          .ix-refunds-table th, .ix-refunds-table td { padding: 12px 11px; }
+        }
+      `}</style>
+
       <PageHeader
         title="Refunds"
         subtitle="Track your insurance refund requests and their processing status."
@@ -660,7 +710,7 @@ export default function Refunds() {
 
       <Panel flush>
         <div
-          className="toolbar"
+          className="toolbar ix-refunds-toolbar"
           style={{
             flexWrap: 'wrap',
           }}
@@ -763,6 +813,7 @@ export default function Refunds() {
                 </Button>
               </div>
             ) : (
+              <div className="ix-refunds-table" role="region" aria-label="Refund requests table" tabIndex={0}>
               <Table
                 rowKey="purchaseId"
                 rows={filteredRows}
@@ -772,69 +823,71 @@ export default function Refunds() {
                     key: 'purchaseId',
                     header: 'Purchase',
                     render: (p) => (
-                      <b>
+                      <span className="ix-refunds-purchase">
                         #{p.purchaseId}
-                      </b>
+                      </span>
                     ),
                   },
                   {
                     key: 'coveredTypes',
                     header: 'Insurance plan',
                     render: (p) => (
-                      <div>
-                        <b>
-                          {p.coveredTypes ||
-                            'Insurance'}
-                        </b>
-
-                        <div className="muted">
+                      <div className="ix-refunds-plan">
+                        <strong>
+                          {p.coveredTypes || 'Insurance'}
+                        </strong>
+                        <span className="muted">
                           {p.policyNumber
                             ? `Policy #${p.policyNumber}`
                             : '—'}
-                        </div>
+                        </span>
                       </div>
                     ),
                   },
                   {
                     key: 'totalPremium',
                     header: 'Amount paid',
-                    render: (p) =>
-                      money(
-                        p.totalPremium,
-                      ),
+                    render: (p) => (
+                      <span className="ix-refunds-amount">
+                        {money(p.totalPremium)}
+                      </span>
+                    ),
                   },
                   {
                     key: 'refundAmount',
                     header: 'Refund amount',
-                    render: (p) =>
-                      p.refundAmount != null
-                        ? money(
-                            p.refundAmount,
-                          )
-                        : '—',
+                    render: (p) => (
+                      <span className="ix-refunds-amount">
+                        {p.refundAmount != null
+                          ? money(p.refundAmount)
+                          : '—'}
+                      </span>
+                    ),
                   },
                   {
                     key: 'refundStatus',
                     header: 'Status',
                     render: (p) => (
-                      <RefundBadge
-                        purchase={p}
-                      />
+                      <span className="ix-refunds-status">
+                        <RefundBadge purchase={p} />
+                      </span>
                     ),
                   },
                   {
                     key: 'refundDateTime',
-                    header: 'Updated',
-                    render: (p) =>
-                      dateTime(
-                        p.refundDateTime,
-                      ),
+                    header: 'Refund date',
+                    render: (p) => (
+                      <span className="ix-refunds-updated">
+                        {p.refundDateTime ? dateTime(p.refundDateTime) : '—'}
+                      </span>
+                    ),
                   },
                   {
                     key: 'actions',
                     header: '',
                     align: 'right',
                     render: (p) => (
+                      <span className="ix-refunds-action">
                       <Button
                         size="sm"
                         onClick={(event) => {
@@ -844,10 +897,12 @@ export default function Refunds() {
                       >
                         Details
                       </Button>
+                      </span>
                     ),
                   },
                 ]}
               />
+              </div>
             )
           }
         </DataState>
