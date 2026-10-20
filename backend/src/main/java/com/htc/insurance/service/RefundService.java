@@ -1,12 +1,10 @@
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
-import java.util.Locale;
 
 import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dto.RefundRequestDto;
@@ -18,6 +16,7 @@ import com.razorpay.Refund;
 public class RefundService {
 
     private final RefundPreparationService refundPreparationService;
+    private final RefundPersistenceService refundPersistenceService;
     private final PolicyPurchaseDao policyPurchaseDao;
 
     @Value("${razorpay.key.id}")
@@ -28,36 +27,45 @@ public class RefundService {
 
     public RefundService(
             RefundPreparationService refundPreparationService,
+            RefundPersistenceService refundPersistenceService,
             PolicyPurchaseDao policyPurchaseDao) {
 
         this.refundPreparationService = refundPreparationService;
+        this.refundPersistenceService = refundPersistenceService;
         this.policyPurchaseDao = policyPurchaseDao;
     }
 
     /**
-     * Initiates one full refund for a purchase.
+     * Initiates one full refund for an eligible purchase.
      *
-     * Important: a network/API failure may happen after Razorpay
-     * has accepted a refund. Such cases must be reconciled before
-     * another refund is attempted.
+     * The pending state must be committed before Razorpay is called.
+     * An uncertain outcome must never trigger an automatic retry.
      */
     public PolicyPurchase refundPurchase(
             RefundRequestDto request,
             String authenticatedUsername) throws Exception {
 
-        // This separate Spring service call commits REFUND_PENDING
-        // before the external Razorpay request begins.
+        // Validate eligibility and commit REFUND_PENDING first.
         PolicyPurchase purchase =
                 refundPreparationService.prepareRefund(
-                        request, authenticatedUsername);
+                        request,
+                        authenticatedUsername);
 
         try {
-            RazorpayClient client =
-                    new RazorpayClient(
-                            razorpayKeyId,
-                            razorpayKeySecret);
+            RazorpayClient client = new RazorpayClient(
+                    razorpayKeyId,
+                    razorpayKeySecret);
 
-            long amountInPaise = purchase.getRefundAmount()
+            BigDecimal amount = purchase.getRefundAmount();
+
+            if (amount == null
+                    || amount.compareTo(BigDecimal.ZERO) <= 0) {
+                throw new IllegalStateException(
+                        "Refund amount must be positive.");
+            }
+
+            // Razorpay expects the amount in paise.
+            long amountInPaise = amount
                     .multiply(new BigDecimal("100"))
                     .longValueExact();
 
@@ -66,10 +74,10 @@ public class RefundService {
             refundRequest.put("speed", "normal");
 
             JSONObject notes = new JSONObject();
-            notes.put("purchase_id",
+            notes.put(
+                    "purchase_id",
                     String.valueOf(purchase.getPurchaseId()));
-            notes.put("reason",
-                    purchase.getRefundReason());
+            notes.put("reason", purchase.getRefundReason());
 
             refundRequest.put("notes", notes);
 
@@ -83,16 +91,17 @@ public class RefundService {
             if (razorpayRefundId == null
                     || razorpayRefundId.isBlank()) {
 
-                // Do not clear pending or automatically retry.
-                markReconciliationRequired(
-                        purchase.getPurchaseId());
+                refundPersistenceService
+                        .markReconciliationRequired(
+                                purchase.getPurchaseId());
 
                 throw new IllegalStateException(
-                        "Razorpay did not return a refund ID. "
-                        + "Reconciliation is required.");
+                        "Razorpay returned no refund ID. "
+                        + "Manual reconciliation is required.");
             }
 
-            saveRefundSuccess(
+            // Separate Spring-managed transactional service.
+            refundPersistenceService.markRefunded(
                     purchase.getPurchaseId(),
                     razorpayRefundId);
 
@@ -102,71 +111,22 @@ public class RefundService {
         } catch (Exception ex) {
 
             /*
-             * The request may have reached Razorpay even if the
-             * client received an exception. Never automatically
-             * send another refund request.
+             * The exception may have occurred after Razorpay
+             * accepted the refund. Do not resubmit automatically.
              */
-            markReconciliationRequired(
-                    purchase.getPurchaseId());
+            try {
+                refundPersistenceService
+                        .markReconciliationRequired(
+                                purchase.getPurchaseId());
+            } catch (Exception persistenceException) {
+                ex.addSuppressed(persistenceException);
+            }
 
             throw new IllegalStateException(
-                    "Refund outcome could not be confirmed. "
-                    + "The purchase has been flagged for reconciliation. "
-                    + "Do not retry the refund until its Razorpay status "
-                    + "has been checked.",
+                    "The refund outcome could not be confirmed. "
+                    + "Check the Razorpay dashboard and reconcile "
+                    + "the refund before attempting any further action.",
                     ex);
         }
-    }
-
-    @Transactional
-    protected void saveRefundSuccess(
-            Long purchaseId,
-            String razorpayRefundId) {
-
-        PolicyPurchase purchase =
-                policyPurchaseDao
-                        .getPurchaseByIdForUpdate(purchaseId)
-                        .orElseThrow(() ->
-                                new IllegalStateException(
-                                        "Purchase not found while saving refund."));
-
-        if (!"REFUND_PENDING".equalsIgnoreCase(
-                purchase.getRefundStatus())) {
-
-            throw new IllegalStateException(
-                    "Purchase is not in REFUND_PENDING state.");
-        }
-
-        purchase.setRefundId(razorpayRefundId);
-        purchase.setRefundStatus("REFUNDED");
-        purchase.setRefundDateTime(
-                java.time.LocalDateTime.now());
-
-        policyPurchaseDao.savePurchase(purchase);
-    }
-
-    @Transactional
-    protected void markReconciliationRequired(
-            Long purchaseId) {
-
-        PolicyPurchase purchase =
-                policyPurchaseDao
-                        .getPurchaseByIdForUpdate(purchaseId)
-                        .orElse(null);
-
-        if (purchase == null) {
-            return;
-        }
-
-        String currentStatus = purchase.getRefundStatus();
-
-        if ("REFUNDED".equalsIgnoreCase(currentStatus)) {
-            return;
-        }
-
-        purchase.setRefundStatus(
-                "REFUND_REQUIRES_RECONCILIATION");
-
-        policyPurchaseDao.savePurchase(purchase);
     }
 }
