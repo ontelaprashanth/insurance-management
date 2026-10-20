@@ -324,3 +324,124 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 @media (prefers-reduced-motion: reduce) {
   * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }
+
+/* =========================================================
+   INSUREX — ANIMATIONS (append to existing styles.css)
+   Retains original palette and component class names.
+========================================================= */
+:root {
+  --ix-ease: cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Branded session loader */
+.insurex-loader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 280px;
+  padding: 32px 20px;
+  background: var(--mist);
+  text-align: center;
+}
+.insurex-loader-full { min-height: 100vh; min-height: 100dvh; }
+.insurex-loader-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: min(100%, 340px);
+  animation: ix-loader-enter .5s var(--ix-ease) both;
+}
+.insurex-loader-symbol {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 112px;
+  height: 112px;
+  margin-bottom: 18px;
+}
+.insurex-loader-symbol > svg { position: relative; z-index: 2; animation: ix-logo-pulse 2.2s ease-in-out infinite; }
+.insurex-loader-ring {
+  position: absolute;
+  inset: 3px;
+  border: 3px solid transparent;
+  border-top-color: var(--fjord-3);
+  border-right-color: var(--fjord-3);
+  border-radius: 50%;
+  animation: ix-spin 1.25s linear infinite;
+}
+.insurex-loader-ring.inner {
+  inset: 15px;
+  border-width: 2px;
+  border-top-color: var(--marigold);
+  border-right-color: var(--marigold);
+  animation-duration: 1.8s;
+  animation-direction: reverse;
+}
+.insurex-loader-title { margin: 0; color: var(--fjord); font-size: 28px; font-weight: 800; letter-spacing: -.8px; }
+.insurex-loader-message { margin-top: 10px; color: var(--ink-2); font-size: 14px; line-height: 1.6; }
+.insurex-loader-progress { position: relative; width: 190px; height: 5px; margin-top: 24px; overflow: hidden; border-radius: 100px; background: var(--line); }
+.insurex-loader-progress > span { position: absolute; inset: 0 auto 0 0; width: 40%; border-radius: inherit; background: linear-gradient(90deg, var(--fjord-3), var(--marigold)); animation: ix-progress 1.5s ease-in-out infinite; }
+.insurex-loader-caption { margin-top: 16px; color: var(--ink-3); font-size: 11px; font-weight: 600; letter-spacing: .4px; }
+
+/* Navigation and page transitions */
+.content > * { animation: ix-page-enter .34s var(--ix-ease) both; }
+.nav a { transition: background-color .18s ease, color .18s ease, transform .18s ease; }
+.nav a:hover { transform: translateX(3px); }
+.sidebar { scrollbar-width: thin; }
+
+/* Controls and feedback */
+.btn { transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease, transform .16s ease; }
+.btn:not(:disabled):active { transform: scale(.98); }
+.btn[aria-busy='true'] { cursor: wait; }
+.btn .spinner { flex-shrink: 0; }
+.input, .select, .textarea, .chip { transition: border-color .18s ease, box-shadow .18s ease, background-color .18s ease, transform .18s ease; }
+.chip:not(:disabled):active { transform: scale(.97); }
+.plan-card { transition: border-color .2s ease, box-shadow .2s ease, transform .2s var(--ix-ease); }
+.plan-card:hover { transform: translateY(-3px); box-shadow: 0 10px 28px rgba(15, 61, 62, .08); }
+.panel { transition: box-shadow .2s ease, border-color .2s ease; }
+.tbl tbody tr td { transition: background-color .18s ease; }
+
+/* Modals and toast notifications */
+.modal-back { animation: ix-backdrop-in .18s ease both; }
+.modal { animation: ix-modal-in .24s var(--ix-ease) both; }
+.toast { animation: ix-toast-in .24s var(--ix-ease) both; }
+.toast.info { background: var(--fjord-3); }
+.alert.success { background: var(--green-soft); border-color: #b7dfc7; color: #1d5f3a; }
+
+/* Progress and loading */
+.skeleton { animation: shimmer 1.3s ease-in-out infinite; }
+.dial .big { transition: color .2s ease; }
+.dial input[type='range']::-webkit-slider-thumb { transition: transform .16s ease, box-shadow .16s ease; }
+.dial input[type='range']:hover::-webkit-slider-thumb { transform: scale(1.08); box-shadow: 0 0 0 4px rgba(233, 162, 59, .16); }
+.dial input[type='range']:active::-webkit-slider-thumb { cursor: grabbing; transform: scale(1.12); }
+
+@keyframes ix-spin { to { transform: rotate(360deg); } }
+@keyframes ix-logo-pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.07); } }
+@keyframes ix-progress { from { transform: translateX(-110%); } to { transform: translateX(480%); } }
+@keyframes ix-loader-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ix-page-enter { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes ix-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ix-modal-in { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes ix-toast-in { from { opacity: 0; transform: translateX(18px); } to { opacity: 1; transform: translateX(0); } }
+
+@media (max-width: 920px) {
+  .nav a:hover { transform: none; }
+  .sidebar { transition: transform .25s var(--ix-ease); }
+}
+@media (max-width: 640px) {
+  .insurex-loader-symbol { width: 96px; height: 96px; }
+  .insurex-loader-title { font-size: 24px; }
+  .modal { max-height: 94dvh; }
+  .modal-head, .modal-body { padding: 16px; }
+  .modal-foot { padding: 12px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .insurex-loader *, .insurex-loader-content, .content > *, .nav a,
+  .sidebar, .btn, .input, .select, .textarea, .chip, .plan-card,
+  .panel, .tbl tbody tr td, .modal-back, .modal, .toast, .skeleton {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
