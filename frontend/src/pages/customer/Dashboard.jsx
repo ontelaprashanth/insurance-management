@@ -44,6 +44,7 @@ const isUnread = (item) =>
 
 const safeDate = (value) => {
   if (!value) return 0
+
   const parsed = new Date(value).getTime()
   return Number.isNaN(parsed) ? 0 : parsed
 }
@@ -77,6 +78,7 @@ function getCustomerName() {
 
     for (const key of keys) {
       const stored = localStorage.getItem(key)
+
       if (!stored) continue
 
       try {
@@ -107,6 +109,7 @@ function Stat({ icon: StatIcon, label, value, detail, to, loading }) {
     <div className="customer-stat">
       <div className="customer-stat-heading">
         <StatIcon size={19} strokeWidth={2} />
+
         <span className="label">{label}</span>
       </div>
 
@@ -115,7 +118,7 @@ function Stat({ icon: StatIcon, label, value, detail, to, loading }) {
           {loading ? '…' : value}
         </div>
 
-        <div className="sub customer-stat-detail">
+        <div className="customer-stat-detail">
           {detail}
         </div>
       </Link>
@@ -311,6 +314,7 @@ export default function Dashboard() {
             <div className="empty">
               <h4>No claims yet</h4>
               <p>Your submitted claims will appear here.</p>
+
               <Link className="btn sm" to="/app/claim-submit">
                 Submit a claim
               </Link>
@@ -323,6 +327,7 @@ export default function Dashboard() {
               >
                 <div className="grow" style={{ minWidth: 0 }}>
                   <b>Claim #{getClaimNumber(item)}</b>
+
                   <div className="faint" style={{ fontSize: 13, marginTop: 4 }}>
                     Policy #{getPolicyNumber(item)}
                     {' · '}
@@ -342,6 +347,7 @@ export default function Dashboard() {
                   <b className="num">
                     {inr(getClaimAmount(item))}
                   </b>
+
                   <StatusBadge value={item?.status || 'PENDING'} />
                 </div>
               </div>
@@ -406,7 +412,7 @@ export default function Dashboard() {
                       width: 9,
                       height: 9,
                       borderRadius: '50%',
-                      background: '#2563eb',
+                      background: 'var(--blue)',
                       flexShrink: 0,
                       marginTop: 6,
                     }}
@@ -421,19 +427,23 @@ export default function Dashboard() {
       <Panel title="Quick actions">
         <div className="customer-quick-actions">
           <Link className="btn" to="/app/plans">
-            <ShieldCheck size={17} /> Browse policies
+            <ShieldCheck size={17} />
+            Browse policies
           </Link>
 
           <Link className="btn" to="/app/my-policies">
-            <WalletCards size={17} /> My policies
+            <WalletCards size={17} />
+            My policies
           </Link>
 
           <Link className="btn" to="/app/claim-submit">
-            <FileText size={17} /> Submit a claim
+            <FileText size={17} />
+            Submit a claim
           </Link>
 
           <Link className="btn" to="/app/notifications">
-            <Bell size={17} /> Notifications
+            <Bell size={17} />
+            Notifications
           </Link>
         </div>
       </Panel>
