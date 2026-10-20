@@ -15,7 +15,6 @@ public class PolicyPurchaseDao {
     @Autowired
     private PolicyPurchaseRepository repository;
 
-
     // ==========================================
     // SAVE PURCHASE
     // ==========================================
@@ -26,7 +25,6 @@ public class PolicyPurchaseDao {
         return repository.save(purchase);
     }
 
-
     // ==========================================
     // GET PURCHASE BY ID
     // ==========================================
@@ -34,11 +32,21 @@ public class PolicyPurchaseDao {
     public PolicyPurchase getPurchaseById(
             Long purchaseId) {
 
-        return repository.findById(
-                purchaseId
-        ).orElse(null);
+        return repository.findById(purchaseId)
+                .orElse(null);
     }
 
+    // ==========================================
+    // GET PURCHASE BY ID WITH WRITE LOCK
+    // REFUND PROCESSING
+    // Must be called inside a database transaction.
+    // ==========================================
+
+    public Optional<PolicyPurchase> getPurchaseByIdForUpdate(
+            Long purchaseId) {
+
+        return repository.findByIdForUpdate(purchaseId);
+    }
 
     // ==========================================
     // GET PURCHASE BY POLICY NUMBER
@@ -49,12 +57,10 @@ public class PolicyPurchaseDao {
 
         Optional<PolicyPurchase> purchase =
                 repository.findByPolicyPolicyNumber(
-                        policyNumber
-                );
+                        policyNumber);
 
         return purchase.orElse(null);
     }
-
 
     // ==========================================
     // GET PURCHASE BY TRANSACTION ID
@@ -65,12 +71,10 @@ public class PolicyPurchaseDao {
 
         Optional<PolicyPurchase> purchase =
                 repository.findByTransactionId(
-                        transactionId
-                );
+                        transactionId);
 
         return purchase.orElse(null);
     }
-
 
     // ==========================================
     // GET PURCHASE BY RAZORPAY ORDER ID
@@ -81,12 +85,10 @@ public class PolicyPurchaseDao {
 
         Optional<PolicyPurchase> purchase =
                 repository.findByRazorpayOrderId(
-                        razorpayOrderId
-                );
+                        razorpayOrderId);
 
         return purchase.orElse(null);
     }
-
 
     // ==========================================
     // GET ALL PURCHASES
@@ -98,19 +100,16 @@ public class PolicyPurchaseDao {
         return repository.findAll();
     }
 
-
     // ==========================================
     // GET PURCHASES BY USERNAME
     // USER
     // ==========================================
 
-    public List<PolicyPurchase>
-    getPurchasesByUsername(
+    public List<PolicyPurchase> getPurchasesByUsername(
             String username) {
 
         return repository
                 .findByPolicyPolicyHolderUserUsername(
-                        username
-                );
+                        username);
     }
 }
