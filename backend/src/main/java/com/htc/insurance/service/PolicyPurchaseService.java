@@ -10,6 +10,8 @@ import java.util.List;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyHolderDao;
@@ -18,6 +20,8 @@ import com.htc.insurance.dao.UserDao;
 import com.htc.insurance.dto.PaymentVerificationRequest;
 import com.htc.insurance.dto.PurchasePolicyDto;
 import com.htc.insurance.entity.InsurancePlan;
+import com.htc.insurance.entity.PaymentAttempt;
+import com.htc.insurance.entity.PaymentAttemptStatus;
 import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyHolder;
 import com.htc.insurance.entity.PolicyPurchase;
@@ -44,6 +48,7 @@ public class PolicyPurchaseService {
     private final UserDao userDao;
     private final PolicyPurchaseDao policyPurchaseDao;
     private final PaymentService paymentService;
+    private final PaymentAttemptService paymentAttemptService;
     private final InsurancePlanRepository insurancePlanRepository;
 
     public PolicyPurchaseService(
@@ -52,6 +57,7 @@ public class PolicyPurchaseService {
             UserDao userDao,
             PolicyPurchaseDao policyPurchaseDao,
             PaymentService paymentService,
+            PaymentAttemptService paymentAttemptService,
             InsurancePlanRepository insurancePlanRepository) {
 
         this.policyDao = policyDao;
@@ -59,11 +65,12 @@ public class PolicyPurchaseService {
         this.userDao = userDao;
         this.policyPurchaseDao = policyPurchaseDao;
         this.paymentService = paymentService;
+        this.paymentAttemptService = paymentAttemptService;
         this.insurancePlanRepository = insurancePlanRepository;
     }
 
     // =====================================================
-    // PURCHASE POLICY
+    // PURCHASE POLICY WITH PAYMENT RECOVERY
     // =====================================================
 
     @Transactional
@@ -107,11 +114,10 @@ public class PolicyPurchaseService {
                     "A valid insurance plan ID is required.");
         }
 
-        InsurancePlan selectedPlan =
-                insurancePlanRepository.findById(planId)
-                        .orElseThrow(() ->
-                                new IllegalArgumentException(
-                                        "The selected insurance plan was not found."));
+        InsurancePlan selectedPlan = insurancePlanRepository
+                .findById(planId)
+                .orElseThrow(() -> new IllegalArgumentException(
+                        "The selected insurance plan was not found."));
 
         if (!Boolean.TRUE.equals(selectedPlan.getIsActive())) {
             throw new IllegalArgumentException(
@@ -134,7 +140,6 @@ public class PolicyPurchaseService {
         if (durationYears == null
                 || durationYears < 1
                 || durationYears > 5) {
-
             throw new IllegalArgumentException(
                     "Policy duration must be between 1 and 5 years.");
         }
@@ -148,10 +153,12 @@ public class PolicyPurchaseService {
         if (coverageAmount == null
                 || coverageAmount.compareTo(MINIMUM_COVERAGE) < 0
                 || coverageAmount.compareTo(MAXIMUM_COVERAGE) > 0) {
-
             throw new IllegalArgumentException(
                     "Coverage amount must be between ₹10,00,000 and ₹1,00,00,000.");
         }
+
+        coverageAmount = coverageAmount.setScale(
+                2, RoundingMode.HALF_UP);
 
         // -------------------------------------------------
         // VALIDATE NOMINEE
@@ -212,11 +219,7 @@ public class PolicyPurchaseService {
         }
 
         // -------------------------------------------------
-        // IDEMPOTENT RETRY HANDLING
-        //
-        // Return an existing purchase only when BOTH Razorpay
-        // identifiers match the same purchase belonging to
-        // the currently authenticated user.
+        // IDEMPOTENT RETRY: CHECK EXISTING PURCHASE
         // -------------------------------------------------
 
         PolicyPurchase existingPayment =
@@ -262,12 +265,35 @@ public class PolicyPurchaseService {
                                     .getUser()
                                     .getUsername());
 
-            if (samePayment && sameOrder && sameUser) {
+            boolean sameCoverage =
+                    existing.getCoverageAmount() != null
+                    && existing.getCoverageAmount()
+                            .compareTo(coverageAmount) == 0;
+
+            boolean sameDuration =
+                    existing.getPolicy() != null
+                    && existing.getPolicy().getDurationYears() != null
+                    && existing.getPolicy().getDurationYears()
+                            .equals(durationYears);
+
+            boolean samePlanCoverageType =
+                    existing.getPolicy() != null
+                    && existing.getPolicy().getCoveredTypes() != null
+                    && coveredType.trim().equalsIgnoreCase(
+                            existing.getPolicy().getCoveredTypes().trim());
+
+            if (samePayment
+                    && sameOrder
+                    && sameUser
+                    && sameCoverage
+                    && sameDuration
+                    && samePlanCoverageType) {
+
                 return buildPurchaseResponse(existing);
             }
 
             throw new IllegalArgumentException(
-                    "This payment or order cannot be reused.");
+                    "This payment or order cannot be reused for different purchase details.");
         }
 
         // -------------------------------------------------
@@ -304,6 +330,66 @@ public class PolicyPurchaseService {
         }
 
         // -------------------------------------------------
+        // LOAD AND VALIDATE THE PERSISTED PAYMENT ATTEMPT
+        // -------------------------------------------------
+
+        PaymentAttempt attempt =
+                paymentAttemptService.getAttemptByOrderId(
+                        razorpayOrderId);
+
+        if (!username.equals(attempt.getUsername())) {
+            throw new IllegalArgumentException(
+                    "This payment order does not belong to the logged-in user.");
+        }
+
+        if (!planId.equals(attempt.getPlanId())) {
+            throw new IllegalArgumentException(
+                    "The payment order was created for a different insurance plan.");
+        }
+
+        if (attempt.getCoverageAmount() == null
+                || attempt.getCoverageAmount()
+                        .compareTo(coverageAmount) != 0) {
+            throw new IllegalArgumentException(
+                    "Coverage does not match the original payment order.");
+        }
+
+        if (!durationYears.equals(attempt.getDurationYears())) {
+            throw new IllegalArgumentException(
+                    "Policy duration does not match the original payment order.");
+        }
+
+        if (attempt.getCalculatedPremium() == null
+                || attempt.getCalculatedPremium()
+                        .compareTo(totalPremium) != 0) {
+            throw new IllegalArgumentException(
+                    "Premium does not match the original payment order.");
+        }
+
+        PaymentAttemptStatus attemptStatus = attempt.getStatus();
+
+        if (attemptStatus == PaymentAttemptStatus.REQUIRES_RECONCILIATION
+                || attemptStatus == PaymentAttemptStatus.FAILED
+                || attemptStatus == PaymentAttemptStatus.ORDER_CREATING) {
+            throw new IllegalStateException(
+                    "This payment attempt requires reconciliation before it can be confirmed.");
+        }
+
+        if (attemptStatus != PaymentAttemptStatus.ORDER_CREATED
+                && attemptStatus != PaymentAttemptStatus.PAYMENT_VERIFIED
+                && attemptStatus != PaymentAttemptStatus.PURCHASE_COMPLETED) {
+            throw new IllegalStateException(
+                    "The payment attempt is not in a confirmable state.");
+        }
+
+        if (attempt.getRazorpayPaymentId() != null
+                && !attempt.getRazorpayPaymentId()
+                        .equals(razorpayPaymentId)) {
+            throw new IllegalArgumentException(
+                    "This order is already associated with a different payment.");
+        }
+
+        // -------------------------------------------------
         // VERIFY PAYMENT WITH RAZORPAY
         // -------------------------------------------------
 
@@ -320,11 +406,13 @@ public class PolicyPurchaseService {
             paymentVerified = paymentService.verifyPayment(
                     verificationRequest,
                     totalPremium);
+
         } catch (Exception exception) {
             throw new IllegalStateException(
                     "Unable to verify Razorpay payment. "
-                    + "No policy was created. If payment was deducted, "
-                    + "please contact support before paying again.",
+                    + "No policy was created. You can retry confirmation "
+                    + "with the same payment details. If payment was deducted, "
+                    + "do not start another checkout.",
                     exception);
         }
 
@@ -333,6 +421,15 @@ public class PolicyPurchaseService {
                     "Payment could not be verified as captured. "
                     + "No policy was created.");
         }
+
+        /*
+         * Commit this state independently from the purchase transaction.
+         * If saving the policy or purchase subsequently fails, this record
+         * survives and can be used during a confirmation retry.
+         */
+        paymentAttemptService.markPaymentVerified(
+                razorpayOrderId,
+                razorpayPaymentId);
 
         // -------------------------------------------------
         // CREATE POLICY
@@ -358,7 +455,7 @@ public class PolicyPurchaseService {
         if (savedPolicy == null
                 || savedPolicy.getPolicyNumber() == null) {
             throw new IllegalStateException(
-                    "Policy could not be saved.");
+                    "Policy could not be saved. Retry confirmation using the same payment.");
         }
 
         // -------------------------------------------------
@@ -368,9 +465,7 @@ public class PolicyPurchaseService {
         PolicyPurchase purchase = new PolicyPurchase();
 
         purchase.setPolicy(savedPolicy);
-
-        purchase.setCoverageAmount(
-                coverageAmount.setScale(2, RoundingMode.HALF_UP));
+        purchase.setCoverageAmount(coverageAmount);
 
         purchase.setBasePremium(basePremium);
         purchase.setDiscountAmount(discountAmount);
@@ -407,8 +502,48 @@ public class PolicyPurchaseService {
         if (savedPurchase == null
                 || savedPurchase.getPurchaseId() == null) {
             throw new IllegalStateException(
-                    "Purchase record could not be saved.");
+                    "Purchase record could not be saved. Retry confirmation using the same payment.");
         }
+
+        // -------------------------------------------------
+        // MARK COMPLETE ONLY AFTER THE PURCHASE TRANSACTION
+        // HAS SUCCESSFULLY COMMITTED
+        // -------------------------------------------------
+
+        final String completedOrderId = razorpayOrderId;
+        final String completedPaymentId = razorpayPaymentId;
+        final String attemptReference = attempt.getAttemptReference();
+
+        TransactionSynchronizationManager.registerSynchronization(
+                new TransactionSynchronization() {
+
+                    @Override
+                    public void afterCommit() {
+                        try {
+                            paymentAttemptService.markPurchaseCompleted(
+                                    completedOrderId,
+                                    completedPaymentId);
+
+                        } catch (Exception exception) {
+                            /*
+                             * The purchase has committed. Leave the purchase
+                             * intact; record reconciliation if possible.
+                             */
+                            try {
+                                paymentAttemptService.markReconciliationRequired(
+                                        attemptReference,
+                                        "Purchase committed, but payment-attempt "
+                                        + "completion status could not be updated.");
+                            } catch (Exception ignored) {
+                                /*
+                                 * The purchase record remains authoritative
+                                 * for customer history. A future reconciliation
+                                 * job can repair the attempt status.
+                                 */
+                            }
+                        }
+                    }
+                });
 
         return buildPurchaseResponse(savedPurchase);
     }
@@ -419,7 +554,6 @@ public class PolicyPurchaseService {
 
     @Transactional(readOnly = true)
     public List<PurchasePolicyDto> getAllPurchases() {
-
         return policyPurchaseDao.getAllPurchases()
                 .stream()
                 .map(this::buildPurchaseResponse)
