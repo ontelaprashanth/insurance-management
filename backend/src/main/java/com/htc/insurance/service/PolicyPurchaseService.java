@@ -1,4 +1,3 @@
-
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -87,9 +86,7 @@ public class PolicyPurchaseService {
 
         String username = authentication.getName();
 
-        // -------------------------------------------------
         // LOAD AND VALIDATE USER
-        // -------------------------------------------------
 
         User user = userDao.getUserByUsername(username);
 
@@ -103,9 +100,7 @@ public class PolicyPurchaseService {
                     "Your account is inactive.");
         }
 
-        // -------------------------------------------------
         // VALIDATE PLAN
-        // -------------------------------------------------
 
         Long planId = purchaseDto.getPlanId();
 
@@ -131,9 +126,7 @@ public class PolicyPurchaseService {
                     "The selected insurance plan has no coverage type configured.");
         }
 
-        // -------------------------------------------------
         // VALIDATE DURATION
-        // -------------------------------------------------
 
         Integer durationYears = purchaseDto.getDurationYears();
 
@@ -144,9 +137,7 @@ public class PolicyPurchaseService {
                     "Policy duration must be between 1 and 5 years.");
         }
 
-        // -------------------------------------------------
         // VALIDATE COVERAGE
-        // -------------------------------------------------
 
         BigDecimal coverageAmount = purchaseDto.getCoverageAmount();
 
@@ -160,9 +151,7 @@ public class PolicyPurchaseService {
         coverageAmount = coverageAmount.setScale(
                 2, RoundingMode.HALF_UP);
 
-        // -------------------------------------------------
         // VALIDATE NOMINEE
-        // -------------------------------------------------
 
         String nomineeName = requireText(
                 purchaseDto.getNomineeName(),
@@ -181,9 +170,7 @@ public class PolicyPurchaseService {
                     "Nominee contact must be a valid 10-digit Indian mobile number.");
         }
 
-        // -------------------------------------------------
         // VALIDATE PAYMENT DETAILS
-        // -------------------------------------------------
 
         String paymentMethod = requireText(
                 purchaseDto.getPaymentMethod(),
@@ -206,9 +193,7 @@ public class PolicyPurchaseService {
                 purchaseDto.getRazorpaySignature(),
                 "Razorpay payment signature is required.");
 
-        // -------------------------------------------------
         // LOAD POLICY HOLDER
-        // -------------------------------------------------
 
         PolicyHolder policyHolder =
                 policyHolderDao.getPolicyHolderByUsername(username);
@@ -218,9 +203,7 @@ public class PolicyPurchaseService {
                     "Policy holder profile not found. Please contact support.");
         }
 
-        // -------------------------------------------------
         // IDEMPOTENT RETRY: CHECK EXISTING PURCHASE
-        // -------------------------------------------------
 
         PolicyPurchase existingPayment =
                 policyPurchaseDao.getPurchaseByTransactionId(
@@ -296,9 +279,7 @@ public class PolicyPurchaseService {
                     "This payment or order cannot be reused for different purchase details.");
         }
 
-        // -------------------------------------------------
         // CALCULATE PREMIUM FROM DATABASE PLAN
-        // -------------------------------------------------
 
         BigDecimal basePremium = calculateBasePremium(
                 selectedPlan,
@@ -329,9 +310,7 @@ public class PolicyPurchaseService {
                     "The calculated premium must be greater than zero.");
         }
 
-        // -------------------------------------------------
         // LOAD AND VALIDATE THE PERSISTED PAYMENT ATTEMPT
-        // -------------------------------------------------
 
         PaymentAttempt attempt =
                 paymentAttemptService.getAttemptByOrderId(
@@ -389,9 +368,7 @@ public class PolicyPurchaseService {
                     "This order is already associated with a different payment.");
         }
 
-        // -------------------------------------------------
         // VERIFY PAYMENT WITH RAZORPAY
-        // -------------------------------------------------
 
         PaymentVerificationRequest verificationRequest =
                 new PaymentVerificationRequest();
@@ -410,9 +387,9 @@ public class PolicyPurchaseService {
         } catch (Exception exception) {
             throw new IllegalStateException(
                     "Unable to verify Razorpay payment. "
-                    + "No policy was created. You can retry confirmation "
-                    + "with the same payment details. If payment was deducted, "
-                    + "do not start another checkout.",
+                    + "No policy was created. Retry confirmation using the same "
+                    + "payment details. If payment was deducted, do not start "
+                    + "another checkout.",
                     exception);
         }
 
@@ -422,18 +399,13 @@ public class PolicyPurchaseService {
                     + "No policy was created.");
         }
 
-        /*
-         * Commit this state independently from the purchase transaction.
-         * If saving the policy or purchase subsequently fails, this record
-         * survives and can be used during a confirmation retry.
-         */
+        // Persist verified payment independently of this transaction.
+
         paymentAttemptService.markPaymentVerified(
                 razorpayOrderId,
                 razorpayPaymentId);
 
-        // -------------------------------------------------
         // CREATE POLICY
-        // -------------------------------------------------
 
         LocalDate startDate = LocalDate.now();
 
@@ -458,9 +430,7 @@ public class PolicyPurchaseService {
                     "Policy could not be saved. Retry confirmation using the same payment.");
         }
 
-        // -------------------------------------------------
         // CREATE PURCHASE RECORD
-        // -------------------------------------------------
 
         PolicyPurchase purchase = new PolicyPurchase();
 
@@ -505,10 +475,7 @@ public class PolicyPurchaseService {
                     "Purchase record could not be saved. Retry confirmation using the same payment.");
         }
 
-        // -------------------------------------------------
-        // MARK COMPLETE ONLY AFTER THE PURCHASE TRANSACTION
-        // HAS SUCCESSFULLY COMMITTED
-        // -------------------------------------------------
+        // MARK PAYMENT ATTEMPT COMPLETE AFTER TRANSACTION COMMIT
 
         final String completedOrderId = razorpayOrderId;
         final String completedPaymentId = razorpayPaymentId;
@@ -525,21 +492,13 @@ public class PolicyPurchaseService {
                                     completedPaymentId);
 
                         } catch (Exception exception) {
-                            /*
-                             * The purchase has committed. Leave the purchase
-                             * intact; record reconciliation if possible.
-                             */
                             try {
                                 paymentAttemptService.markReconciliationRequired(
                                         attemptReference,
                                         "Purchase committed, but payment-attempt "
                                         + "completion status could not be updated.");
                             } catch (Exception ignored) {
-                                /*
-                                 * The purchase record remains authoritative
-                                 * for customer history. A future reconciliation
-                                 * job can repair the attempt status.
-                                 */
+                                // Reconcile this attempt through a future job.
                             }
                         }
                     }
@@ -554,6 +513,7 @@ public class PolicyPurchaseService {
 
     @Transactional(readOnly = true)
     public List<PurchasePolicyDto> getAllPurchases() {
+
         return policyPurchaseDao.getAllPurchases()
                 .stream()
                 .map(this::buildPurchaseResponse)
@@ -589,6 +549,7 @@ public class PolicyPurchaseService {
         response.setPurchaseId(purchase.getPurchaseId());
 
         if (purchase.getPolicy() != null) {
+
             Policy policy = purchase.getPolicy();
 
             response.setPolicyNumber(policy.getPolicyNumber());
@@ -637,20 +598,40 @@ public class PolicyPurchaseService {
         response.setRefundReason(purchase.getRefundReason());
         response.setRefundDateTime(purchase.getRefundDateTime());
 
+        // REFUND ELIGIBILITY
+
         LocalDateTime paymentTime = purchase.getPaymentDateTime();
+        String refundStatus = purchase.getRefundStatus();
 
         if (paymentTime != null) {
-            LocalDateTime deadline = paymentTime.plusHours(24);
 
+            LocalDateTime deadline = paymentTime.plusHours(24);
             response.setRefundDeadline(deadline);
 
-            boolean alreadyRefunded =
-                    "REFUNDED".equalsIgnoreCase(
-                            purchase.getRefundStatus());
+            boolean withinRefundWindow =
+                    LocalDateTime.now().isBefore(deadline);
+
+            boolean paymentPaid =
+                    "PAID".equalsIgnoreCase(
+                            purchase.getPaymentStatus());
+
+            /*
+             * A blank or null status is not automatically considered
+             * eligible. Only NOT_REFUNDED allows a new refund.
+             */
+            boolean noRefundStarted =
+                    "NOT_REFUNDED".equalsIgnoreCase(refundStatus);
+
+            boolean hasPaymentId =
+                    purchase.getRazorpayPaymentId() != null
+                    && !purchase.getRazorpayPaymentId().isBlank();
 
             response.setRefundEligible(
-                    !alreadyRefunded
-                    && LocalDateTime.now().isBefore(deadline));
+                    paymentPaid
+                    && withinRefundWindow
+                    && noRefundStarted
+                    && hasPaymentId);
+
         } else {
             response.setRefundDeadline(null);
             response.setRefundEligible(false);
