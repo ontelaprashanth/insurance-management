@@ -15,6 +15,26 @@ import {
 
 import { useQuery } from '@tanstack/react-query'
 
+import {
+  LayoutDashboard,
+  ShieldPlus,
+  ShieldCheck,
+  CreditCard,
+  HandCoins,
+  ClipboardList,
+  Star,
+  Bell,
+  UserRound,
+  UsersRound,
+  UserRoundCheck,
+  Shield,
+  ShoppingBag,
+  ClipboardCheck,
+  Wallet,
+  Megaphone,
+  LogOut,
+} from 'lucide-react'
+
 import { useAuth } from '../auth/AuthContext'
 import { notifications } from '../api/endpoints'
 import { Icon, Logo } from './ui'
@@ -31,13 +51,13 @@ const USER_NAV = [
       {
         to: '/app',
         label: 'Dashboard',
-        icon: 'home',
+        icon: LayoutDashboard,
         end: true,
       },
       {
         to: '/app/plans',
         label: 'Buy insurance',
-        icon: 'shield',
+        icon: ShieldPlus,
       },
     ],
   },
@@ -47,27 +67,27 @@ const USER_NAV = [
       {
         to: '/app/policies',
         label: 'My policies',
-        icon: 'badge',
+        icon: ShieldCheck,
       },
       {
         to: '/app/purchases',
         label: 'Payments',
-        icon: 'receipt',
+        icon: CreditCard,
       },
       {
         to: '/app/refunds',
         label: 'Refunds',
-        icon: 'cash',
+        icon: HandCoins,
       },
       {
         to: '/app/claims',
         label: 'My claims',
-        icon: 'claim',
+        icon: ClipboardList,
       },
       {
         to: '/app/reviews',
         label: 'Reviews',
-        icon: 'star',
+        icon: Star,
       },
     ],
   },
@@ -77,13 +97,13 @@ const USER_NAV = [
       {
         to: '/app/notifications',
         label: 'Notifications',
-        icon: 'bell',
+        icon: Bell,
         badge: true,
       },
       {
         to: '/app/profile',
         label: 'Profile',
-        icon: 'user',
+        icon: UserRound,
       },
     ],
   },
@@ -100,7 +120,7 @@ const ADMIN_NAV = [
       {
         to: '/admin',
         label: 'Dashboard',
-        icon: 'chart',
+        icon: LayoutDashboard,
         end: true,
       },
     ],
@@ -111,12 +131,12 @@ const ADMIN_NAV = [
       {
         to: '/admin/users',
         label: 'Users',
-        icon: 'users',
+        icon: UsersRound,
       },
       {
         to: '/admin/policy-holders',
         label: 'Policy holders',
-        icon: 'user',
+        icon: UserRoundCheck,
       },
     ],
   },
@@ -126,12 +146,12 @@ const ADMIN_NAV = [
       {
         to: '/admin/policies',
         label: 'Policies',
-        icon: 'shield',
+        icon: Shield,
       },
       {
         to: '/admin/purchases',
         label: 'Purchases',
-        icon: 'receipt',
+        icon: ShoppingBag,
       },
     ],
   },
@@ -141,17 +161,17 @@ const ADMIN_NAV = [
       {
         to: '/admin/claims',
         label: 'Claims',
-        icon: 'claim',
+        icon: ClipboardCheck,
       },
       {
         to: '/admin/settlements',
         label: 'Settlements',
-        icon: 'cash',
+        icon: Wallet,
       },
       {
         to: '/admin/reviews',
         label: 'Reviews',
-        icon: 'star',
+        icon: Star,
       },
     ],
   },
@@ -161,7 +181,7 @@ const ADMIN_NAV = [
       {
         to: '/admin/broadcast',
         label: 'Broadcast',
-        icon: 'megaphone',
+        icon: Megaphone,
       },
     ],
   },
@@ -274,32 +294,41 @@ export default function Layout({ role }) {
      NAVIGATION LINK
   ======================================================= */
 
-  const renderNavItem = (item) => (
-    <NavLink
-      key={item.to}
-      to={item.to}
-      end={item.end ?? false}
-      className={({ isActive }) =>
-        isActive ? 'active' : ''
-      }
-      onClick={() => setOpen(false)}
-    >
-      <Icon name={item.icon} />
+  const renderNavItem = (item) => {
+    const NavIcon = item.icon
 
-      <span>{item.label}</span>
+    return (
+      <NavLink
+        key={item.to}
+        to={item.to}
+        end={item.end ?? false}
+        className={({ isActive }) =>
+          isActive ? 'active' : ''
+        }
+        onClick={() => setOpen(false)}
+      >
+        <NavIcon
+          className="sidebar-nav-icon"
+          size={21}
+          strokeWidth={1.9}
+          aria-hidden="true"
+        />
 
-      {item.badge && unreadCount > 0 && (
-        <span
-          className="count"
-          aria-label={`${unreadCount} unread notifications`}
-        >
-          {unreadCount > 99
-            ? '99+'
-            : unreadCount}
-        </span>
-      )}
-    </NavLink>
-  )
+        <span>{item.label}</span>
+
+        {item.badge && unreadCount > 0 && (
+          <span
+            className="count"
+            aria-label={`${unreadCount} unread notifications`}
+          >
+            {unreadCount > 99
+              ? '99+'
+              : unreadCount}
+          </span>
+        )}
+      </NavLink>
+    )
+  }
 
   /* =======================================================
      RENDER
@@ -308,9 +337,7 @@ export default function Layout({ role }) {
   return (
     <div className="shell">
 
-      {/* ===================================================
-          MOBILE BACKDROP
-      =================================================== */}
+      {/* MOBILE BACKDROP */}
 
       {open && (
         <div
@@ -320,9 +347,7 @@ export default function Layout({ role }) {
         />
       )}
 
-      {/* ===================================================
-          SIDEBAR
-      =================================================== */}
+      {/* SIDEBAR */}
 
       <aside
         id="insurex-sidebar"
@@ -411,16 +436,18 @@ export default function Layout({ role }) {
             title="Sign out"
             type="button"
           >
-            <Icon name="logout" />
+            <LogOut
+              size={20}
+              strokeWidth={1.9}
+              aria-hidden="true"
+            />
           </button>
 
         </div>
 
       </aside>
 
-      {/* ===================================================
-          MAIN CONTENT
-      =================================================== */}
+      {/* MAIN CONTENT */}
 
       <div className="main">
 
