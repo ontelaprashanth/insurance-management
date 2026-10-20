@@ -1,11 +1,18 @@
 
-import { useEffect, useState, useCallback } from 'react'
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useRef,
+} from 'react'
+
 import {
   NavLink,
   Outlet,
   useLocation,
   useNavigate,
 } from 'react-router-dom'
+
 import { useQuery } from '@tanstack/react-query'
 
 import { useAuth } from '../auth/AuthContext'
@@ -172,28 +179,42 @@ export default function Layout({ role }) {
   const { pathname } = useLocation()
   const navigate = useNavigate()
 
-  const nav = role === 'ADMIN' ? ADMIN_NAV : USER_NAV
+  const menuButtonRef = useRef(null)
+  const sidebarRef = useRef(null)
 
-  /* Close mobile sidebar after navigation */
+  const isAdmin = role === 'ADMIN'
+  const nav = isAdmin ? ADMIN_NAV : USER_NAV
+  const dashboardPath = isAdmin ? '/admin' : '/app'
+
+  /* =======================================================
+     CLOSE MOBILE MENU ON NAVIGATION
+  ======================================================= */
 
   useEffect(() => {
     setOpen(false)
   }, [pathname])
 
-  /* Lock background scrolling while mobile menu is open */
+  /* =======================================================
+     LOCK BACKGROUND SCROLLING
+  ======================================================= */
 
   useEffect(() => {
     if (!open) return
 
-    const previousOverflow = document.body.style.overflow
+    const previousOverflow =
+      document.body.style.overflow
+
     document.body.style.overflow = 'hidden'
 
     return () => {
-      document.body.style.overflow = previousOverflow
+      document.body.style.overflow =
+        previousOverflow
     }
   }, [open])
 
-  /* Close sidebar with Escape */
+  /* =======================================================
+     ESCAPE KEY SUPPORT
+  ======================================================= */
 
   useEffect(() => {
     if (!open) return
@@ -201,38 +222,95 @@ export default function Layout({ role }) {
     const handleEscape = (event) => {
       if (event.key === 'Escape') {
         setOpen(false)
+        menuButtonRef.current?.focus()
       }
     }
 
-    document.addEventListener('keydown', handleEscape)
+    document.addEventListener(
+      'keydown',
+      handleEscape,
+    )
 
     return () => {
-      document.removeEventListener('keydown', handleEscape)
+      document.removeEventListener(
+        'keydown',
+        handleEscape,
+      )
     }
   }, [open])
 
-  /* Customer unread notifications */
+  /* =======================================================
+     CUSTOMER UNREAD NOTIFICATIONS
+  ======================================================= */
 
   const unread = useQuery({
     queryKey: ['notifications', 'unread'],
     queryFn: notifications.unread,
-    enabled: role === 'USER',
+    enabled: !isAdmin,
+    staleTime: 15_000,
     refetchInterval: 60_000,
+    refetchOnWindowFocus: true,
   })
 
-  const unreadCount = Number(unread.data?.count || 0)
+  const unreadCount = Math.max(
+    0,
+    Number(unread.data?.count || 0) || 0,
+  )
 
-  /* Logout */
+  /* =======================================================
+     LOGOUT
+  ======================================================= */
 
   const handleLogout = useCallback(() => {
+    setOpen(false)
     logout()
-    navigate('/login', { replace: true })
+
+    navigate('/login', {
+      replace: true,
+    })
   }, [logout, navigate])
+
+  /* =======================================================
+     NAVIGATION LINK
+  ======================================================= */
+
+  const renderNavItem = (item) => (
+    <NavLink
+      key={item.to}
+      to={item.to}
+      end={item.end ?? false}
+      className={({ isActive }) =>
+        isActive ? 'active' : ''
+      }
+      onClick={() => setOpen(false)}
+    >
+      <Icon name={item.icon} />
+
+      <span>{item.label}</span>
+
+      {item.badge && unreadCount > 0 && (
+        <span
+          className="count"
+          aria-label={`${unreadCount} unread notifications`}
+        >
+          {unreadCount > 99
+            ? '99+'
+            : unreadCount}
+        </span>
+      )}
+    </NavLink>
+  )
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
     <div className="shell">
 
-      {/* MOBILE BACKDROP */}
+      {/* ===================================================
+          MOBILE BACKDROP
+      =================================================== */}
 
       {open && (
         <div
@@ -242,18 +320,27 @@ export default function Layout({ role }) {
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* ===================================================
+          SIDEBAR
+      =================================================== */}
 
       <aside
+        id="insurex-sidebar"
+        ref={sidebarRef}
         className={`sidebar ${open ? 'open' : ''}`}
-        aria-label="Main navigation"
+        aria-label={
+          isAdmin
+            ? 'Admin navigation'
+            : 'Customer navigation'
+        }
       >
 
         {/* BRAND */}
 
         <NavLink
-          to={role === 'ADMIN' ? '/admin' : '/app'}
+          to={dashboardPath}
           className="brand"
+          onClick={() => setOpen(false)}
         >
           <Logo />
 
@@ -261,7 +348,7 @@ export default function Layout({ role }) {
             InsureX
 
             <small>
-              {role === 'ADMIN'
+              {isAdmin
                 ? 'Admin console'
                 : 'Customer portal'}
             </small>
@@ -270,7 +357,10 @@ export default function Layout({ role }) {
 
         {/* NAVIGATION */}
 
-        <nav className="nav">
+        <nav
+          className="nav"
+          aria-label="Main navigation"
+        >
           {nav.map((group) => (
             <div key={group.group}>
 
@@ -278,28 +368,7 @@ export default function Layout({ role }) {
                 {group.group}
               </div>
 
-              {group.items.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  end={item.end}
-                  className={({ isActive }) =>
-                    isActive ? 'active' : ''
-                  }
-                >
-                  <Icon name={item.icon} />
-
-                  <span>{item.label}</span>
-
-                  {item.badge && unreadCount > 0 && (
-                    <span className="count">
-                      {unreadCount > 99
-                        ? '99+'
-                        : unreadCount}
-                    </span>
-                  )}
-                </NavLink>
-              ))}
+              {group.items.map(renderNavItem)}
 
             </div>
           ))}
@@ -309,20 +378,30 @@ export default function Layout({ role }) {
 
         <div className="sidebar-foot">
 
-          <div className="avatar">
-            {initials(user?.username)}
+          <div
+            className="avatar"
+            aria-hidden="true"
+          >
+            {initials(
+              user?.username ||
+              user?.name ||
+              'InsureX',
+            )}
           </div>
 
           <div className="who">
-            <b>
-              {user?.username || 'InsureX user'}
+
+            <b title={user?.username || ''}>
+              {user?.username ||
+                'InsureX user'}
             </b>
 
             <span>
-              {role === 'ADMIN'
+              {isAdmin
                 ? 'Administrator'
                 : 'Customer'}
             </span>
+
           </div>
 
           <button
@@ -336,9 +415,12 @@ export default function Layout({ role }) {
           </button>
 
         </div>
+
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* ===================================================
+          MAIN CONTENT
+      =================================================== */}
 
       <div className="main">
 
@@ -347,37 +429,50 @@ export default function Layout({ role }) {
         <header className="topbar">
 
           <button
+            ref={menuButtonRef}
             className="btn ghost icon-btn"
             onClick={() =>
               setOpen((current) => !current)
             }
             aria-label={
-              open ? 'Close menu' : 'Open menu'
+              open
+                ? 'Close menu'
+                : 'Open menu'
             }
             aria-expanded={open}
             aria-controls="insurex-sidebar"
             type="button"
           >
-            <Icon name="menu" />
+            <Icon
+              name={open ? 'x' : 'menu'}
+            />
           </button>
 
           <NavLink
-            to={role === 'ADMIN' ? '/admin' : '/app'}
+            to={dashboardPath}
             className="brand"
+            onClick={() => setOpen(false)}
           >
             <Logo size={26} />
-            <span>InsureX</span>
+
+            <span>
+              InsureX
+            </span>
           </NavLink>
 
         </header>
 
         {/* PAGE CONTENT */}
 
-        <main className="content">
+        <main
+          className="content"
+          id="main-content"
+        >
           <Outlet />
         </main>
 
       </div>
+
     </div>
   )
 }
