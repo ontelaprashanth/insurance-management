@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import com.htc.insurance.dao.PolicyDao;
+import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyHolderDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dao.UserDao;
