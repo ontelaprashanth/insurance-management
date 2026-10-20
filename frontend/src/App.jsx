@@ -13,6 +13,7 @@ import Plans from './pages/customer/Plans'
 import BuyPolicy from './pages/customer/BuyPolicy'
 import MyPolicies from './pages/customer/MyPolicies'
 import MyPurchases from './pages/customer/MyPurchases'
+import Refunds from './pages/customer/Refunds'
 import MyClaims from './pages/customer/MyClaims'
 import MyReviews from './pages/customer/MyReviews'
 import Notifications from './pages/customer/Notifications'
@@ -27,6 +28,10 @@ import AdminClaims from './pages/admin/Claims'
 import AdminSettlements from './pages/admin/Settlements'
 import AdminReviews from './pages/admin/Reviews'
 import AdminBroadcast from './pages/admin/Broadcast'
+
+/* =========================================================
+   INSUREX — APPLICATION ROUTING
+========================================================= */
 
 const home = (user) =>
   user?.role === 'ADMIN' ? '/admin' : '/app'
@@ -45,14 +50,17 @@ function Splash() {
         style={{
           width: 28,
           height: 28,
-          color: '#0F3D3E',
+          color: 'var(--fjord)',
         }}
       />
     </div>
   )
 }
 
-// Protect customer and admin routes.
+/* =========================================================
+   PROTECTED ROUTES
+========================================================= */
+
 function Guard({ role, children }) {
   const { user, booting } = useAuth()
   const location = useLocation()
@@ -78,7 +86,10 @@ function Guard({ role, children }) {
   return children
 }
 
-// Allow guests to access public pages only.
+/* =========================================================
+   GUEST-ONLY ROUTES
+========================================================= */
+
 function GuestOnly({ children }) {
   const { user, booting } = useAuth()
 
@@ -93,7 +104,10 @@ function GuestOnly({ children }) {
   return children
 }
 
-// Show Landing page by default.
+/* =========================================================
+   ROOT PAGE
+========================================================= */
+
 function RootPage() {
   const { user, booting } = useAuth()
 
@@ -108,13 +122,18 @@ function RootPage() {
   return <Landing />
 }
 
+/* =========================================================
+   APPLICATION
+========================================================= */
+
 export default function App() {
   return (
     <Routes>
-      {/* Landing page */}
+
+      {/* PUBLIC */}
+
       <Route path="/" element={<RootPage />} />
 
-      {/* Login */}
       <Route
         path="/login"
         element={
@@ -124,7 +143,6 @@ export default function App() {
         }
       />
 
-      {/* Registration */}
       <Route
         path="/register"
         element={
@@ -134,7 +152,6 @@ export default function App() {
         }
       />
 
-      {/* Forgot password */}
       <Route
         path="/forgot-password"
         element={
@@ -144,7 +161,8 @@ export default function App() {
         }
       />
 
-      {/* Customer routes */}
+      {/* CUSTOMER */}
+
       <Route
         path="/app"
         element={
@@ -153,24 +171,61 @@ export default function App() {
           </Guard>
         }
       >
-        <Route index element={<CustomerDashboard />} />
-        <Route path="plans" element={<Plans />} />
+        <Route
+          index
+          element={<CustomerDashboard />}
+        />
+
+        <Route
+          path="plans"
+          element={<Plans />}
+        />
+
         <Route
           path="plans/:policyNumber/buy"
           element={<BuyPolicy />}
         />
-        <Route path="policies" element={<MyPolicies />} />
-        <Route path="purchases" element={<MyPurchases />} />
-        <Route path="claims" element={<MyClaims />} />
-        <Route path="reviews" element={<MyReviews />} />
+
+        <Route
+          path="policies"
+          element={<MyPolicies />}
+        />
+
+        <Route
+          path="purchases"
+          element={<MyPurchases />}
+        />
+
+        {/* NEW — REFUNDS */}
+
+        <Route
+          path="refunds"
+          element={<Refunds />}
+        />
+
+        <Route
+          path="claims"
+          element={<MyClaims />}
+        />
+
+        <Route
+          path="reviews"
+          element={<MyReviews />}
+        />
+
         <Route
           path="notifications"
           element={<Notifications />}
         />
-        <Route path="profile" element={<Profile />} />
+
+        <Route
+          path="profile"
+          element={<Profile />}
+        />
       </Route>
 
-      {/* Admin routes */}
+      {/* ADMIN */}
+
       <Route
         path="/admin"
         element={
@@ -179,34 +234,64 @@ export default function App() {
           </Guard>
         }
       >
-        <Route index element={<AdminDashboard />} />
-        <Route path="users" element={<AdminUsers />} />
+        <Route
+          index
+          element={<AdminDashboard />}
+        />
+
+        <Route
+          path="users"
+          element={<AdminUsers />}
+        />
+
         <Route
           path="policy-holders"
           element={<AdminPolicyHolders />}
         />
-        <Route path="policies" element={<AdminPolicies />} />
-        <Route path="purchases" element={<AdminPurchases />} />
-        <Route path="claims" element={<AdminClaims />} />
+
+        <Route
+          path="policies"
+          element={<AdminPolicies />}
+        />
+
+        <Route
+          path="purchases"
+          element={<AdminPurchases />}
+        />
+
+        <Route
+          path="claims"
+          element={<AdminClaims />}
+        />
+
         <Route
           path="settlements"
           element={<AdminSettlements />}
         />
-        <Route path="reviews" element={<AdminReviews />} />
-        <Route path="broadcast" element={<AdminBroadcast />} />
+
+        <Route
+          path="reviews"
+          element={<AdminReviews />}
+        />
+
+        <Route
+          path="broadcast"
+          element={<AdminBroadcast />}
+        />
       </Route>
 
-      {/* Redirect index.html to the Landing page */}
+      {/* FALLBACKS */}
+
       <Route
         path="/index.html"
         element={<Navigate to="/" replace />}
       />
 
-      {/* Redirect unknown URLs */}
       <Route
         path="*"
         element={<Navigate to="/" replace />}
       />
+
     </Routes>
   )
 }
