@@ -5,7 +5,7 @@
    Payments • Settlements • Reviews • Notifications
 ========================================================= */
 
-import { api } from './client'
+import { api } from '../lib/api'
 
 const d = (request) => request.then((response) => response.data)
 
