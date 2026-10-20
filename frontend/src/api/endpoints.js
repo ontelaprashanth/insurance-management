@@ -1,15 +1,19 @@
-
 /* =========================================================
    INSUREX — CENTRAL API ENDPOINTS
    Authentication • Users • Policies • Claims
    Payments • Settlements • Reviews • Notifications
 ========================================================= */
 
-import { api } from '../lib/api'
+// Your Axios client file must export `api`.
+// If the code you supplied is saved as src/api/api.js,
+// this import is correct.
+import { api } from './api'
 
 const d = (request) => request.then((response) => response.data)
 
-/* AUTHENTICATION */
+/* =========================================================
+   AUTHENTICATION
+========================================================= */
 
 export const auth = {
   login: (body) => d(api.post('/api/auth/login', body)),
@@ -23,7 +27,9 @@ export const auth = {
     d(api.post('/api/auth/reset-password', body)),
 }
 
-/* USERS */
+/* =========================================================
+   USERS
+========================================================= */
 
 export const users = {
   getAll: () => d(api.get('/user/getAll')),
@@ -35,7 +41,9 @@ export const users = {
     d(api.delete(`/user/delete/${encodeURIComponent(id)}`)),
 }
 
-/* PLANS */
+/* =========================================================
+   PLANS
+========================================================= */
 
 export const plans = {
   getAll: () => d(api.get('/policy/getAll')),
@@ -48,7 +56,9 @@ export const plans = {
     d(api.delete(`/policy/delete/${encodeURIComponent(id)}`)),
 }
 
-/* POLICIES */
+/* =========================================================
+   POLICIES
+========================================================= */
 
 export const policies = {
   available: () => d(api.get('/policy/available')),
@@ -66,20 +76,26 @@ export const policies = {
     d(api.put(`/policy/deactivate/${encodeURIComponent(id)}`)),
 }
 
-/* PURCHASES */
+/* =========================================================
+   POLICY PURCHASES
+========================================================= */
 
 export const purchases = {
   purchase: (body) => d(api.post('/policy/purchase', body)),
   mine: () => d(api.get('/policy/my-purchases')),
   getAll: () => d(api.get('/policy/purchases')),
   refund: (purchaseId, body) =>
-    d(api.post(
-      `/policy/purchases/${encodeURIComponent(purchaseId)}/refund`,
-      body,
-    )),
+    d(
+      api.post(
+        `/policy/purchases/${encodeURIComponent(purchaseId)}/refund`,
+        body,
+      ),
+    ),
 }
 
-/* POLICY HOLDERS */
+/* =========================================================
+   POLICY HOLDERS
+========================================================= */
 
 export const policyHolders = {
   getAll: () => d(api.get('/policyholder/getAll')),
@@ -87,15 +103,19 @@ export const policyHolders = {
     d(api.get(`/policyholder/get/${encodeURIComponent(id)}`)),
   save: (body) => d(api.post('/policyholder/save', body)),
   update: (id, body) =>
-    d(api.put(
-      `/policyholder/update/${encodeURIComponent(id)}`,
-      body,
-    )),
+    d(
+      api.put(
+        `/policyholder/update/${encodeURIComponent(id)}`,
+        body,
+      ),
+    ),
   remove: (id) =>
     d(api.delete(`/policyholder/delete/${encodeURIComponent(id)}`)),
 }
 
-/* CLAIMS */
+/* =========================================================
+   CLAIMS
+========================================================= */
 
 export const claims = {
   save: (body) => d(api.post('/claims/save', body)),
@@ -104,26 +124,34 @@ export const claims = {
   get: (claimNumber) =>
     d(api.get(`/claims/get/${encodeURIComponent(claimNumber)}`)),
   update: (claimNumber, body) =>
-    d(api.put(
-      `/claims/update/${encodeURIComponent(claimNumber)}`,
-      body,
-    )),
+    d(
+      api.put(
+        `/claims/update/${encodeURIComponent(claimNumber)}`,
+        body,
+      ),
+    ),
   approve: (claimNumber, body = {}) =>
-    d(api.put(
-      `/claims/approve/${encodeURIComponent(claimNumber)}`,
-      body,
-    )),
+    d(
+      api.put(
+        `/claims/approve/${encodeURIComponent(claimNumber)}`,
+        body,
+      ),
+    ),
   reject: (claimNumber, body = {}) =>
-    d(api.put(
-      `/claims/reject/${encodeURIComponent(claimNumber)}`,
-      body,
-    )),
+    d(
+      api.put(
+        `/claims/reject/${encodeURIComponent(claimNumber)}`,
+        body,
+      ),
+    ),
   remove: (claimNumber) =>
     d(api.delete(`/claims/delete/${encodeURIComponent(claimNumber)}`)),
 }
 
-/* PAYMENTS
-   Confirm these paths match your backend controller. */
+/* =========================================================
+   PAYMENTS
+   Verify these routes against your payment controller.
+========================================================= */
 
 export const payment = {
   createOrder: (body) =>
@@ -135,7 +163,9 @@ export const payment = {
   get: (id) => d(api.get(`/payment/get/${encodeURIComponent(id)}`)),
 }
 
-/* SETTLEMENTS */
+/* =========================================================
+   SETTLEMENTS
+========================================================= */
 
 export const settlements = {
   getAll: () => d(api.get('/settlement/getAll')),
@@ -148,7 +178,9 @@ export const settlements = {
     d(api.delete(`/settlement/delete/${encodeURIComponent(id)}`)),
 }
 
-/* REVIEWS */
+/* =========================================================
+   REVIEWS
+========================================================= */
 
 export const reviews = {
   mine: () => d(api.get('/reviews/my-reviews')),
@@ -161,7 +193,9 @@ export const reviews = {
     d(api.delete(`/reviews/delete/${encodeURIComponent(id)}`)),
 }
 
-/* NOTIFICATIONS */
+/* =========================================================
+   NOTIFICATIONS
+========================================================= */
 
 export const notifications = {
   mine: () => d(api.get('/api/notifications/my')),
@@ -173,8 +207,10 @@ export const notifications = {
     d(api.delete(`/api/notifications/${encodeURIComponent(id)}`)),
 }
 
-/* BROADCAST
-   Confirm these paths match your backend controller. */
+/* =========================================================
+   BROADCAST
+   Verify these routes against your notification controller.
+========================================================= */
 
 export const broadcast = {
   send: (body) =>
@@ -182,7 +218,9 @@ export const broadcast = {
   getAll: () => d(api.get('/api/notifications/broadcast')),
 }
 
-/* DEFAULT EXPORT */
+/* =========================================================
+   DEFAULT EXPORT
+========================================================= */
 
 export default {
   auth,
