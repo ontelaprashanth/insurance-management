@@ -1,18 +1,16 @@
+
 import axios from 'axios'
 
 /* =========================================================
    INSUREX — CENTRAL API CLIENT
-   Authentication • Session handling • Error handling
 ========================================================= */
 
 const TOKEN_KEY = 'insurex_token'
 
 const configuredApiUrl = import.meta.env.VITE_API_URL?.trim()
 
-const normalizeApiUrl = (url) => {
-  if (!url) return ''
-  return url.replace(/\/+$/, '')
-}
+const normalizeApiUrl = (url) =>
+  String(url || '').replace(/\/+$/, '')
 
 export const API_URL = normalizeApiUrl(
   configuredApiUrl ||
@@ -33,9 +31,9 @@ const safely = (callback, fallback = null) => {
   }
 }
 
-safely(() => {
-  localStorage.removeItem(TOKEN_KEY)
-})
+// Keep the existing tab-scoped login behavior.
+// Do not migrate an old localStorage token automatically.
+safely(() => localStorage.removeItem(TOKEN_KEY))
 
 export const tokenStore = {
   get() {
@@ -45,7 +43,7 @@ export const tokenStore = {
   set(token) {
     safely(() => {
       if (typeof token === 'string' && token.trim()) {
-        sessionStorage.setItem(TOKEN_KEY, token)
+        sessionStorage.setItem(TOKEN_KEY, token.trim())
       } else {
         sessionStorage.removeItem(TOKEN_KEY)
       }
@@ -53,15 +51,12 @@ export const tokenStore = {
   },
 
   clear() {
-    safely(() => {
-      sessionStorage.removeItem(TOKEN_KEY)
-    })
+    safely(() => sessionStorage.removeItem(TOKEN_KEY))
   },
 }
 
 /* =========================================================
    AXIOS INSTANCE
-   Allow time for Render Free cold starts.
 ========================================================= */
 
 export const api = axios.create({
@@ -73,7 +68,7 @@ export const api = axios.create({
 })
 
 /* =========================================================
-   AUTHENTICATION REQUEST INTERCEPTOR
+   REQUEST INTERCEPTOR
 ========================================================= */
 
 api.interceptors.request.use(
@@ -84,7 +79,7 @@ api.interceptors.request.use(
 
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
-    } else if (config.headers.Authorization) {
+    } else {
       delete config.headers.Authorization
     }
 
@@ -94,7 +89,7 @@ api.interceptors.request.use(
 )
 
 /* =========================================================
-   SESSION EXPIRATION HANDLER
+   UNAUTHORIZED SESSION HANDLER
 ========================================================= */
 
 let onUnauthorized = () => {}
@@ -115,17 +110,17 @@ export const resetUnauthorizedState = () => {
 
 api.interceptors.response.use(
   (response) => response,
-
   (error) => {
     const url = error.config?.url || ''
     const status = error.response?.status
 
-    const isAuthenticationEndpoint =
-      url.includes('/api/auth/login') ||
-      url.includes('/api/auth/send-otp') ||
-      url.includes('/api/auth/verify-otp') ||
-      url.includes('/api/auth/forgot-password') ||
-      url.includes('/api/auth/reset-password')
+    const isAuthenticationEndpoint = [
+      '/api/auth/login',
+      '/api/auth/send-otp',
+      '/api/auth/verify-otp',
+      '/api/auth/forgot-password',
+      '/api/auth/reset-password',
+    ].some((path) => url.includes(path))
 
     if (status === 401 && !isAuthenticationEndpoint) {
       tokenStore.clear()
@@ -135,8 +130,11 @@ api.interceptors.response.use(
 
         try {
           onUnauthorized()
-        } catch {
-          // Do not mask the original API error.
+        } catch (handlerError) {
+          console.error(
+            'InsureX unauthorized handler error:',
+            handlerError,
+          )
         }
       }
     }
@@ -155,15 +153,15 @@ export function errorMessage(
 ) {
   if (!error) return fallback
 
+  if (error.code === 'ERR_CANCELED') {
+    return 'The request was cancelled.'
+  }
+
   if (
     error.code === 'ECONNABORTED' ||
     error.code === 'ETIMEDOUT'
   ) {
-    return 'InsureX is taking longer than usual to start. Please wait a moment and try again.'
-  }
-
-  if (error.code === 'ERR_CANCELED') {
-    return 'The request was cancelled.'
+    return 'The request timed out. Check the latest status before retrying.'
   }
 
   const status = error.response?.status
@@ -188,11 +186,11 @@ export function errorMessage(
   }
 
   if (status === 400) {
-    return 'The request is invalid. Please check your information.'
+    return 'Invalid request. Please check your information.'
   }
 
   if (status === 401) {
-    return 'Your session has expired or your credentials are invalid. Please sign in again.'
+    return 'Your session has expired. Please sign in again.'
   }
 
   if (status === 403) {
@@ -200,28 +198,33 @@ export function errorMessage(
   }
 
   if (status === 404) {
-    return 'The requested resource was not found.'
+    return 'The requested API endpoint was not found.'
   }
 
   if (status === 409) {
-    return 'This request conflicts with existing information.'
+    return 'This request conflicts with an existing record.'
   }
 
   if (status === 422) {
-    return 'Some information could not be processed. Please review your entries.'
+    return 'The request could not be processed.'
   }
 
   if (status === 429) {
-    return 'Too many requests. Please wait and try again.'
+    return 'Too many requests. Please try again later.'
   }
 
   if (status >= 500) {
-    return 'The InsureX server encountered a problem. Please try again later.'
+    return 'The InsureX server encountered an error. Check the latest status before retrying.'
   }
 
-  if (error.code === 'ERR_NETWORK' || !error.response) {
-    return 'Cannot connect to InsureX. The server may be starting up. Please try again shortly.'
+  if (error.code === 'ERR_NETWORK') {
+    return 'The network request failed. Check the request in your browser Network tab.'
   }
 
-  return error.message || fallback
+  // A frontend TypeError is not a backend connection failure.
+  if (error instanceof Error) {
+    return error.message || fallback
+  }
+
+  return fallback
 }
