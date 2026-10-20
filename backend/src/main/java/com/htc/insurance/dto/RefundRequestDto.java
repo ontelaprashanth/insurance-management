@@ -8,13 +8,14 @@ import lombok.Data;
 @Data
 public class RefundRequestDto {
 
-    @NotNull(message = "Purchase ID is required")
+    // Optional for the existing URL-based refund endpoint.
+    // Retained for compatibility with other callers.
     private Long purchaseId;
 
-    @NotBlank(message = "Refund reason is required")
+    @NotBlank(message = "Refund reason is required.")
     @Size(
         max = 500,
-        message = "Refund reason must not exceed 500 characters"
+        message = "Refund reason must not exceed 500 characters."
     )
     private String refundReason;
 }
