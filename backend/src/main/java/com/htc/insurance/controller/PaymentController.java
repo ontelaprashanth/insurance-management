@@ -1,9 +1,11 @@
+
 package com.htc.insurance.controller;
 
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,21 +22,18 @@ public class PaymentController {
 
     private final PaymentService paymentService;
 
-    public PaymentController(
-            PaymentService paymentService) {
-
-        this.paymentService =
-                paymentService;
+    public PaymentController(PaymentService paymentService) {
+        this.paymentService = paymentService;
     }
 
     @PostMapping("/create-order")
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<PaymentOrderResponse> createOrder(
-            @RequestBody PaymentOrderRequest request)
-            throws Exception {
+            @RequestBody PaymentOrderRequest request,
+            Authentication authentication) throws Exception {
 
-        PaymentOrderResponse response =
-                paymentService.createOrder(request);
+        PaymentOrderResponse response = paymentService.createOrder(
+                request, authentication.getName());
 
         return ResponseEntity.ok(response);
     }
@@ -45,29 +44,21 @@ public class PaymentController {
             @RequestBody PaymentVerificationRequest request)
             throws Exception {
 
-        boolean verified =
-                paymentService.verifyPayment(request);
+        boolean verified = paymentService.verifyPayment(request);
 
         if (!verified) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body(
-                        Map.of(
-                            "success",
-                            false,
-                            "message",
-                            "Payment verification failed."
-                        )
-                    );
+            return ResponseEntity.badRequest().body(
+                    Map.of(
+                            "success", false,
+                            "message", "Payment verification failed."
+                    )
+            );
         }
 
         return ResponseEntity.ok(
                 Map.of(
-                    "success",
-                    true,
-                    "message",
-                    "Payment verified successfully."
+                        "success", true,
+                        "message", "Payment verified successfully."
                 )
         );
     }
