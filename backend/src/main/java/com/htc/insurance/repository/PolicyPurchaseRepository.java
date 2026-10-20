@@ -3,7 +3,12 @@ package com.htc.insurance.repository;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.htc.insurance.entity.PolicyPurchase;
@@ -17,8 +22,7 @@ public interface PolicyPurchaseRepository
     // ==========================================
 
     Optional<PolicyPurchase> findByPolicyPolicyNumber(
-            Long policyNumber
-    );
+            Long policyNumber);
 
 
     // ==========================================
@@ -26,8 +30,7 @@ public interface PolicyPurchaseRepository
     // ==========================================
 
     Optional<PolicyPurchase> findByTransactionId(
-            String transactionId
-    );
+            String transactionId);
 
 
     // ==========================================
@@ -35,8 +38,7 @@ public interface PolicyPurchaseRepository
     // ==========================================
 
     Optional<PolicyPurchase> findByRazorpayOrderId(
-            String razorpayOrderId
-    );
+            String razorpayOrderId);
 
 
     // ==========================================
@@ -53,8 +55,21 @@ public interface PolicyPurchaseRepository
     // USER
     // ==========================================
 
-    List<PolicyPurchase>
-    findByPolicyPolicyHolderUserUsername(
-            String username
-    );
+    List<PolicyPurchase> findByPolicyPolicyHolderUserUsername(
+            String username);
+
+
+    // ==========================================
+    // GET PURCHASE WITH DATABASE WRITE LOCK
+    // REFUND PROCESSING
+    // ==========================================
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT p
+        FROM PolicyPurchase p
+        WHERE p.purchaseId = :purchaseId
+        """)
+    Optional<PolicyPurchase> findByIdForUpdate(
+            @Param("purchaseId") Long purchaseId);
 }
