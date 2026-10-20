@@ -1,12 +1,26 @@
 
-import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
+import {
+  Navigate,
+  Route,
+  Routes,
+  useLocation,
+} from 'react-router-dom'
+
 import { useAuth } from './auth/AuthContext'
 import Layout from './components/Layout'
+
+/* =========================================================
+   PUBLIC PAGES
+========================================================= */
 
 import Landing from './pages/public/Landing'
 import Login from './pages/public/Login'
 import Register from './pages/public/Register'
 import ForgotPassword from './pages/public/ForgotPassword'
+
+/* =========================================================
+   CUSTOMER PAGES
+========================================================= */
 
 import CustomerDashboard from './pages/customer/Dashboard'
 import Plans from './pages/customer/Plans'
@@ -18,6 +32,10 @@ import MyClaims from './pages/customer/MyClaims'
 import MyReviews from './pages/customer/MyReviews'
 import Notifications from './pages/customer/Notifications'
 import Profile from './pages/customer/Profile'
+
+/* =========================================================
+   ADMIN PAGES
+========================================================= */
 
 import AdminDashboard from './pages/admin/Dashboard'
 import AdminUsers from './pages/admin/Users'
@@ -31,18 +49,42 @@ import AdminBroadcast from './pages/admin/Broadcast'
 
 /* =========================================================
    INSUREX — APPLICATION ROUTING
+
+   Public Authentication
+   Customer Dashboard
+   Insurance Purchases
+   Refund Tracking
+   Claims & Notifications
+   Admin Management
 ========================================================= */
 
-const home = (user) =>
-  user?.role === 'ADMIN' ? '/admin' : '/app'
+/* =========================================================
+   ROLE-BASED HOME PAGE
+========================================================= */
+
+const home = (user) => {
+  if (user?.role === 'ADMIN') {
+    return '/admin'
+  }
+
+  return '/app'
+}
+
+/* =========================================================
+   APPLICATION LOADING SCREEN
+========================================================= */
 
 function Splash() {
   return (
     <div
+      role="status"
+      aria-label="Loading InsureX"
       style={{
         display: 'grid',
         placeItems: 'center',
         minHeight: '100vh',
+        minHeight: '100dvh',
+        padding: 24,
       }}
     >
       <span
@@ -59,6 +101,10 @@ function Splash() {
 
 /* =========================================================
    PROTECTED ROUTES
+
+   - Wait for session initialization.
+   - Redirect unauthenticated users to login.
+   - Restrict access by user role.
 ========================================================= */
 
 function Guard({ role, children }) {
@@ -73,14 +119,24 @@ function Guard({ role, children }) {
     return (
       <Navigate
         to="/login"
-        state={{ from: location.pathname }}
+        state={{
+          from:
+            location.pathname +
+            location.search +
+            location.hash,
+        }}
         replace
       />
     )
   }
 
   if (user.role !== role) {
-    return <Navigate to={home(user)} replace />
+    return (
+      <Navigate
+        to={home(user)}
+        replace
+      />
+    )
   }
 
   return children
@@ -88,6 +144,9 @@ function Guard({ role, children }) {
 
 /* =========================================================
    GUEST-ONLY ROUTES
+
+   Signed-in users should not return to login
+   or registration unnecessarily.
 ========================================================= */
 
 function GuestOnly({ children }) {
@@ -98,7 +157,12 @@ function GuestOnly({ children }) {
   }
 
   if (user) {
-    return <Navigate to={home(user)} replace />
+    return (
+      <Navigate
+        to={home(user)}
+        replace
+      />
+    )
   }
 
   return children
@@ -106,6 +170,10 @@ function GuestOnly({ children }) {
 
 /* =========================================================
    ROOT PAGE
+
+   Guest -> Landing
+   USER  -> Customer dashboard
+   ADMIN -> Admin dashboard
 ========================================================= */
 
 function RootPage() {
@@ -116,7 +184,12 @@ function RootPage() {
   }
 
   if (user) {
-    return <Navigate to={home(user)} replace />
+    return (
+      <Navigate
+        to={home(user)}
+        replace
+      />
+    )
   }
 
   return <Landing />
@@ -130,9 +203,14 @@ export default function App() {
   return (
     <Routes>
 
-      {/* PUBLIC */}
+      {/* ===================================================
+          PUBLIC ROUTES
+      =================================================== */}
 
-      <Route path="/" element={<RootPage />} />
+      <Route
+        path="/"
+        element={<RootPage />}
+      />
 
       <Route
         path="/login"
@@ -161,7 +239,11 @@ export default function App() {
         }
       />
 
-      {/* CUSTOMER */}
+      {/* ===================================================
+          CUSTOMER ROUTES
+
+          Accessible only to USER accounts.
+      =================================================== */}
 
       <Route
         path="/app"
@@ -171,60 +253,84 @@ export default function App() {
           </Guard>
         }
       >
+
+        {/* Customer Dashboard */}
+
         <Route
           index
           element={<CustomerDashboard />}
         />
+
+        {/* Explore Insurance */}
 
         <Route
           path="plans"
           element={<Plans />}
         />
 
+        {/* Buy Insurance */}
+
         <Route
           path="plans/:policyNumber/buy"
           element={<BuyPolicy />}
         />
+
+        {/* Purchased Policies */}
 
         <Route
           path="policies"
           element={<MyPolicies />}
         />
 
+        {/* Payments & Refund Submission */}
+
         <Route
           path="purchases"
           element={<MyPurchases />}
         />
 
-        {/* NEW — REFUNDS */}
+        {/* Dedicated Refund Tracking */}
 
         <Route
           path="refunds"
           element={<Refunds />}
         />
 
+        {/* Claims */}
+
         <Route
           path="claims"
           element={<MyClaims />}
         />
+
+        {/* Reviews */}
 
         <Route
           path="reviews"
           element={<MyReviews />}
         />
 
+        {/* Notifications */}
+
         <Route
           path="notifications"
           element={<Notifications />}
         />
 
+        {/* Customer Profile */}
+
         <Route
           path="profile"
           element={<Profile />}
         />
+
       </Route>
 
-      {/* ADMIN */}
+      {/* ===================================================
+          ADMIN ROUTES
+
+          Accessible only to ADMIN accounts.
+      =================================================== */}
 
       <Route
         path="/admin"
@@ -234,62 +340,94 @@ export default function App() {
           </Guard>
         }
       >
+
+        {/* Admin Dashboard */}
+
         <Route
           index
           element={<AdminDashboard />}
         />
+
+        {/* Customer Management */}
 
         <Route
           path="users"
           element={<AdminUsers />}
         />
 
+        {/* Policy Holder Management */}
+
         <Route
           path="policy-holders"
           element={<AdminPolicyHolders />}
         />
+
+        {/* Insurance Policy Management */}
 
         <Route
           path="policies"
           element={<AdminPolicies />}
         />
 
+        {/* Customer Purchase Management */}
+
         <Route
           path="purchases"
           element={<AdminPurchases />}
         />
+
+        {/* Claims Management */}
 
         <Route
           path="claims"
           element={<AdminClaims />}
         />
 
+        {/* Settlements Management */}
+
         <Route
           path="settlements"
           element={<AdminSettlements />}
         />
+
+        {/* Customer Reviews */}
 
         <Route
           path="reviews"
           element={<AdminReviews />}
         />
 
+        {/* Admin Broadcast Notifications */}
+
         <Route
           path="broadcast"
           element={<AdminBroadcast />}
         />
+
       </Route>
 
-      {/* FALLBACKS */}
+      {/* ===================================================
+          FALLBACK ROUTES
+      =================================================== */}
 
       <Route
         path="/index.html"
-        element={<Navigate to="/" replace />}
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
       />
 
       <Route
         path="*"
-        element={<Navigate to="/" replace />}
+        element={
+          <Navigate
+            to="/"
+            replace
+          />
+        }
       />
 
     </Routes>
