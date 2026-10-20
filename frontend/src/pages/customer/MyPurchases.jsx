@@ -946,6 +946,74 @@ export default function MyPurchases() {
 
       {/* PURCHASE TABLE */}
 
+      <style>{`
+        .ix-payments-table-scroll {
+          width: 100%;
+          max-width: 100%;
+          overflow-x: auto;
+          overscroll-behavior-x: contain;
+          -webkit-overflow-scrolling: touch;
+        }
+        .ix-payments-table-scroll table {
+          width: 100%;
+          min-width: 1120px;
+          border-collapse: collapse;
+        }
+        .ix-payments-table-scroll th,
+        .ix-payments-table-scroll td {
+          padding: 14px 16px;
+          vertical-align: middle;
+          white-space: nowrap;
+        }
+        .ix-payments-table-scroll .purchase-ref,
+        .ix-payments-table-scroll .purchase-plan {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 4px;
+          min-width: 0;
+          line-height: 1.4;
+        }
+        .ix-payments-table-scroll .purchase-ref > b,
+        .ix-payments-table-scroll .purchase-plan > b {
+          display: block;
+          font-weight: 700;
+          color: var(--ink);
+        }
+        .ix-payments-table-scroll .purchase-ref > span,
+        .ix-payments-table-scroll .purchase-plan > span {
+          display: block;
+          font-size: 13px;
+          font-weight: 400;
+          color: var(--ink-2);
+        }
+        .ix-payments-table-scroll .badge {
+          display: inline-flex;
+          align-items: center;
+          width: max-content;
+          max-width: none;
+          white-space: nowrap;
+          word-break: normal;
+          overflow-wrap: normal;
+          flex-shrink: 0;
+        }
+        .ix-payments-table-scroll .badge::before {
+          flex-shrink: 0;
+        }
+        .ix-payments-table-scroll .ix-payment-actions {
+          display: flex;
+          align-items: center;
+          justify-content: flex-end;
+          flex-wrap: nowrap;
+          gap: 6px;
+          white-space: nowrap;
+        }
+        .ix-payments-table-scroll .ix-payment-actions > * {
+          flex-shrink: 0;
+        }
+      `}</style>
+
       <Panel flush>
         <div className="toolbar">
           <SearchBox
@@ -971,6 +1039,7 @@ export default function MyPurchases() {
           }}
         >
           {() => (
+            <div className="ix-payments-table-scroll" role="region" aria-label="Payments history table" tabIndex={0}>
             <Table
               rowKey="purchaseId"
               rows={rows}
@@ -1061,15 +1130,7 @@ export default function MyPurchases() {
                   header: '',
                   align: 'right',
                   render: (p) => (
-                    <div
-                      style={{
-                        display: 'flex',
-                        justifyContent:
-                          'flex-end',
-                        flexWrap: 'wrap',
-                        gap: 6,
-                      }}
-                    >
+                    <div className="ix-payment-actions">
                       <Button
                         size="sm"
                         onClick={(event) => {
@@ -1099,6 +1160,7 @@ export default function MyPurchases() {
                 },
               ]}
             />
+            </div>
           )}
         </DataState>
       </Panel>
