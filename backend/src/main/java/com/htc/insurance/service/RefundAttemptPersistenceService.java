@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -39,14 +40,16 @@ public class RefundAttemptPersistenceService {
                     + "Check its status before taking further action.");
         }
 
-        PolicyPurchase purchase = purchaseDao.getPurchaseById(purchaseId);
+        PolicyPurchase purchase =
+                purchaseDao.getPurchaseById(purchaseId);
 
         if (purchase == null) {
             throw new IllegalArgumentException(
                     "Purchase was not found.");
         }
 
-        if (!paymentId.equals(purchase.getRazorpayPaymentId())) {
+        if (paymentId == null
+                || !paymentId.equals(purchase.getRazorpayPaymentId())) {
             throw new IllegalStateException(
                     "The payment ID does not match the purchase.");
         }
@@ -59,11 +62,7 @@ public class RefundAttemptPersistenceService {
         attempt.setRequestedBy(username);
         attempt.setStatus(RefundAttemptStatus.PROCESSING);
 
-        /*
-         * Commit the attempt before calling Razorpay.
-         * A unique database constraint is also required to protect
-         * against concurrent requests.
-         */
+        // Save before contacting Razorpay to prevent duplicate attempts.
         RefundAttempt saved = refundRepository.saveAndFlush(attempt);
 
         purchase.setRefundStatus("PROCESSING");
@@ -85,35 +84,87 @@ public class RefundAttemptPersistenceService {
                 .orElseThrow(() -> new IllegalStateException(
                         "Refund attempt was not found."));
 
-        PolicyPurchase purchase = purchaseDao.getPurchaseById(
-                attempt.getPurchaseId());
+        PolicyPurchase purchase =
+                purchaseDao.getPurchaseById(attempt.getPurchaseId());
 
         if (purchase == null) {
             throw new IllegalStateException(
                     "Purchase was not found while recording the refund.");
         }
 
-        attempt.setRazorpayRefundId(refundId);
+        if (refundId == null || refundId.isBlank()) {
+            throw new IllegalArgumentException(
+                    "A valid Razorpay refund ID is required.");
+        }
 
-        if ("processed".equalsIgnoreCase(razorpayStatus)) {
-            attempt.setStatus(RefundAttemptStatus.REFUNDED);
-            purchase.setRefundStatus("REFUNDED");
+        if (razorpayStatus == null || razorpayStatus.isBlank()) {
+            throw new IllegalArgumentException(
+                    "A Razorpay refund status is required.");
+        }
 
-        } else if ("pending".equalsIgnoreCase(razorpayStatus)
-                || "queued".equalsIgnoreCase(razorpayStatus)) {
-            attempt.setStatus(RefundAttemptStatus.PROCESSING);
-            purchase.setRefundStatus("PROCESSING");
+        String existingRefundId = attempt.getRazorpayRefundId();
 
-        } else {
-            attempt.setStatus(
-                    RefundAttemptStatus.REQUIRES_RECONCILIATION);
-            attempt.setFailureReason(
-                    "Razorpay returned a refund status requiring review.");
-            purchase.setRefundStatus("REQUIRES_RECONCILIATION");
+        if (existingRefundId != null
+                && !existingRefundId.isBlank()
+                && !existingRefundId.equals(refundId)) {
+            throw new IllegalStateException(
+                    "The Razorpay refund ID does not match this attempt.");
+        }
+
+        String status = razorpayStatus.trim().toLowerCase();
+
+        /*
+         * A delayed created/pending/failed event must never downgrade
+         * a refund already confirmed as successful.
+         */
+        if (attempt.getStatus() == RefundAttemptStatus.REFUNDED) {
+            if (!refundId.equals(purchase.getRefundId())) {
+                attempt.setRazorpayRefundId(refundId);
+                purchase.setRefundId(refundId);
+                refundRepository.saveAndFlush(attempt);
+                purchaseDao.savePurchase(purchase);
+            }
+            return;
         }
 
         attempt.setRazorpayRefundId(refundId);
         purchase.setRefundId(refundId);
+
+        switch (status) {
+            case "processed":
+                attempt.setStatus(RefundAttemptStatus.REFUNDED);
+                attempt.setFailureReason(null);
+                purchase.setRefundStatus("REFUNDED");
+                break;
+
+            case "created":
+            case "pending":
+            case "queued":
+                // Do not downgrade a previously confirmed failure.
+                if (attempt.getStatus()
+                        != RefundAttemptStatus.FAILED) {
+                    attempt.setStatus(RefundAttemptStatus.PROCESSING);
+                    attempt.setFailureReason(null);
+                    purchase.setRefundStatus("PROCESSING");
+                }
+                break;
+
+            case "failed":
+                attempt.setStatus(RefundAttemptStatus.FAILED);
+                attempt.setFailureReason(
+                        "Razorpay reported that the refund failed.");
+                purchase.setRefundStatus("FAILED");
+                break;
+
+            default:
+                attempt.setStatus(
+                        RefundAttemptStatus.REQUIRES_RECONCILIATION);
+                attempt.setFailureReason(
+                        "Unrecognized Razorpay refund status: "
+                        + limit(status, 350));
+                purchase.setRefundStatus("REQUIRES_RECONCILIATION");
+                break;
+        }
 
         refundRepository.saveAndFlush(attempt);
         purchaseDao.savePurchase(purchase);
@@ -128,6 +179,11 @@ public class RefundAttemptPersistenceService {
                 .orElseThrow(() -> new IllegalStateException(
                         "Refund attempt was not found."));
 
+        // Never overwrite a confirmed successful refund.
+        if (attempt.getStatus() == RefundAttemptStatus.REFUNDED) {
+            return;
+        }
+
         attempt.setStatus(
                 RefundAttemptStatus.REQUIRES_RECONCILIATION);
 
@@ -135,8 +191,8 @@ public class RefundAttemptPersistenceService {
 
         refundRepository.saveAndFlush(attempt);
 
-        PolicyPurchase purchase = purchaseDao.getPurchaseById(
-                attempt.getPurchaseId());
+        PolicyPurchase purchase =
+                purchaseDao.getPurchaseById(attempt.getPurchaseId());
 
         if (purchase != null) {
             purchase.setRefundStatus("REQUIRES_RECONCILIATION");
