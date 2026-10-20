@@ -62,37 +62,27 @@ export const auth = {
 
 /* =========================================================
    USERS
-
-   Customer Profile
-   Admin User Management
 ========================================================= */
 
 export const users = {
-  // Register new user
   register: (body) =>
     d(api.post('/user/save', body)),
 
-  // Current logged-in user
   me: () =>
     d(api.get('/user/me')),
 
-  // Update current user
   updateMe: (body) =>
     d(api.put('/user/me', body)),
 
-  // Change password
   changePassword: (body) =>
     d(api.put('/user/me/password', body)),
 
-  // Admin: all users
   getAll: () =>
     d(api.get('/user/getAll')),
 
-  // Admin: get user
   get: (userId) =>
     d(api.get(`/user/get/${id(userId)}`)),
 
-  // Admin: update user
   update: (userId, body) =>
     d(
       api.put(
@@ -101,26 +91,18 @@ export const users = {
       ),
     ),
 
-  // Admin: activate user
   activate: (userId) =>
     d(api.put(`/user/activate/${id(userId)}`)),
 
-  // Admin: deactivate user
   deactivate: (userId) =>
     d(api.put(`/user/deactivate/${id(userId)}`)),
 
-  // Admin: delete user
   remove: (userId) =>
     d(api.delete(`/user/delete/${id(userId)}`)),
 }
 
 /* =========================================================
    INSURANCE PLANS
-
-   Health
-   Life
-   Motor
-   Other Insurance Types
 ========================================================= */
 
 export const plans = {
@@ -133,25 +115,18 @@ export const plans = {
 
 /* =========================================================
    POLICIES
-
-   Customer Policies
-   Admin Policy Management
 ========================================================= */
 
 export const policies = {
-  // Available insurance policies
   available: () =>
     d(api.get('/policy/available')),
 
-  // Logged-in user's policies
   mine: () =>
     d(api.get('/policy/my-policies')),
 
-  // Admin: all policies
   getAll: () =>
     d(api.get('/policy/getAll')),
 
-  // Get policy by number
   get: (policyNumber) =>
     d(
       api.get(
@@ -159,11 +134,9 @@ export const policies = {
       ),
     ),
 
-  // Admin: create policy
   save: (body) =>
     d(api.post('/policy/save', body)),
 
-  // Admin: update policy
   update: (policyNumber, body) =>
     d(
       api.put(
@@ -172,7 +145,6 @@ export const policies = {
       ),
     ),
 
-  // Admin: delete policy
   remove: (policyNumber) =>
     d(
       api.delete(
@@ -180,7 +152,6 @@ export const policies = {
       ),
     ),
 
-  // Admin: activate policy
   activate: (policyNumber) =>
     d(
       api.put(
@@ -188,7 +159,6 @@ export const policies = {
       ),
     ),
 
-  // Admin: deactivate policy
   deactivate: (policyNumber) =>
     d(
       api.put(
@@ -198,19 +168,19 @@ export const policies = {
 }
 
 /* =========================================================
-   POLICY PURCHASES AND REFUNDS
+   POLICY PURCHASES & REFUNDS
 
-   Confirmed RefundController:
-     @RequestMapping("/refund")
-     @PostMapping("/request")
+   Backend:
+   GET  /policy/my-purchases
+   GET  /policy/purchases
+   POST /policy/purchase
+   POST /refund/request
 
-   Confirmed RefundRequestDto:
-     Long purchaseId
-     String refundReason
-
-   Refund reason:
-     Required
-     Maximum 500 characters
+   RefundRequestDto:
+   {
+     purchaseId: Long,
+     refundReason: String
+   }
 ========================================================= */
 
 export const purchases = {
@@ -218,7 +188,7 @@ export const purchases = {
   purchase: (body) =>
     d(api.post('/policy/purchase', body)),
 
-  // Customer: my purchases
+  // Customer: purchase history
   mine: () =>
     d(api.get('/policy/my-purchases')),
 
@@ -234,24 +204,18 @@ export const purchases = {
       body?.refundReason ?? '',
     ).trim()
 
-    // Validate purchase ID
     if (
       !Number.isSafeInteger(parsedPurchaseId) ||
       parsedPurchaseId <= 0
     ) {
       return Promise.reject(
-        new Error(
-          'A valid purchase ID is required.',
-        ),
+        new Error('A valid purchase ID is required.'),
       )
     }
 
-    // Match RefundRequestDto validation
     if (!refundReason) {
       return Promise.reject(
-        new Error(
-          'Refund reason is required.',
-        ),
+        new Error('Refund reason is required.'),
       )
     }
 
@@ -263,7 +227,6 @@ export const purchases = {
       )
     }
 
-    // Correct backend endpoint
     return d(
       api.post('/refund/request', {
         purchaseId: parsedPurchaseId,
@@ -274,18 +237,13 @@ export const purchases = {
 }
 
 /* =========================================================
-   PAYMENTS
-
-   Razorpay Order Creation
-   Payment Verification
+   PAYMENTS — RAZORPAY
 ========================================================= */
 
 export const payment = {
-  // Create Razorpay order
   createOrder: (body) =>
     d(api.post('/payment/create-order', body)),
 
-  // Verify Razorpay payment
   verify: (body) =>
     d(api.post('/payment/verify', body)),
 }
@@ -295,11 +253,9 @@ export const payment = {
 ========================================================= */
 
 export const policyHolders = {
-  // Get all policy holders
   getAll: () =>
     d(api.get('/policyholder/getAll')),
 
-  // Get policy holder by ID
   get: (policyHolderId) =>
     d(
       api.get(
@@ -307,11 +263,9 @@ export const policyHolders = {
       ),
     ),
 
-  // Create policy holder
   save: (body) =>
     d(api.post('/policyholder/save', body)),
 
-  // Update policy holder
   update: (policyHolderId, body) =>
     d(
       api.put(
@@ -320,7 +274,6 @@ export const policyHolders = {
       ),
     ),
 
-  // Delete policy holder
   remove: (policyHolderId) =>
     d(
       api.delete(
@@ -331,25 +284,18 @@ export const policyHolders = {
 
 /* =========================================================
    CLAIMS
-
-   Customer Claim Submission
-   Admin Claim Management
 ========================================================= */
 
 export const claims = {
-  // Customer: submit claim
   save: (body) =>
     d(api.post('/claims/save', body)),
 
-  // Customer: my claims
   mine: () =>
     d(api.get('/claims/my-claims')),
 
-  // Admin: all claims
   getAll: () =>
     d(api.get('/claims/getAll')),
 
-  // Get claim by number
   get: (claimNumber) =>
     d(
       api.get(
@@ -357,7 +303,6 @@ export const claims = {
       ),
     ),
 
-  // Admin: update claim
   update: (claimNumber, body) =>
     d(
       api.put(
@@ -366,7 +311,6 @@ export const claims = {
       ),
     ),
 
-  // Admin: approve claim
   approve: (claimNumber, body) =>
     d(
       api.put(
@@ -375,7 +319,6 @@ export const claims = {
       ),
     ),
 
-  // Admin: reject claim
   reject: (claimNumber, body) =>
     d(
       api.put(
@@ -384,7 +327,6 @@ export const claims = {
       ),
     ),
 
-  // Admin: delete claim
   remove: (claimNumber) =>
     d(
       api.delete(
@@ -395,16 +337,12 @@ export const claims = {
 
 /* =========================================================
    SETTLEMENTS
-
-   Admin Settlement Management
 ========================================================= */
 
 export const settlements = {
-  // Admin: all settlements
   getAll: () =>
     d(api.get('/settlement/getAll')),
 
-  // Get settlement by number
   get: (settlementNumber) =>
     d(
       api.get(
@@ -412,7 +350,6 @@ export const settlements = {
       ),
     ),
 
-  // Get settlements by claim
   byClaim: (claimNumber) =>
     d(
       api.get(
@@ -420,11 +357,9 @@ export const settlements = {
       ),
     ),
 
-  // Admin: create settlement
   save: (body) =>
     d(api.post('/settlement/save', body)),
 
-  // Admin: update settlement
   update: (settlementNumber, body) =>
     d(
       api.put(
@@ -433,7 +368,6 @@ export const settlements = {
       ),
     ),
 
-  // Admin: process settlement
   process: (settlementNumber) =>
     d(
       api.put(
@@ -441,7 +375,6 @@ export const settlements = {
       ),
     ),
 
-  // Admin: reject settlement
   reject: (settlementNumber, rejectionReason) =>
     d(
       api.put(
@@ -452,7 +385,6 @@ export const settlements = {
       ),
     ),
 
-  // Admin: delete settlement
   remove: (settlementNumber) =>
     d(
       api.delete(
@@ -463,25 +395,18 @@ export const settlements = {
 
 /* =========================================================
    REVIEWS
-
-   Customer Reviews
-   Admin Replies
 ========================================================= */
 
 export const reviews = {
-  // Customer: create review
   save: (body) =>
     d(api.post('/reviewer/save', body)),
 
-  // Customer: my reviews
   mine: () =>
     d(api.get('/reviewer/my-reviews')),
 
-  // Admin: all reviews
   getAll: () =>
     d(api.get('/reviewer/getAll')),
 
-  // Get review by ID
   get: (reviewId) =>
     d(
       api.get(
@@ -489,7 +414,6 @@ export const reviews = {
       ),
     ),
 
-  // Update review
   update: (reviewId, body) =>
     d(
       api.put(
@@ -498,7 +422,6 @@ export const reviews = {
       ),
     ),
 
-  // Admin: reply to review
   reply: (reviewId, body) =>
     d(
       api.put(
@@ -507,7 +430,6 @@ export const reviews = {
       ),
     ),
 
-  // Delete review
   remove: (reviewId) =>
     d(
       api.delete(
@@ -518,21 +440,15 @@ export const reviews = {
 
 /* =========================================================
    CUSTOMER NOTIFICATIONS
-
-   Personal Notifications
-   Read / Unread
 ========================================================= */
 
 export const notifications = {
-  // Get my notifications
   mine: () =>
     d(api.get('/api/notifications/my')),
 
-  // Get unread notification count
   unread: () =>
     d(api.get('/api/notifications/unread-count')),
 
-  // Mark notification as read
   read: (notificationId) =>
     d(
       api.put(
@@ -540,11 +456,9 @@ export const notifications = {
       ),
     ),
 
-  // Mark all notifications as read
   readAll: () =>
     d(api.put('/api/notifications/read-all')),
 
-  // Delete notification
   remove: (notificationId) =>
     d(
       api.delete(
@@ -554,15 +468,10 @@ export const notifications = {
 }
 
 /* =========================================================
-   ADMIN BROADCAST NOTIFICATIONS
-
-   Customer List
-   Broadcast Message
-   Notification History
+   ADMIN BROADCAST
 ========================================================= */
 
 export const broadcast = {
-  // Admin: send broadcast
   send: (body) =>
     d(
       api.post(
@@ -571,7 +480,6 @@ export const broadcast = {
       ),
     ),
 
-  // Admin: get customers
   customers: () =>
     d(
       api.get(
@@ -579,7 +487,6 @@ export const broadcast = {
       ),
     ),
 
-  // Admin: broadcast history
   list: () =>
     d(
       api.get(
@@ -587,7 +494,6 @@ export const broadcast = {
       ),
     ),
 
-  // Admin: delete broadcast
   remove: (notificationId) =>
     d(
       api.delete(
