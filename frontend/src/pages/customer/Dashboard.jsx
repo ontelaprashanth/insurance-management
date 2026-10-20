@@ -23,7 +23,6 @@ import {
   StatusBadge,
 } from '../../components/ui'
 
-import { useAuth } from '../../auth/useAuth'
 import { date, inr, inrShort, timeAgo } from '../../lib/format'
 
 const asArray = (value) => Array.isArray(value) ? value : []
@@ -66,6 +65,47 @@ const getClaimNumber = (item) =>
 
 const sum = (items, getValue) =>
   items.reduce((total, item) => total + Number(getValue(item) || 0), 0)
+
+function getCustomerName() {
+  try {
+    const possibleKeys = [
+      'insurex_user',
+      'insurexUser',
+      'user',
+      'currentUser',
+    ]
+
+    for (const key of possibleKeys) {
+      const stored = localStorage.getItem(key)
+
+      if (!stored) continue
+
+      try {
+        const parsed = JSON.parse(stored)
+        const name =
+          parsed?.username ??
+          parsed?.name ??
+          parsed?.fullName
+
+        if (typeof name === 'string' && name.trim()) {
+          return name.trim()
+        }
+      } catch {
+        if (
+          typeof stored === 'string' &&
+          !stored.startsWith('{') &&
+          !stored.startsWith('[')
+        ) {
+          return stored.trim()
+        }
+      }
+    }
+  } catch {
+    // Storage may be unavailable; use the generic greeting.
+  }
+
+  return 'Customer'
+}
 
 function Stat({ icon: StatIcon, label, value, detail, to, loading }) {
   return (
@@ -131,7 +171,7 @@ function Stat({ icon: StatIcon, label, value, detail, to, loading }) {
 }
 
 export default function Dashboard() {
-  const { user } = useAuth()
+  const customerName = getCustomerName()
 
   const p = useQuery({
     queryKey: ['my-policies'],
@@ -241,7 +281,7 @@ export default function Dashboard() {
   return (
     <>
       <PageHeader
-        title={`Hello, ${user?.username?.trim() || 'Customer'}`}
+        title={`Hello, ${customerName}`}
         subtitle="Your insurance overview, claims, and account updates."
         actions={
           <Link className="btn dark" to="/app/plans">
@@ -264,7 +304,6 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Statistics — same layout as the Admin Dashboard */}
       <div
         className="ledger"
         style={{
@@ -309,7 +348,6 @@ export default function Dashboard() {
         />
       </div>
 
-      {/* Claims and notifications */}
       <div className="two-col" style={{ marginBottom: 20 }}>
         <Panel
           title="Recent claims"
@@ -442,7 +480,6 @@ export default function Dashboard() {
         </Panel>
       </div>
 
-      {/* Quick actions */}
       <Panel title="Quick actions">
         <div
           style={{
