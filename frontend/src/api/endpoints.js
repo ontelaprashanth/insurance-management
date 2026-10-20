@@ -1,23 +1,24 @@
+import { api } from './client'
+
+const d = (request) => request.then((response) => response.data)
 
 /* =========================================================
    INSUREX — CENTRAL API ENDPOINTS
-   Original routes and existing settings preserved
+   Authentication • Session • Users • Policies • Claims
+   Payments • Settlements • Reviews • Notifications
 ========================================================= */
 
-import { api } from './client'
-
-const d = (p) => p.then((r) => r.data)
-
-/* =========================================================
-   AUTHENTICATION & SESSION
-========================================================= */
+/* ========================= AUTHENTICATION ========================= */
 
 export const auth = {
-  login: (body) => d(api.post('/api/auth/login', body)),
+  login: (body) =>
+    d(api.post('/api/auth/login', body)),
 
-  sendOtp: (body) => d(api.post('/api/auth/send-otp', body)),
+  sendOtp: (body) =>
+    d(api.post('/api/auth/send-otp', body)),
 
-  verifyOtp: (body) => d(api.post('/api/auth/verify-otp', body)),
+  verifyOtp: (body) =>
+    d(api.post('/api/auth/verify-otp', body)),
 
   forgotPassword: (body) =>
     d(api.post('/api/auth/forgot-password', body)),
@@ -26,27 +27,32 @@ export const auth = {
     d(api.post('/api/auth/reset-password', body)),
 }
 
+/* ========================= SESSION ========================= */
+
 export const session = {
-  current: () => d(api.get('/api/session')),
+  current: () => d(api.get('/user/me')),
 }
 
-/* =========================================================
-   USERS
-========================================================= */
+/* ========================= USERS ========================= */
 
 export const users = {
-  register: (body) => d(api.post('/user/save', body)),
+  register: (body) =>
+    d(api.post('/user/save', body)),
 
-  me: () => d(api.get('/user/me')),
+  me: () =>
+    d(api.get('/user/me')),
 
-  updateMe: (body) => d(api.put('/user/me', body)),
+  updateMe: (body) =>
+    d(api.put('/user/me', body)),
 
   changePassword: (body) =>
     d(api.put('/user/me/password', body)),
 
-  getAll: () => d(api.get('/user/getAll')),
+  getAll: () =>
+    d(api.get('/user/getAll')),
 
-  get: (id) => d(api.get(`/user/get/${encodeURIComponent(id)}`)),
+  get: (id) =>
+    d(api.get(`/user/get/${encodeURIComponent(id)}`)),
 
   update: (id, body) =>
     d(api.put(`/user/update/${encodeURIComponent(id)}`, body)),
@@ -61,20 +67,23 @@ export const users = {
     d(api.delete(`/user/delete/${encodeURIComponent(id)}`)),
 }
 
-/* =========================================================
-   POLICIES
-========================================================= */
+/* ========================= POLICIES ========================= */
 
 export const policies = {
-  available: () => d(api.get('/policy/available')),
+  available: () =>
+    d(api.get('/policy/available')),
 
-  mine: () => d(api.get('/policy/my-policies')),
+  mine: () =>
+    d(api.get('/policy/my-policies')),
 
-  getAll: () => d(api.get('/policy/getAll')),
+  getAll: () =>
+    d(api.get('/policy/getAll')),
 
-  get: (id) => d(api.get(`/policy/get/${encodeURIComponent(id)}`)),
+  get: (id) =>
+    d(api.get(`/policy/get/${encodeURIComponent(id)}`)),
 
-  save: (body) => d(api.post('/policy/save', body)),
+  save: (body) =>
+    d(api.post('/policy/save', body)),
 
   update: (id, body) =>
     d(api.put(`/policy/update/${encodeURIComponent(id)}`, body)),
@@ -89,27 +98,27 @@ export const policies = {
     d(api.delete(`/policy/delete/${encodeURIComponent(id)}`)),
 }
 
-/* =========================================================
-   PLANS — EXISTING API SETTINGS
-========================================================= */
+/* ========================= INSURANCE PLANS ========================= */
 
 export const plans = {
-  available: () => d(api.get('/api/plans/available')),
+  available: () =>
+    d(api.get('/api/plans/available')),
 
   get: (planId) =>
     d(api.get(`/api/plans/${encodeURIComponent(planId)}`)),
 }
 
-/* =========================================================
-   PURCHASES
-========================================================= */
+/* ========================= POLICY PURCHASES ========================= */
 
 export const purchases = {
-  purchase: (body) => d(api.post('/policy/purchase', body)),
+  purchase: (body) =>
+    d(api.post('/policy/purchase', body)),
 
-  mine: () => d(api.get('/policy/my-purchases')),
+  mine: () =>
+    d(api.get('/policy/my-purchases')),
 
-  getAll: () => d(api.get('/policy/purchases')),
+  getAll: () =>
+    d(api.get('/policy/purchases')),
 
   refund: (purchaseId, body = {}) =>
     d(
@@ -120,17 +129,17 @@ export const purchases = {
     ),
 }
 
-/* =========================================================
-   POLICY HOLDERS
-========================================================= */
+/* ========================= POLICY HOLDERS ========================= */
 
 export const policyHolders = {
-  getAll: () => d(api.get('/policyholder/getAll')),
+  getAll: () =>
+    d(api.get('/policyholder/getAll')),
 
   get: (id) =>
     d(api.get(`/policyholder/get/${encodeURIComponent(id)}`)),
 
-  save: (body) => d(api.post('/policyholder/save', body)),
+  save: (body) =>
+    d(api.post('/policyholder/save', body)),
 
   update: (id, body) =>
     d(api.put(`/policyholder/update/${encodeURIComponent(id)}`, body)),
@@ -139,9 +148,7 @@ export const policyHolders = {
     d(api.delete(`/policyholder/delete/${encodeURIComponent(id)}`)),
 }
 
-/* =========================================================
-   PAYMENTS — RAZORPAY
-========================================================= */
+/* ========================= PAYMENTS ========================= */
 
 export const payment = {
   createOrder: (body) =>
@@ -151,16 +158,17 @@ export const payment = {
     d(api.post('/payment/verify', body)),
 }
 
-/* =========================================================
-   CLAIMS
-========================================================= */
+/* ========================= CLAIMS ========================= */
 
 export const claims = {
-  save: (body) => d(api.post('/claims/save', body)),
+  save: (body) =>
+    d(api.post('/claims/save', body)),
 
-  mine: () => d(api.get('/claims/my-claims')),
+  mine: () =>
+    d(api.get('/claims/my-claims')),
 
-  getAll: () => d(api.get('/claims/getAll')),
+  getAll: () =>
+    d(api.get('/claims/getAll')),
 
   get: (claimNumber) =>
     d(api.get(`/claims/get/${encodeURIComponent(claimNumber)}`)),
@@ -193,12 +201,11 @@ export const claims = {
     d(api.delete(`/claims/delete/${encodeURIComponent(claimNumber)}`)),
 }
 
-/* =========================================================
-   SETTLEMENTS
-========================================================= */
+/* ========================= SETTLEMENTS ========================= */
 
 export const settlements = {
-  getAll: () => d(api.get('/settlement/getAll')),
+  getAll: () =>
+    d(api.get('/settlement/getAll')),
 
   get: (settlementNumber) =>
     d(
@@ -208,9 +215,14 @@ export const settlements = {
     ),
 
   byClaim: (claimNumber) =>
-    d(api.get(`/settlement/claim/${encodeURIComponent(claimNumber)}`)),
+    d(
+      api.get(
+        `/settlement/claim/${encodeURIComponent(claimNumber)}`,
+      ),
+    ),
 
-  save: (body) => d(api.post('/settlement/save', body)),
+  save: (body) =>
+    d(api.post('/settlement/save', body)),
 
   update: (settlementNumber, body) =>
     d(
@@ -243,18 +255,20 @@ export const settlements = {
     ),
 }
 
-/* =========================================================
-   REVIEWS — ORIGINAL REVIEWER ROUTES
-========================================================= */
+/* ========================= REVIEWS ========================= */
 
 export const reviews = {
-  save: (body) => d(api.post('/reviewer/save', body)),
+  save: (body) =>
+    d(api.post('/reviewer/save', body)),
 
-  mine: () => d(api.get('/reviewer/my-reviews')),
+  mine: () =>
+    d(api.get('/reviewer/my-reviews')),
 
-  getAll: () => d(api.get('/reviewer/getAll')),
+  getAll: () =>
+    d(api.get('/reviewer/getAll')),
 
-  get: (id) => d(api.get(`/reviewer/get/${encodeURIComponent(id)}`)),
+  get: (id) =>
+    d(api.get(`/reviewer/get/${encodeURIComponent(id)}`)),
 
   update: (id, body) =>
     d(api.put(`/reviewer/update/${encodeURIComponent(id)}`, body)),
@@ -266,44 +280,44 @@ export const reviews = {
     d(api.delete(`/reviewer/delete/${encodeURIComponent(id)}`)),
 }
 
-/* =========================================================
-   CUSTOMER NOTIFICATIONS
-========================================================= */
+/* ========================= CUSTOMER NOTIFICATIONS ========================= */
 
 export const notifications = {
-  mine: () => d(api.get('/api/notifications/my')),
+  mine: () =>
+    d(api.get('/api/notifications/my')),
 
-  unread: () => d(api.get('/api/notifications/unread-count')),
+  unread: () =>
+    d(api.get('/api/notifications/unread-count')),
 
   read: (id) =>
     d(api.put(`/api/notifications/read/${encodeURIComponent(id)}`)),
 
-  readAll: () => d(api.put('/api/notifications/read-all')),
+  readAll: () =>
+    d(api.put('/api/notifications/read-all')),
 
   remove: (id) =>
     d(api.delete(`/api/notifications/${encodeURIComponent(id)}`)),
 }
 
-/* =========================================================
-   ADMIN NOTIFICATIONS & BROADCAST
-========================================================= */
+/* ========================= ADMIN NOTIFICATIONS ========================= */
 
 export const broadcast = {
-  send: (body) => d(api.post('/api/admin/notifications', body)),
+  send: (body) =>
+    d(api.post('/api/admin/notifications', body)),
 
-  customers: () => d(api.get('/api/admin/notifications/customers')),
+  customers: () =>
+    d(api.get('/api/admin/notifications/customers')),
 
-  getAll: () => d(api.get('/api/admin/notifications')),
+  getAll: () =>
+    d(api.get('/api/admin/notifications')),
 
   remove: (id) =>
     d(api.delete(`/api/admin/notifications/${encodeURIComponent(id)}`)),
 }
 
-/* =========================================================
-   DEFAULT EXPORT — KEEP NAMED EXPORTS ABOVE
-========================================================= */
+/* ========================= DEFAULT EXPORT ========================= */
 
-export default {
+const endpoints = {
   auth,
   session,
   users,
@@ -318,3 +332,5 @@ export default {
   notifications,
   broadcast,
 }
+
+export default endpoints
