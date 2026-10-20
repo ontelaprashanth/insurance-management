@@ -51,8 +51,45 @@ export function inrShort(n) {
   return inr(v)
 }
 
+/** Checks whether a value is a date-only ISO string. */
+function isDateOnly(value) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
 /**
- * Formats a date using Indian Standard Time.
+ * Parses backend timestamps.
+ * Timezone-less date-times are interpreted as UTC.
+ * Explicit Z or timezone offsets are respected.
+ */
+function parseTimestamp(value) {
+  if (value == null || value === '') return null
+
+  const text = String(value).trim()
+
+  if (!text || isDateOnly(text)) return null
+
+  // Java LocalDateTime may include nanoseconds.
+  // JavaScript Date supports millisecond precision.
+  const normalizedFraction = text.replace(
+    /(\.\d{3})\d+(?=(?:Z|[+-]\d{2}:\d{2})?$)/i,
+    '$1',
+  )
+
+  const hasTimezone = /(?:Z|[+-]\d{2}:\d{2})$/i.test(
+    normalizedFraction,
+  )
+
+  const normalized = hasTimezone
+    ? normalizedFraction
+    : `${normalizedFraction}Z`
+
+  const parsed = new Date(normalized)
+
+  return Number.isNaN(parsed.getTime()) ? null : parsed
+}
+
+/**
+ * Formats dates in Indian Standard Time.
  * Date-only values retain their calendar date.
  */
 export function date(v) {
@@ -60,8 +97,9 @@ export function date(v) {
 
   const value = String(v).trim()
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+  if (isDateOnly(value)) {
     const [year, month, day] = value.split('-')
+
     const d = new Date(
       Date.UTC(Number(year), Number(month) - 1, Number(day), 12),
     )
@@ -71,56 +109,51 @@ export function date(v) {
     return dateFormatter.format(d)
   }
 
-  const d = new Date(v)
+  const d = parseTimestamp(value)
 
-  if (Number.isNaN(d.getTime())) return value
+  if (!d) return value
 
   return dateFormatter.format(d)
 }
 
 /**
  * Formats timestamps in Asia/Kolkata.
- * Timezone-less ISO date-times are interpreted as IST.
- * Timestamps with Z or an explicit offset retain their actual instant.
+ * Timezone-less backend timestamps are interpreted as UTC.
  */
 export function dateTime(v) {
   if (v == null || v === '') return '—'
 
   const value = String(v).trim()
-  let d
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    d = new Date(`${value}T00:00:00+05:30`)
-  } else if (
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(value)
-  ) {
-    d = new Date(`${value}+05:30`)
-  } else {
-    d = new Date(value)
+  if (isDateOnly(value)) {
+    const d = new Date(`${value}T00:00:00Z`)
+
+    if (Number.isNaN(d.getTime())) return value
+
+    return dateTimeFormatter.format(d)
   }
 
-  if (Number.isNaN(d.getTime())) return value
+  const d = parseTimestamp(value)
+
+  if (!d) return value
 
   return dateTimeFormatter.format(d)
 }
 
+/**
+ * Calculates relative time from the actual timestamp.
+ * Timezone-less backend timestamps are interpreted as UTC.
+ */
 export function timeAgo(v) {
   if (v == null || v === '') return ''
 
   const value = String(v).trim()
-  let d
 
-  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) {
-    d = new Date(`${value}T00:00:00+05:30`)
-  } else if (
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?$/.test(value)
-  ) {
-    d = new Date(`${value}+05:30`)
-  } else {
-    d = new Date(value)
-  }
+  const d = isDateOnly(value)
+    ? new Date(`${value}T00:00:00Z`)
+    : parseTimestamp(value)
 
-  if (Number.isNaN(d.getTime())) return value
+  if (!d || Number.isNaN(d.getTime())) return value
 
   const seconds = Math.floor((Date.now() - d.getTime()) / 1000)
 
@@ -149,6 +182,7 @@ export const today = () => {
   return `${values.year}-${values.month}-${values.day}`
 }
 
+/** Returns initials for a name. */
 export const initials = (name = '') =>
   name
     .split(/\s+/)
