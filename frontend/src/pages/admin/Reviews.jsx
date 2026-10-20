@@ -46,9 +46,7 @@ function ReplyModal({ r, onClose }) {
     },
 
     onError: (e) => {
-      setError(
-        errorMessage(e, 'Could not send the reply.'),
-      )
+      setError(errorMessage(e, 'Could not send the reply.'))
     },
   })
 
@@ -105,10 +103,7 @@ function ReplyModal({ r, onClose }) {
         <div>
           <Stars value={r.rating} />
 
-          <p
-            className="muted"
-            style={{ marginTop: 6 }}
-          >
+          <p className="muted" style={{ marginTop: 6 }}>
             {r.review}
           </p>
         </div>
@@ -137,20 +132,25 @@ export default function Reviews() {
   const q = useQuery({
     queryKey: ['a-reviews'],
     queryFn: reviews.getAll,
+    retry: 1,
   })
 
   const [filter, setFilter] = useState('all')
   const [reply, setReply] = useState(null)
   const [del, setDel] = useState(null)
 
-  const all = Array.isArray(q.data) ? q.data : []
+  const all = Array.isArray(q.data)
+    ? q.data
+    : Array.isArray(q.data?.data)
+      ? q.data.data
+      : Array.isArray(q.data?.content)
+        ? q.data.content
+        : []
 
   const isReplied = (r) =>
     Boolean(String(r.adminReply ?? '').trim())
 
-  const openCount = all.filter(
-    (r) => !isReplied(r),
-  ).length
+  const openCount = all.filter((r) => !isReplied(r)).length
 
   const avg = all.length
     ? (
@@ -168,8 +168,7 @@ export default function Reviews() {
   })
 
   const remove = useMutation({
-    mutationFn: (r) =>
-      reviews.remove(r.reviewerId),
+    mutationFn: (r) => reviews.remove(r.reviewerId),
 
     onSuccess: async () => {
       await qc.invalidateQueries({
@@ -207,11 +206,8 @@ export default function Reviews() {
           <div className="label">Average rating</div>
 
           <div className="value">
-            {q.isLoading ? '…' : avg}
-            <span
-              className="faint"
-              style={{ fontSize: 16 }}
-            >
+            {q.isPending ? '…' : avg}
+            <span className="faint" style={{ fontSize: 16 }}>
               {' '} / 5
             </span>
           </div>
@@ -221,7 +217,7 @@ export default function Reviews() {
           <div className="label">Total reviews</div>
 
           <div className="value">
-            {q.isLoading ? '…' : all.length}
+            {q.isPending ? '…' : all.length}
           </div>
         </div>
 
@@ -229,7 +225,7 @@ export default function Reviews() {
           <div className="label">Awaiting reply</div>
 
           <div className="value">
-            {q.isLoading ? '…' : openCount}
+            {q.isPending ? '…' : openCount}
           </div>
         </div>
       </div>
@@ -285,8 +281,8 @@ export default function Reviews() {
                 .slice()
                 .sort(
                   (a, b) =>
-                    Number(b.reviewerId) -
-                    Number(a.reviewerId),
+                    Number(b.reviewerId || 0) -
+                    Number(a.reviewerId || 0),
                 )
                 .map((r) => {
                   const replied = isReplied(r)
@@ -331,7 +327,7 @@ export default function Reviews() {
                       </div>
 
                       <p style={{ marginTop: 10 }}>
-                        {r.review}
+                        {r.review || 'No review text provided.'}
                       </p>
 
                       {replied && (
@@ -373,3 +369,37 @@ export default function Reviews() {
                   )
                 })}
             </div>
+          )
+        }
+      </DataState>
+
+      {/* Reply modal */}
+      {reply && (
+        <ReplyModal
+          r={reply}
+          onClose={() => setReply(null)}
+        />
+      )}
+
+      {/* Delete confirmation */}
+      {del && (
+        <Confirm
+          title="Delete review?"
+          message={`Are you sure you want to delete the review from ${
+            del.name || 'this customer'
+          }? This action cannot be undone.`}
+          confirmText="Delete review"
+          cancelText="Cancel"
+          danger
+          loading={remove.isPending}
+          onCancel={() => {
+            if (!remove.isPending) setDel(null)
+          }}
+          onConfirm={() => {
+            if (!remove.isPending) remove.mutate(del)
+          }}
+        />
+      )}
+    </>
+  )
+}
