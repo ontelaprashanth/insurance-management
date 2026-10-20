@@ -1,4 +1,3 @@
-
 import { useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
@@ -25,179 +24,107 @@ import {
   StatusBadge,
 } from '../../components/ui'
 
-import { useAuth } from '../../auth/AuthContext'
+import { useAuth } from '../../auth/useAuth'
 import { date, inr, inrShort, timeAgo } from '../../lib/format'
 
-function asArray(value) {
-  if (Array.isArray(value)) return value
-  if (Array.isArray(value?.data)) return value.data
-  if (Array.isArray(value?.content)) return value.content
-  if (Array.isArray(value?.data?.content)) return value.data.content
-  return []
+const asArray = (value) => Array.isArray(value) ? value : []
+
+const upper = (value) => String(value ?? '').trim().toUpperCase()
+
+const isActive = (value) =>
+  value === true ||
+  value === 1 ||
+  upper(value) === 'TRUE' ||
+  upper(value) === 'ACTIVE'
+
+const isUnread = (item) =>
+  item?.isRead === false ||
+  item?.read === false ||
+  item?.isRead === 0 ||
+  upper(item?.status) === 'UNREAD'
+
+const safeDate = (value) => {
+  if (!value) return 0
+  const parsed = new Date(value).getTime()
+  return Number.isNaN(parsed) ? 0 : parsed
 }
 
-function isActive(value) {
+const getClaimDate = (item) =>
+  item?.claimDate ?? item?.createdAt ?? item?.date
+
+const getClaimAmount = (item) =>
+  Number(item?.amount ?? item?.claimAmount ?? 0)
+
+const getNotificationDate = (item) =>
+  item?.createdAt ?? item?.notificationDate ?? item?.date
+
+const getPolicyNumber = (item) =>
+  item?.policyNumber ?? item?.policy?.policyNumber ?? '—'
+
+const getClaimNumber = (item) =>
+  item?.claimNumber ?? item?.id ?? '—'
+
+const sum = (items, getValue) =>
+  items.reduce((total, item) => total + Number(getValue(item) || 0), 0)
+
+function Stat({ icon, label, value, detail, to, loading }) {
   return (
-    value === true ||
-    value === 1 ||
-    ['true', '1', 'yes', 'active'].includes(
-      String(value ?? '').trim().toLowerCase(),
-    )
-  )
-}
-
-function isUnread(notification) {
-  return !isActive(notification?.isRead)
-}
-
-function safeDate(value) {
-  if (!value) return Number.NEGATIVE_INFINITY
-
-  const timestamp = new Date(value).getTime()
-
-  return Number.isFinite(timestamp)
-    ? timestamp
-    : Number.NEGATIVE_INFINITY
-}
-
-function getClaimDate(claim) {
-  return claim?.claimDate ? date(claim.claimDate) : 'Date unavailable'
-}
-
-function getClaimAmount(claim) {
-  const status = String(claim?.status || '').toUpperCase()
-
-  return inr(
-    status === 'APPROVED'
-      ? claim?.approvedAmount ?? claim?.amount ?? 0
-      : claim?.amount ?? 0,
-  )
-}
-
-function StatCard({ label, value, description, icon, to }) {
-  const content = (
-    <>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: 12,
-        }}
-      >
-        <div
-          className="label"
-          style={{
-            minWidth: 0,
-            lineHeight: 1.5,
-            overflowWrap: 'anywhere',
-          }}
-        >
-          {label}
-        </div>
-
-        <div
-          className="dot-icon"
-          aria-hidden="true"
-          style={{
-            flexShrink: 0,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
-          {icon}
-        </div>
-      </div>
-
-      <div
-        className="value"
-        style={{
-          marginTop: 12,
-          lineHeight: 1.25,
-          overflowWrap: 'anywhere',
-        }}
-      >
-        {value}
-      </div>
-
-      <div
-        className="sub"
-        style={{
-          marginTop: 7,
-          lineHeight: 1.5,
-          overflowWrap: 'anywhere',
-        }}
-      >
-        {description}
-      </div>
-
+    <div
+      style={{
+        minWidth: 0,
+        padding: '18px 20px',
+        display: 'flex',
+        flexDirection: 'column',
+        justifyContent: 'center',
+      }}
+    >
       <div
         style={{
           display: 'flex',
           alignItems: 'center',
-          gap: 5,
-          marginTop: 'auto',
-          paddingTop: 14,
-          fontSize: 12.5,
-          fontWeight: 650,
+          gap: 8,
+          marginBottom: 5,
         }}
       >
-        View details <ArrowRight size={14} />
+        <Icon name={icon} />
+        <span className="label" style={{ fontWeight: 700 }}>
+          {label}
+        </span>
       </div>
-    </>
-  )
 
-  const cardStyle = {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100%',
-    minWidth: 0,
-    minHeight: 168,
-    boxSizing: 'border-box',
-    padding: 18,
-    color: 'inherit',
-    textDecoration: 'none',
-    overflowWrap: 'anywhere',
-  }
-
-  return (
-    <Link
-      to={to}
-      className="panel"
-      style={cardStyle}
-    >
-      {content}
-    </Link>
-  )
-}
-
-function QueryError({ query, label }) {
-  if (!query.isError) return null
-
-  return (
-    <div
-      className="alert error"
-      role="alert"
-      style={{
-        marginBottom: 12,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        flexWrap: 'wrap',
-        gap: 10,
-      }}
-    >
-      <span>Could not load {label}. Please try again.</span>
-
-      <button
-        type="button"
-        className="btn sm"
-        onClick={() => query.refetch()}
-        disabled={query.isFetching}
+      <Link
+        to={to}
+        style={{
+          display: 'block',
+          color: 'inherit',
+          textDecoration: 'none',
+          minWidth: 0,
+        }}
       >
-        {query.isFetching ? 'Retrying…' : 'Retry'}
-      </button>
+        <div
+          className="value"
+          style={{
+            fontWeight: 800,
+            fontSize: 'clamp(23px, 2vw, 30px)',
+            lineHeight: 1.25,
+            marginTop: 8,
+            overflowWrap: 'anywhere',
+          }}
+        >
+          {loading ? '…' : value}
+        </div>
+
+        <div
+          className="sub"
+          style={{
+            marginTop: 6,
+            fontWeight: 500,
+            lineHeight: 1.5,
+          }}
+        >
+          {detail}
+        </div>
+      </Link>
     </div>
   )
 }
@@ -205,285 +132,240 @@ function QueryError({ query, label }) {
 export default function Dashboard() {
   const { user } = useAuth()
 
-  const pol = useQuery({
+  const p = useQuery({
     queryKey: ['my-policies'],
-    queryFn: policies.mine,
-    retry: 1,
+    queryFn: policies.getAll,
   })
 
-  const pur = useQuery({
+  const pu = useQuery({
     queryKey: ['my-purchases'],
-    queryFn: purchases.mine,
-    retry: 1,
+    queryFn: purchases.getAll,
   })
 
-  const clm = useQuery({
+  const c = useQuery({
     queryKey: ['my-claims'],
-    queryFn: claims.mine,
-    retry: 1,
+    queryFn: claims.getAll,
   })
 
-  const ntf = useQuery({
+  const n = useQuery({
     queryKey: ['notifications'],
-    queryFn: notifications.mine,
-    retry: 1,
+    queryFn: notifications.getAll,
   })
 
-  const policyRows = useMemo(() => asArray(pol.data), [pol.data])
-  const purchaseRows = useMemo(() => asArray(pur.data), [pur.data])
-  const claimRows = useMemo(() => asArray(clm.data), [clm.data])
-  const notificationRows = useMemo(() => asArray(ntf.data), [ntf.data])
+  const P = asArray(p.data)
+  const PU = asArray(pu.data)
+  const C = asArray(c.data)
+  const N = asArray(n.data)
 
   const activePolicies = useMemo(
-    () => policyRows.filter((policy) => isActive(policy?.isActive)),
-    [policyRows],
+    () => P.filter((item) => isActive(item?.isActive)),
+    [P],
+  )
+
+  const paidPurchases = useMemo(
+    () =>
+      PU.filter((item) =>
+        ['PAID', 'SUCCESS', 'COMPLETED'].includes(
+          upper(item?.paymentStatus ?? item?.status),
+        ),
+      ),
+    [PU],
+  )
+
+  const validPurchases = useMemo(
+    () =>
+      paidPurchases.filter(
+        (item) => upper(item?.refundStatus) !== 'REFUNDED',
+      ),
+    [paidPurchases],
   )
 
   const totalCover = useMemo(
     () =>
-      purchaseRows
-        .filter(
-          (purchase) =>
-            ['PAID', 'SUCCESS', 'COMPLETED'].includes(
-              String(purchase?.paymentStatus || '').toUpperCase(),
-            ) &&
-            String(purchase?.refundStatus || '').toUpperCase() !==
-              'REFUNDED',
-        )
-        .reduce(
-          (sum, purchase) =>
-            sum + Math.max(0, Number(purchase?.coverageAmount) || 0),
+      sum(
+        validPurchases,
+        (item) =>
+          item?.coverageAmount ??
+          item?.sumInsured ??
+          item?.totalCoverage ??
+          item?.policy?.coverageAmount ??
           0,
-        ),
-    [purchaseRows],
+      ),
+    [validPurchases],
   )
 
   const pendingClaims = useMemo(
-    () =>
-      claimRows.filter(
-        (claim) =>
-          String(claim?.status || '').toUpperCase() === 'PENDING',
-      ),
-    [claimRows],
+    () => C.filter((item) => upper(item?.status) === 'PENDING'),
+    [C],
   )
 
   const unreadNotifications = useMemo(
-    () => notificationRows.filter(isUnread),
-    [notificationRows],
+    () => N.filter(isUnread),
+    [N],
   )
 
   const recentClaims = useMemo(
     () =>
-      [...claimRows]
+      [...C]
         .sort(
           (a, b) =>
-            (Number(b?.claimNumber) || 0) -
-            (Number(a?.claimNumber) || 0),
+            safeDate(getClaimDate(b)) - safeDate(getClaimDate(a)),
         )
         .slice(0, 5),
-    [claimRows],
+    [C],
   )
 
   const recentNotifications = useMemo(
     () =>
-      [...notificationRows]
+      [...N]
         .sort(
-          (a, b) => safeDate(b?.createdAt) - safeDate(a?.createdAt),
+          (a, b) =>
+            safeDate(getNotificationDate(b)) -
+            safeDate(getNotificationDate(a)),
         )
         .slice(0, 5),
-    [notificationRows],
+    [N],
   )
 
-  const firstName = user?.username?.trim() || 'Customer'
+  const anyError =
+    p.isError || pu.isError || c.isError || n.isError
+
+  const refreshAll = () => {
+    p.refetch()
+    pu.refetch()
+    c.refetch()
+    n.refetch()
+  }
 
   return (
-    <div style={{ width: '100%', minWidth: 0 }}>
+    <>
       <PageHeader
-        title={`Hello, ${firstName}`}
-        subtitle="Here is where your cover and claims stand today."
-      >
-        <Link className="btn primary" to="/app/plans">
-          <ShieldCheck size={16} />
-          Buy insurance
-        </Link>
-      </PageHeader>
+        title={`Hello, ${user?.username?.trim() || 'Customer'}`}
+        subtitle="Your insurance overview, claims, and account updates."
+        actions={
+          <Link className="btn dark" to="/app/plans">
+            Buy insurance <ArrowRight size={16} />
+          </Link>
+        }
+      />
 
-      <QueryError query={pol} label="your policies" />
-      <QueryError query={pur} label="your purchases" />
-      <QueryError query={clm} label="your claims" />
-      <QueryError query={ntf} label="your notifications" />
+      {anyError && (
+        <div style={{ marginBottom: 16 }}>
+          <DataState
+            title="Some dashboard information could not be loaded"
+            description="Refresh to load your latest information."
+            action={
+              <button className="btn sm" onClick={refreshAll}>
+                Refresh dashboard
+              </button>
+            }
+          />
+        </div>
+      )}
 
-      {/* Four consistently sized statistics cards */}
+      {/* Dashboard statistics */}
       <div
+        className="ledger"
         style={{
-          display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(min(100%, 215px), 1fr))',
-          gap: 16,
+          marginBottom: 20,
           alignItems: 'stretch',
-          marginBottom: 24,
-          width: '100%',
-          minWidth: 0,
         }}
       >
-        <StatCard
+        <Stat
+          icon="shield-check"
           label="Active policies"
-          value={
-            pol.isPending
-              ? '…'
-              : pol.isError
-                ? '—'
-                : activePolicies.length
-          }
-          description={
-            pol.isError
-              ? 'Unable to load policies'
-              : `${policyRows.length} in total`
-          }
-          icon={<ShieldCheck size={20} />}
-          to="/app/policies"
+          value={activePolicies.length}
+          detail={`${P.length} policies in total`}
+          to="/app/my-policies"
+          loading={p.isLoading}
         />
 
-        <StatCard
+        <Stat
+          icon="file-text"
+          label="My claims"
+          value={C.length}
+          detail={`${pendingClaims.length} awaiting review`}
+          to="/app/my-claims"
+          loading={c.isLoading}
+        />
+
+        <Stat
+          icon="wallet-cards"
           label="Total cover"
-          value={
-            pur.isPending
-              ? '…'
-              : pur.isError
-                ? '—'
-                : inrShort(totalCover)
-          }
-          description="Across eligible paid purchases"
-          icon={<WalletCards size={20} />}
-          to="/app/purchases"
+          value={inrShort(totalCover)}
+          detail={`${validPurchases.length} paid purchases`}
+          to="/app/my-policies"
+          loading={pu.isLoading}
         />
 
-        <StatCard
-          label="Claims in review"
-          value={
-            clm.isPending
-              ? '…'
-              : clm.isError
-                ? '—'
-                : pendingClaims.length
-          }
-          description={
-            clm.isError
-              ? 'Unable to load claims'
-              : `${claimRows.length} filed in all`
-          }
-          icon={<FileText size={20} />}
-          to="/app/claims"
-        />
-
-        <StatCard
-          label="Unread alerts"
-          value={
-            ntf.isPending
-              ? '…'
-              : ntf.isError
-                ? '—'
-                : unreadNotifications.length
-          }
-          description="Notifications and updates"
-          icon={<Bell size={20} />}
+        <Stat
+          icon="bell"
+          label="Notifications"
+          value={unreadNotifications.length}
+          detail={`${N.length} notifications in total`}
           to="/app/notifications"
+          loading={n.isLoading}
         />
       </div>
 
-      {/* Aligned claims and alerts panels */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(min(100%, 360px), 1fr))',
-          gap: 20,
-          alignItems: 'stretch',
-          width: '100%',
-          minWidth: 0,
-        }}
-      >
+      {/* Claims and notifications */}
+      <div className="two-col" style={{ marginBottom: 20 }}>
         <Panel
           title="Recent claims"
           flush
           actions={
-            <Link className="btn sm" to="/app/claims">
+            <Link className="btn sm" to="/app/my-claims">
               View all
             </Link>
           }
         >
-          <DataState
-            query={clm}
-            empty={{
-              title: 'No claims yet',
-              text: 'If something happens, file a claim from any active policy.',
-            }}
-            emptyAction={
-              <Link className="btn dark" to="/app/policies">
-                Go to my policies
+          {c.isLoading ? (
+            <DataState loading title="Loading claims..." />
+          ) : recentClaims.length === 0 ? (
+            <div className="empty">
+              <h4>No claims yet</h4>
+              <p>Your submitted claims will appear here.</p>
+              <Link className="btn sm" to="/app/claim-submit">
+                Submit a claim
               </Link>
-            }
-          >
-            {() =>
-              recentClaims.map((claim, index) => (
-                <div
-                  className="list-item"
-                  key={claim.claimNumber ?? `claim-${index}`}
-                  style={{
-                    minWidth: 0,
-                    alignItems: 'center',
-                    gap: 12,
-                  }}
-                >
-                  <div className="dot-icon" style={{ flexShrink: 0 }}>
-                    <Icon name="claim" />
-                  </div>
+            </div>
+          ) : (
+            recentClaims.map((item, index) => (
+              <div
+                className="list-item"
+                key={item?.claimNumber ?? item?.id ?? index}
+              >
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <b>Claim #{getClaimNumber(item)}</b>
 
-                  <div className="grow" style={{ minWidth: 0 }}>
-                    <b>Claim #{claim.claimNumber ?? '—'}</b>
-
-                    <span className="muted">
-                      {' '}
-                      · {claim.claimType || 'Insurance claim'}
-                    </span>
-
-                    <div
-                      className="faint"
-                      style={{
-                        fontSize: 13,
-                        marginTop: 5,
-                        overflowWrap: 'anywhere',
-                      }}
-                    >
-                      Policy #{claim.policyNumber ?? '—'} · filed{' '}
-                      {getClaimDate(claim)}
-                    </div>
-                  </div>
-
-                  <div
-                    style={{
-                      textAlign: 'right',
-                      flexShrink: 0,
-                      maxWidth: '42%',
-                    }}
-                  >
-                    <StatusBadge value={claim.status || 'UNKNOWN'} />
-
-                    <div
-                      className="num"
-                      style={{ fontSize: 13.5, marginTop: 5 }}
-                    >
-                      {getClaimAmount(claim)}
-                    </div>
+                  <div className="faint" style={{ fontSize: 13 }}>
+                    Policy #{getPolicyNumber(item)}
+                    {' · '}
+                    {date(getClaimDate(item))}
                   </div>
                 </div>
-              ))
-            }
-          </DataState>
+
+                <div
+                  style={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'flex-end',
+                    gap: 6,
+                    flexShrink: 0,
+                  }}
+                >
+                  <b className="num">
+                    {inr(getClaimAmount(item))}
+                  </b>
+                  <StatusBadge value={item?.status || 'PENDING'} />
+                </div>
+              </div>
+            ))
+          )}
         </Panel>
 
         <Panel
-          title="Latest alerts"
+          title="Latest notifications"
           flush
           actions={
             <Link className="btn sm" to="/app/notifications">
@@ -491,79 +373,93 @@ export default function Dashboard() {
             </Link>
           }
         >
-          <DataState
-            query={ntf}
-            empty={{
-              title: 'Nothing new',
-              text: 'Offers, payment receipts and claim updates show up here.',
-            }}
-          >
-            {() =>
-              recentNotifications.map((notification, index) => (
-                <div
-                  className={`list-item ${
-                    isUnread(notification) ? 'unread' : ''
-                  }`}
-                  key={
-                    notification.notificationId ??
-                    `notification-${index}`
-                  }
-                  style={{
-                    minWidth: 0,
-                    alignItems: 'flex-start',
-                    gap: 12,
-                  }}
-                >
-                  <div className="dot-icon" style={{ flexShrink: 0 }}>
-                    <Icon name="bell" />
-                  </div>
+          {n.isLoading ? (
+            <DataState loading title="Loading notifications..." />
+          ) : recentNotifications.length === 0 ? (
+            <div className="empty">
+              <h4>You're all caught up</h4>
+              <p>New account updates will appear here.</p>
+            </div>
+          ) : (
+            recentNotifications.map((item, index) => (
+              <div
+                className="list-item"
+                key={item?.notificationId ?? item?.id ?? index}
+              >
+                <div className="grow" style={{ minWidth: 0 }}>
+                  <b
+                    style={{
+                      fontWeight: isUnread(item) ? 800 : 600,
+                      overflowWrap: 'anywhere',
+                    }}
+                  >
+                    {item?.title || item?.message || 'Account update'}
+                  </b>
 
-                  <div className="grow" style={{ minWidth: 0 }}>
-                    <b>{notification.title || 'InsureX update'}</b>
-
+                  {item?.title && item?.message && (
                     <div
-                      className="muted"
+                      className="faint"
                       style={{
                         fontSize: 13,
-                        marginTop: 5,
-                        lineHeight: 1.5,
+                        marginTop: 4,
                         overflowWrap: 'anywhere',
                       }}
                     >
-                      {notification.message ||
-                        notification.description ||
-                        'You have a new InsureX notification.'}
+                      {item.message}
                     </div>
-
-                    <div
-                      className="faint"
-                      style={{ fontSize: 12, marginTop: 6 }}
-                    >
-                      {notification.createdAt
-                        ? timeAgo(notification.createdAt)
-                        : 'Recent update'}
-                    </div>
-                  </div>
-
-                  {isUnread(notification) && (
-                    <span
-                      className="status-badge"
-                      style={{
-                        fontSize: 11,
-                        padding: '4px 8px',
-                        whiteSpace: 'nowrap',
-                        flexShrink: 0,
-                      }}
-                    >
-                      New
-                    </span>
                   )}
+
+                  <div className="faint" style={{ fontSize: 12, marginTop: 5 }}>
+                    {timeAgo(getNotificationDate(item))}
+                  </div>
                 </div>
-              ))
-            }
-          </DataState>
+
+                {isUnread(item) && (
+                  <span
+                    title="Unread notification"
+                    style={{
+                      width: 9,
+                      height: 9,
+                      borderRadius: '50%',
+                      background: '#2563eb',
+                      flexShrink: 0,
+                      marginTop: 6,
+                    }}
+                  />
+                )}
+              </div>
+            ))
+          )}
         </Panel>
       </div>
-    </div>
+
+      {/* Quick actions */}
+      <Panel title="Quick actions">
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns:
+              'repeat(auto-fit, minmax(min(100%, 190px), 1fr))',
+            gap: 12,
+          }}
+        >
+          <Link className="btn" to="/app/plans">
+            <ShieldCheck size={17} /> Browse policies
+          </Link>
+
+          <Link className="btn" to="/app/my-policies">
+            <WalletCards size={17} /> My policies
+          </Link>
+
+          <Link className="btn" to="/app/claim-submit">
+            <FileText size={17} /> Submit a claim
+          </Link>
+
+          <Link className="btn" to="/app/notifications">
+            <Bell size={17} /> Notifications
+          </Link>
+        </div>
+      </Panel>
+    </>
   )
 }
