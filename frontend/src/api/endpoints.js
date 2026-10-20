@@ -22,9 +22,8 @@ export const auth = {
   resetPassword: (body) =>
     d(api.post('/api/auth/reset-password', body)),
 
-  // Use the authenticated user's profile as the session check.
   session: () =>
-    d(api.get('/user/me')),
+    d(api.get('/api/session')),
 }
 
 // =====================================================
@@ -32,7 +31,7 @@ export const auth = {
 // =====================================================
 export const session = {
   current: () =>
-    d(api.get('/user/me')),
+    d(api.get('/api/session')),
 }
 
 // =====================================================
@@ -100,6 +99,17 @@ export const policies = {
 
   deactivate: (policyId) =>
     d(api.put(`/policy/deactivate/${id(policyId)}`)),
+}
+
+// =====================================================
+// PLANS — REQUIRED BY CUSTOMER PLANS PAGE
+// =====================================================
+export const plans = {
+  available: () =>
+    d(api.get('/api/plans/available')),
+
+  get: (planId) =>
+    d(api.get(`/api/plans/${id(planId)}`)),
 }
 
 // =====================================================
@@ -279,13 +289,14 @@ export const broadcast = {
 }
 
 // =====================================================
-// DEFAULT EXPORT
+// DEFAULT EXPORT — PRESERVE EXISTING IMPORT STYLE
 // =====================================================
 const endpoints = {
   auth,
   session,
   users,
   policies,
+  plans,
   purchases,
   payment,
   policyHolders,
