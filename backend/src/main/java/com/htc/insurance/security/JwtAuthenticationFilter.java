@@ -1,7 +1,9 @@
+
 package com.htc.insurance.security;
 
 import java.io.IOException;
 
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -29,6 +31,32 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         this.userDetailsService = userDetailsService;
     }
 
+    // =========================================================
+    // SKIP JWT PROCESSING FOR RAZORPAY WEBHOOK
+    // =========================================================
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request)
+            throws ServletException {
+
+        /*
+         * Razorpay sends a signed webhook request,
+         * not a customer JWT.
+         *
+         * The controller verifies the webhook signature.
+         *
+         * Other endpoints retain their existing JWT behavior.
+         */
+
+        return HttpMethod.POST.matches(request.getMethod())
+                && "/webhooks/razorpay".equals(
+                        request.getServletPath());
+    }
+
+    // =========================================================
+    // JWT AUTHENTICATION FILTER
+    // =========================================================
+
     @Override
     protected void doFilterInternal(
             HttpServletRequest request,
@@ -39,26 +67,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         String authHeader =
                 request.getHeader("Authorization");
 
-
         // =====================================================
         // NO BEARER TOKEN
-        //
-        // Public endpoints can continue normally.
-        // Protected endpoints will be rejected later by
-        // Spring Security authorization.
         // =====================================================
+
+        /*
+         * Public endpoints continue normally.
+         *
+         * Protected endpoints are rejected later
+         * by Spring Security authorization.
+         */
 
         if (authHeader == null
                 || !authHeader.startsWith("Bearer ")) {
 
-            filterChain.doFilter(
-                    request,
-                    response
-            );
-
+            filterChain.doFilter(request, response);
             return;
         }
-
 
         // =====================================================
         // EXTRACT TOKEN
@@ -69,19 +94,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         if (token.isEmpty()) {
 
-            filterChain.doFilter(
-                    request,
-                    response
-            );
-
+            filterChain.doFilter(request, response);
             return;
         }
-
 
         try {
 
             // =================================================
-            // EXTRACT USERNAME FROM JWT
+            // EXTRACT USERNAME
             // =================================================
 
             String username =
@@ -90,65 +110,43 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             if (username == null
                     || username.isBlank()) {
 
-                filterChain.doFilter(
-                        request,
-                        response
-                );
-
+                filterChain.doFilter(request, response);
                 return;
             }
 
-
             // =================================================
-            // ONLY AUTHENTICATE IF CONTEXT IS EMPTY
+            // CHECK EXISTING AUTHENTICATION
             // =================================================
 
             if (SecurityContextHolder
                     .getContext()
-                    .getAuthentication()
-                    != null) {
+                    .getAuthentication() != null) {
 
-                filterChain.doFilter(
-                        request,
-                        response
-                );
-
+                filterChain.doFilter(request, response);
                 return;
             }
 
-
             // =================================================
-            // LOAD USER
+            // LOAD USER DETAILS
             // =================================================
 
             UserDetails userDetails =
-                    userDetailsService
-                            .loadUserByUsername(username);
-
+                    userDetailsService.loadUserByUsername(username);
 
             // =================================================
             // VALIDATE JWT
             // =================================================
 
             boolean valid =
-                    jwtService.isTokenValid(
-                            token,
-                            username
-                    );
+                    jwtService.isTokenValid(token, username);
 
             if (!valid) {
 
-                SecurityContextHolder
-                        .clearContext();
+                SecurityContextHolder.clearContext();
 
-                filterChain.doFilter(
-                        request,
-                        response
-                );
-
+                filterChain.doFilter(request, response);
                 return;
             }
-
 
             // =================================================
             // CREATE AUTHENTICATION
@@ -161,12 +159,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                             userDetails.getAuthorities()
                     );
 
-
             authentication.setDetails(
                     new WebAuthenticationDetailsSource()
                             .buildDetails(request)
             );
-
 
             // =================================================
             // SET SECURITY CONTEXT
@@ -174,32 +170,24 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             SecurityContextHolder
                     .getContext()
-                    .setAuthentication(
-                            authentication
-                    );
-
+                    .setAuthentication(authentication);
 
         } catch (Exception e) {
 
-            // =================================================
-            // INVALID JWT
-            //
-            // Do not expose JWT parsing details to the client.
-            // Spring Security will handle authorization.
-            // =================================================
+            /*
+             * Invalid or expired JWT.
+             *
+             * Do not expose token parsing details.
+             * Spring Security handles authorization.
+             */
 
-            SecurityContextHolder
-                    .clearContext();
+            SecurityContextHolder.clearContext();
         }
 
-
         // =====================================================
-        // CONTINUE REQUEST
+        // CONTINUE FILTER CHAIN
         // =====================================================
 
-        filterChain.doFilter(
-                request,
-                response
-        );
+        filterChain.doFilter(request, response);
     }
 }
