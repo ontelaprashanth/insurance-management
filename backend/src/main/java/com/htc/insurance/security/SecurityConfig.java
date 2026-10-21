@@ -26,22 +26,44 @@ public class SecurityConfig {
 
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    public SecurityConfig(JwtAuthenticationFilter jwtAuthenticationFilter) {
+    public SecurityConfig(
+            JwtAuthenticationFilter jwtAuthenticationFilter) {
+
         this.jwtAuthenticationFilter = jwtAuthenticationFilter;
     }
 
+    // =========================================================
+    // SPRING SECURITY FILTER CHAIN
+    // =========================================================
+
     @Bean
-    public SecurityFilterChain securityFilterChain(HttpSecurity http)
-            throws Exception {
+    public SecurityFilterChain securityFilterChain(
+            HttpSecurity http) throws Exception {
 
         http
             .csrf(csrf -> csrf.disable())
+
             .cors(cors -> {})
+
             .sessionManagement(session ->
-                session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                session.sessionCreationPolicy(
+                    SessionCreationPolicy.STATELESS)
             )
+
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+
+                // =================================================
+                // CORS PREFLIGHT
+                // =================================================
+
+                .requestMatchers(
+                    HttpMethod.OPTIONS,
+                    "/**"
+                ).permitAll()
+
+                // =================================================
+                // PUBLIC AUTHENTICATION ENDPOINTS
+                // =================================================
 
                 .requestMatchers(
                     "/api/auth/login",
@@ -51,12 +73,27 @@ public class SecurityConfig {
                     "/api/auth/reset-password"
                 ).permitAll()
 
+                // =================================================
+                // SWAGGER
+                // =================================================
+
                 .requestMatchers(
                     "/swagger-ui/**",
                     "/v3/api-docs/**"
                 ).permitAll()
 
-                .requestMatchers(HttpMethod.POST, "/user/save").permitAll()
+                // =================================================
+                // PUBLIC USER REGISTRATION
+                // =================================================
+
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/user/save"
+                ).permitAll()
+
+                // =================================================
+                // PUBLIC STATIC FILES
+                // =================================================
 
                 .requestMatchers(
                     "/",
@@ -79,13 +116,59 @@ public class SecurityConfig {
                     "/js/**"
                 ).permitAll()
 
-                .requestMatchers("/api/session").authenticated()
-                .requestMatchers("/payment/**").authenticated()
-                .requestMatchers("/policy/purchase").authenticated()
-                .requestMatchers("/webhooks/razorpay").permitAll()
+                // =================================================
+                // RAZORPAY WEBHOOK
+                // =================================================
+
+                /*
+                 * Razorpay does not send the customer's JWT.
+                 *
+                 * This endpoint is public at the Spring Security
+                 * authorization layer.
+                 *
+                 * RazorpayWebhookController independently verifies
+                 * the HMAC-SHA256 webhook signature.
+                 */
+                .requestMatchers(
+                    HttpMethod.POST,
+                    "/webhooks/razorpay"
+                ).permitAll()
+
+                // =================================================
+                // AUTHENTICATED SESSION
+                // =================================================
+
+                .requestMatchers(
+                    "/api/session"
+                ).authenticated()
+
+                // =================================================
+                // AUTHENTICATED PAYMENT ENDPOINTS
+                // =================================================
+
+                .requestMatchers(
+                    "/payment/**"
+                ).authenticated()
+
+                // =================================================
+                // AUTHENTICATED POLICY PURCHASE
+                // =================================================
+
+                .requestMatchers(
+                    "/policy/purchase"
+                ).authenticated()
+
+                // =================================================
+                // ALL REMAINING ENDPOINTS
+                // =================================================
 
                 .anyRequest().authenticated()
             )
+
+            // =====================================================
+            // JWT FILTER
+            // =====================================================
+
             .addFilterBefore(
                 jwtAuthenticationFilter,
                 UsernamePasswordAuthenticationFilter.class
@@ -94,54 +177,107 @@ public class SecurityConfig {
         return http.build();
     }
 
+    // =========================================================
+    // CORS CONFIGURATION
+    // =========================================================
+
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
 
         List<String> allowedOrigins = new ArrayList<>(List.of(
+
+            // Production Vercel frontend
             "https://insurex-insurace-ibdr.vercel.app",
+
+            // Vite development
             "http://localhost:5173",
             "http://127.0.0.1:5173",
+
+            // Local static frontend
             "http://localhost:5500",
             "http://127.0.0.1:5500",
             "http://localhost:5501",
             "http://127.0.0.1:5501",
+
+            // Local backend
             "http://localhost:8080",
             "http://127.0.0.1:8080"
         ));
 
-        String renderFrontendUrl = System.getenv("FRONTEND_URL");
+        // =====================================================
+        // OPTIONAL FRONTEND ORIGIN FROM ENVIRONMENT
+        // =====================================================
 
-        if (renderFrontendUrl != null && !renderFrontendUrl.isBlank()) {
-            allowedOrigins.add(renderFrontendUrl.trim().replaceAll("/+$", ""));
+        String frontendUrl = System.getenv("FRONTEND_URL");
+
+        if (frontendUrl != null && !frontendUrl.isBlank()) {
+
+            String normalizedUrl = frontendUrl
+                    .trim()
+                    .replaceAll("/+$", "");
+
+            if (!normalizedUrl.isBlank()
+                    && !allowedOrigins.contains(normalizedUrl)) {
+
+                allowedOrigins.add(normalizedUrl);
+            }
         }
 
-        CorsConfiguration configuration = new CorsConfiguration();
+        CorsConfiguration configuration =
+                new CorsConfiguration();
+
         configuration.setAllowedOrigins(allowedOrigins);
+
         configuration.setAllowedMethods(List.of(
-            "GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"
+            "GET",
+            "POST",
+            "PUT",
+            "DELETE",
+            "PATCH",
+            "OPTIONS"
         ));
+
         configuration.setAllowedHeaders(List.of(
-            "Authorization", "Content-Type", "Accept", "Origin"
+            "Authorization",
+            "Content-Type",
+            "Accept",
+            "Origin"
         ));
+
         configuration.setAllowCredentials(true);
+
         configuration.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source =
-            new UrlBasedCorsConfigurationSource();
+                new UrlBasedCorsConfigurationSource();
 
-        source.registerCorsConfiguration("/**", configuration);
+        source.registerCorsConfiguration(
+                "/**",
+                configuration
+        );
 
         return source;
     }
 
+    // =========================================================
+    // PASSWORD ENCODER
+    // =========================================================
+
     @Bean
     public PasswordEncoder passwordEncoder() {
+
         return new BCryptPasswordEncoder();
     }
 
+    // =========================================================
+    // AUTHENTICATION MANAGER
+    // =========================================================
+
     @Bean
     public AuthenticationManager authenticationManager(
-            AuthenticationConfiguration configuration) throws Exception {
+            AuthenticationConfiguration configuration)
+            throws Exception {
+
         return configuration.getAuthenticationManager();
     }
 }
