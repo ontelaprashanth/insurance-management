@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dto.RefundRequestDto;
 import com.htc.insurance.entity.PolicyPurchase;
+import com.htc.insurance.entity.RefundAttempt;
 
 import com.razorpay.RazorpayClient;
 import com.razorpay.Refund;
@@ -19,6 +20,7 @@ public class RefundService {
 
     private final RefundPreparationService refundPreparationService;
     private final RefundPersistenceService refundPersistenceService;
+    private final RefundAttemptPersistenceService refundAttemptPersistenceService;
     private final PolicyPurchaseDao policyPurchaseDao;
 
     @Value("${razorpay.key.id}")
@@ -30,10 +32,13 @@ public class RefundService {
     public RefundService(
             RefundPreparationService refundPreparationService,
             RefundPersistenceService refundPersistenceService,
+            RefundAttemptPersistenceService refundAttemptPersistenceService,
             PolicyPurchaseDao policyPurchaseDao) {
 
         this.refundPreparationService = refundPreparationService;
         this.refundPersistenceService = refundPersistenceService;
+        this.refundAttemptPersistenceService =
+                refundAttemptPersistenceService;
         this.policyPurchaseDao = policyPurchaseDao;
     }
 
@@ -43,9 +48,10 @@ public class RefundService {
      * Flow:
      * 1. Validate ownership and eligibility.
      * 2. Commit REFUND_PENDING and deactivate the policy.
-     * 3. Submit the refund request to Razorpay.
-     * 4. Persist REFUND_PROCESSING and the Razorpay refund ID.
-     * 5. Return the updated purchase.
+     * 3. Create a persistent refund attempt.
+     * 4. Submit the refund request to Razorpay.
+     * 5. Persist the Razorpay refund ID.
+     * 6. Return the updated purchase.
      *
      * IMPORTANT:
      * A refund ID does not guarantee that the refund has
@@ -80,7 +86,27 @@ public class RefundService {
         Long purchaseId = purchase.getPurchaseId();
 
         // =====================================================
-        // STEP 2: REQUEST FULL REFUND FROM RAZORPAY
+        // STEP 2: CREATE REFUND ATTEMPT
+        // =====================================================
+
+        /*
+         * Persist the attempt before calling Razorpay.
+         *
+         * This gives the webhook a stable attempt ID
+         * even if it arrives before the refund response
+         * is saved in the database.
+         */
+
+        RefundAttempt refundAttempt =
+                refundAttemptPersistenceService.beginRefund(
+                        purchaseId,
+                        purchase.getRazorpayPaymentId(),
+                        purchase.getRefundAmount(),
+                        purchase.getRefundReason(),
+                        authenticatedUsername);
+
+        // =====================================================
+        // STEP 3: REQUEST FULL REFUND FROM RAZORPAY
         // =====================================================
 
         try {
@@ -124,6 +150,11 @@ public class RefundService {
                     String.valueOf(purchaseId));
 
             notes.put(
+                    "refund_attempt_id",
+                    String.valueOf(
+                            refundAttempt.getRefundAttemptId()));
+
+            notes.put(
                     "reason",
                     purchase.getRefundReason());
 
@@ -154,15 +185,17 @@ public class RefundService {
             }
 
             // =================================================
-            // STEP 3: SAVE PROCESSING STATUS
+            // STEP 4: SAVE PROCESSING STATUS
             // =================================================
 
             /*
              * Razorpay accepted the refund request.
              *
              * Do not mark REFUNDED yet.
-             * Actual completion must be confirmed later
-             * through a verified webhook or reconciliation.
+             *
+             * The persistence service must preserve
+             * a REFUNDED status if a verified webhook
+             * has already confirmed completion.
              */
 
             refundPersistenceService.markRefundProcessing(
@@ -170,7 +203,7 @@ public class RefundService {
                     razorpayRefundId);
 
             // =================================================
-            // STEP 4: RETURN UPDATED PURCHASE
+            // STEP 5: RETURN UPDATED PURCHASE
             // =================================================
 
             PolicyPurchase updatedPurchase =
@@ -190,7 +223,7 @@ public class RefundService {
         } catch (Exception exception) {
 
             // =================================================
-            // STEP 5: HANDLE UNCERTAIN OUTCOMES
+            // STEP 6: HANDLE UNCERTAIN OUTCOMES
             // =================================================
 
             /*
@@ -205,6 +238,20 @@ public class RefundService {
              *
              * Do not automatically resubmit.
              */
+
+            try {
+
+                refundAttemptPersistenceService
+                        .requireReconciliation(
+                                refundAttempt.getRefundAttemptId(),
+                                "Refund submission or persistence "
+                                + "outcome could not be confirmed.");
+
+            } catch (Exception persistenceException) {
+
+                exception.addSuppressed(
+                        persistenceException);
+            }
 
             try {
 
