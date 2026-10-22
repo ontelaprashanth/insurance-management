@@ -13,7 +13,7 @@
 // - Automatic refresh for unresolved refunds
 // - Manual refresh
 // - Search and URL-synchronized filters
-// - Responsive policy table
+// - Responsive policy cards
 //
 // Existing imports, routes and ClaimForm integration preserved.
 //
@@ -50,7 +50,6 @@ import {
   Panel,
   Segmented,
   StatusBadge,
-  Table,
   SearchBox,
   useFilter,
 } from '../../components/ui'
@@ -1108,6 +1107,62 @@ export default function MyPolicies() {
           font-size: 13px;
         }
 
+
+        /* Shared responsive card layout for all policy statuses */
+        .ix-policy-card-grid {
+          display: grid;
+          grid-template-columns: repeat(auto-fit, minmax(min(100%, 330px), 1fr));
+          gap: 16px;
+          padding: 18px;
+        }
+        .ix-policy-card {
+          min-width: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 18px;
+          border: 1px solid #dce5e3;
+          border-radius: 18px;
+          background: #fff;
+          padding: 20px;
+          box-shadow: 0 3px 12px rgba(17, 51, 49, .035);
+        }
+        .ix-policy-card-head {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .ix-policy-card-identity { min-width: 0; }
+        .ix-policy-eyebrow { display: block; font-size: 12px; color: #617575; margin-bottom: 4px; }
+        .ix-policy-card-identity h3 { margin: 0 0 4px; font-size: 23px; line-height: 1.2; }
+        .ix-policy-cover { color: #516969; font-size: 14px; overflow-wrap: anywhere; }
+        .ix-policy-card-details {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px 12px;
+        }
+        .ix-policy-card-details > div { min-width: 0; }
+        .ix-policy-card-details span { display: block; font-size: 12px; color: #617575; margin-bottom: 5px; }
+        .ix-policy-card-details strong { font-size: 14px; overflow-wrap: anywhere; }
+        .ix-policy-card-footer {
+          margin-top: auto;
+          border-top: 1px solid #e4eae8;
+          padding-top: 15px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          flex-wrap: wrap;
+          gap: 12px;
+        }
+        .ix-policy-card-hint { font-size: 12px; color: #617575; }
+        .ix-policy-card-footer .btn { white-space: nowrap; }
+        @media (max-width: 640px) {
+          .ix-policy-card-grid, .ix-claimed-list { padding: 12px; gap: 12px; }
+          .ix-policy-card, .ix-claimed-card { padding: 16px; }
+          .ix-policy-card-footer .btn { max-width: 100%; }
+        }
+
         .ix-claimed-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; padding: 18px; }
         .ix-claimed-card { border: 1px solid #dce5e3; border-radius: 16px; padding: 20px; background: #fff; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
         .ix-claimed-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
@@ -1339,82 +1394,39 @@ export default function MyPolicies() {
                 ))}
               </div>
             ) : (
-              <div
-                className="ix-policy-table-scroll"
-                role="region"
-                aria-label={claimedSection ? 'Claimed policies table' : 'My policies table'}
-                tabIndex={0}
-              >
-                <Table
-                  rowKey="policyNumber"
-                  rows={rows}
-                  columns={[
-                    {
-                      key: 'policyNumber',
-                      header: 'Policy',
-                      render: (policy) => (
-                        <b>
-                          #{policy.policyNumber}
-                        </b>
-                      ),
-                    },
-                    {
-                      key: 'coveredTypes',
-                      header: 'Cover type',
-                      render: (policy) =>
-                        policy.coveredTypes || '—',
-                    },
-                    ...(claimedSection ? [{
-                      key: 'claimCount',
-                      header: 'Claims',
-                      render: (policy) => policy.claimCount || (policy.hasClaimHistory ? 'Recorded' : '—'),
-                    }] : []),
-                    {
-                      key: 'startDate',
-                      header: 'Starts',
-                      render: (policy) =>
-                        date(policy.startDate),
-                    },
-                    {
-                      key: 'durationYears',
-                      header: 'Term',
-                      render: (policy) =>
-                        `${
-                          policy.durationYears ?? '—'
-                        } yr`,
-                    },
-                    {
-                      key: 'expiryDate',
-                      header: 'Expires',
-                      render: (policy) =>
-                        date(policy.expiryDate),
-                    },
-                    {
-                      key: 'status',
-                      header: 'Status',
-                      render: (policy) => (
-                        <PolicyStatusBadge
-                          policy={policy}
-                        />
-                      ),
-                    },
-                    {
-                      key: 'action',
-                      header: 'Action',
-                      align: 'right',
-                      render: (policy) => claimedSection ? (
-                        <Link className="btn ix-policy-action-btn" to="/app/claims">
-                          View claims
-                        </Link>
-                      ) : (
-                        <PolicyAction
-                          policy={policy}
-                          onClaim={setClaimFor}
-                        />
-                      ),
-                    },
-                  ]}
-                />
+              <div className="ix-policy-card-grid" aria-label="My policies">
+                {rows.map((policy) => (
+                  <article className="ix-policy-card" key={String(policy.policyNumber)}>
+                    <div className="ix-policy-card-head">
+                      <div className="ix-policy-card-identity">
+                        <span className="ix-policy-eyebrow">Insurance policy</span>
+                        <h3>#{policy.policyNumber}</h3>
+                        <span className="ix-policy-cover">{policy.coveredTypes || 'Insurance cover'}</span>
+                      </div>
+                      <PolicyStatusBadge policy={policy} />
+                    </div>
+                    <div className="ix-policy-card-details">
+                      <div><span>Start date</span><strong>{date(policy.startDate)}</strong></div>
+                      <div><span>Expiry date</span><strong>{date(policy.expiryDate)}</strong></div>
+                      <div><span>Policy term</span><strong>{policy.durationYears != null ? `${policy.durationYears} yr` : '—'}</strong></div>
+                      <div><span>Claims recorded</span><strong>{policy.claimCount || (policy.hasClaimHistory ? 'Recorded' : '0')}</strong></div>
+                    </div>
+                    <div className="ix-policy-card-footer">
+                      <span className="ix-policy-card-hint">
+                        {policy.alreadyRenewed
+                          ? 'Previous cover renewed'
+                          : policy.refundPending
+                            ? 'Refund being processed'
+                            : policy.pendingClaim
+                              ? 'Claim under review'
+                              : policy.displayStatus === 'ACTIVE'
+                                ? 'Coverage currently active'
+                                : 'Policy details'}
+                      </span>
+                      <PolicyAction policy={policy} onClaim={setClaimFor} />
+                    </div>
+                  </article>
+                ))}
               </div>
             )
           }
