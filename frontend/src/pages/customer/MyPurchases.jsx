@@ -1787,6 +1787,39 @@ export default function MyPurchases() {
             grid-template-columns: 1fr;
           }
         }
+        /* Enhanced green motion system: decorative only, no API/state changes */
+        @keyframes ixGreenGlow { 0%,100% { box-shadow:0 8px 25px rgba(14,96,61,.08); } 50% { box-shadow:0 12px 35px rgba(14,126,75,.19); } }
+        @keyframes ixGreenShimmer { 0% { transform:translateX(-150%) skewX(-18deg); } 100% { transform:translateX(350%) skewX(-18deg); } }
+        @keyframes ixGreenFloat { 0%,100% { transform:translateY(0) rotate(0deg); } 50% { transform:translateY(-4px) rotate(4deg); } }
+        @keyframes ixGreenPop { 0% { opacity:0; transform:translateY(15px) scale(.92); } 75% { opacity:1; transform:translateY(-2px) scale(1.025); } 100% { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes ixGreenSweep { from { background-position:180% 50%; } to { background-position:-80% 50%; } }
+        .ix-purchase-card { position:relative; isolation:isolate; overflow:hidden; animation:ixGreenPop .65s cubic-bezier(.2,.9,.2,1) both !important; animation-delay:calc(min(var(--ix-card-index,0),8) * 75ms) !important; transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s ease,border-color .35s ease !important; }
+        .ix-purchase-card::before { content:''; position:absolute; inset:0 auto 0 -40%; width:24%; background:linear-gradient(90deg,transparent,rgba(70,194,126,.12),transparent); transform:translateX(-150%) skewX(-18deg); pointer-events:none; z-index:0; }
+        .ix-purchase-card:hover::before { animation:ixGreenShimmer .9s ease-out 1; }
+        .ix-purchase-card:hover { transform:translateY(-9px) scale(1.012) !important; box-shadow:0 24px 45px rgba(10,92,57,.20) !important; border-color:#198c58 !important; }
+        .ix-purchase-card:active { transform:translateY(-3px) scale(1.002) !important; }
+        .ix-purchase-card > * { position:relative; z-index:1; }
+        .ix-purchase-card-icon { animation:ixGreenFloat 3.6s ease-in-out infinite; box-shadow:0 5px 15px rgba(24,129,79,.12); }
+        .ix-purchase-card:hover .ix-purchase-card-icon { animation-play-state:paused; transform:rotate(-9deg) scale(1.16) !important; }
+        .ix-purchase-card-facts { transition:background-color .3s ease,transform .3s ease,border-color .3s ease !important; }
+        .ix-purchase-card:hover .ix-purchase-card-facts { background-color:#dcf5e7 !important; border-color:#a3dbbb !important; transform:translateY(-2px); }
+        .ix-purchase-card-statuses .badge { transition:transform .25s ease,box-shadow .25s ease; }
+        .ix-purchase-card:hover .ix-purchase-card-statuses .badge { transform:translateY(-2px); box-shadow:0 4px 12px rgba(20,111,71,.10); }
+        .ix-purchase-card-actions button:not(:disabled) { transition:transform .2s ease,box-shadow .2s ease,filter .2s ease !important; }
+        .ix-purchase-card-actions button:not(:disabled):hover { transform:translateY(-3px) scale(1.025) !important; box-shadow:0 8px 17px rgba(16,106,64,.22) !important; }
+        .ix-purchase-card-actions button:not(:disabled):active { transform:scale(.97) !important; }
+        .ix-payment-summary-grid > * { animation:ixGreenPop .6s cubic-bezier(.2,.9,.2,1) both !important; }
+        .ix-payment-summary-grid > :nth-child(1) { animation-delay:0ms !important; }
+        .ix-payment-summary-grid > :nth-child(2) { animation-delay:100ms !important; }
+        .ix-payment-summary-grid > :nth-child(3) { animation-delay:200ms !important; }
+        .ix-payment-summary-grid > :nth-child(4) { animation-delay:300ms !important; }
+        .ix-payment-summary-grid > * { transition:transform .3s ease,box-shadow .3s ease; }
+        .ix-payment-summary-grid > *:hover { transform:translateY(-6px); box-shadow:0 14px 28px rgba(17,106,67,.15); }
+        @media (prefers-reduced-motion:reduce) {
+          .ix-purchase-card,.ix-payment-summary-grid > *,.ix-purchase-card-icon,.ix-purchase-card::before { animation:none !important; transition:none !important; }
+          .ix-purchase-card:hover,.ix-purchase-card:active,.ix-payment-summary-grid > *:hover,.ix-purchase-card:hover .ix-purchase-card-icon,.ix-purchase-card:hover .ix-purchase-card-facts,.ix-purchase-card-actions button:not(:disabled):hover { transform:none !important; }
+        }
+
       `}</style>
 
       {/* PURCHASE HISTORY */}
