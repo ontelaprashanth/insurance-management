@@ -136,6 +136,70 @@ public class PolicyPurchaseDao {
     }
 
     // =========================================================
+    // POLICY RENEWAL - NEW METHODS
+    // =========================================================
+
+    /**
+     * Finds the successful renewal purchase associated
+     * with an original purchase.
+     *
+     * Returns null if the original purchase has not
+     * been renewed.
+     *
+     * Only one completed renewal purchase can reference
+     * the same original purchase.
+     */
+    public PolicyPurchase getRenewalByOriginalPurchaseId(
+            Long originalPurchaseId) {
+
+        if (originalPurchaseId == null
+                || originalPurchaseId <= 0) {
+
+            throw new IllegalArgumentException(
+                    "A valid original purchase ID is required.");
+        }
+
+        return repository
+                .findByRenewedFromPurchasePurchaseId(
+                        originalPurchaseId)
+                .orElse(null);
+    }
+
+    /**
+     * Checks whether an original purchase already
+     * has a successfully saved renewal purchase.
+     *
+     * This is an advisory check.
+     * Transaction locking and the database unique
+     * constraint must also protect confirmation.
+     */
+    public boolean existsRenewalByOriginalPurchaseId(
+            Long originalPurchaseId) {
+
+        if (originalPurchaseId == null
+                || originalPurchaseId <= 0) {
+
+            throw new IllegalArgumentException(
+                    "A valid original purchase ID is required.");
+        }
+
+        return repository
+                .existsByRenewedFromPurchasePurchaseId(
+                        originalPurchaseId);
+    }
+
+    /**
+     * Returns all purchases created through renewal.
+     *
+     * Useful for admin reporting and renewal history.
+     */
+    public List<PolicyPurchase> getAllRenewalPurchases() {
+
+        return repository
+                .findByRenewedFromPurchaseIsNotNull();
+    }
+
+    // =========================================================
     // GET PURCHASES WITH UNFINISHED REFUNDS
     // =========================================================
 
