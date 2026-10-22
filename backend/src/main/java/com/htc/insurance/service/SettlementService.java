@@ -1,8 +1,8 @@
-
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -122,59 +122,182 @@ public class SettlementService {
     // PROCESS SETTLEMENT
     // =========================================================
 
-    public SettlementDto processSettlement(
-            Long settlementNumber) {
+    /**
+     * Legacy endpoint deliberately cannot finalize a payout.
+     * The administrator must record a transfer with a bank reference first.
+     */
+    public SettlementDto processSettlement(Long settlementNumber) {
+        throw new IllegalStateException(
+                "Use /settlement/transfer/{id} to record the bank transfer. "
+                + "The legacy process endpoint cannot confirm payment.");
+    }
 
-        Settlement settlement =
-                getSettlementWithLockedPolicy(
-                        settlementNumber);
+    // =========================================================
+    // RECORD TRANSFER (PENDING/FAILED -> PROCESSING)
+    // =========================================================
 
-        if (!"PENDING".equalsIgnoreCase(
-                settlement.getSettlementStatus())) {
+    public SettlementDto recordTransfer(
+            Long settlementNumber,
+            SettlementDto dto,
+            String adminUsername) {
 
-            throw new IllegalStateException(
-                    "Only pending settlements can be processed.");
+        requireAdminName(adminUsername);
+        if (dto == null
+                || dto.getTransactionReference() == null
+                || dto.getTransactionReference().isBlank()) {
+            throw new IllegalArgumentException(
+                    "Bank transaction reference / UTR is required.");
+        }
+        String reference = dto.getTransactionReference().trim();
+        if (reference.length() > 150) {
+            throw new IllegalArgumentException(
+                    "Bank transaction reference exceeds 150 characters.");
+        }
+        if (dto.getTransferDate() == null
+                || dto.getTransferDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException(
+                    "A valid transfer date, not in the future, is required.");
         }
 
+        Settlement settlement = getSettlementWithLockedPolicy(settlementNumber);
+        String status = settlement.getSettlementStatus();
+        if (!"PENDING".equalsIgnoreCase(status)
+                && !"FAILED".equalsIgnoreCase(status)) {
+            throw new IllegalStateException(
+                    "Only pending or failed transfers can be recorded.");
+        }
         Claims claim = settlement.getClaim();
+        if (claim.getStatus() != ClaimStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Claim must remain approved before recording transfer.");
+        }
+        validateApprovedAmount(claim, settlement.getAmount());
 
+        settlement.setTransactionReference(reference);
+        settlement.setTransferDate(dto.getTransferDate());
+        settlement.setTransferRecordedBy(adminUsername.trim());
+        settlement.setSettlementStatus("PROCESSING");
+        settlement.setRejectionReason(null);
+        settlement.setConfirmedAt(null);
+        settlement.setConfirmedBy(null);
+        settlement.setConfirmationRemarks(null);
+
+        Settlement saved = settlementRepository.save(settlement);
+        notifySettlementOwner(saved,
+                "Settlement Transfer Recorded",
+                "A bank transfer has been recorded for claim #"
+                        + claim.getClaimNumber()
+                        + ". Settlement confirmation is pending.",
+                "SETTLEMENT");
+        return mapToDto(saved);
+    }
+
+    // =========================================================
+    // MANUAL CONFIRMATION (PROCESSING -> SETTLED)
+    // =========================================================
+
+    public SettlementDto confirmSettlement(
+            Long settlementNumber,
+            String confirmationRemarks,
+            String adminUsername) {
+
+        requireAdminName(adminUsername);
+        if (confirmationRemarks == null
+                || confirmationRemarks.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Describe how successful bank payment was verified.");
+        }
+        if (confirmationRemarks.trim().length() > 1000) {
+            throw new IllegalArgumentException(
+                    "Confirmation remarks cannot exceed 1000 characters.");
+        }
+
+        Settlement settlement = getSettlementWithLockedPolicy(settlementNumber);
+        if (!"PROCESSING".equalsIgnoreCase(
+                settlement.getSettlementStatus())) {
+            throw new IllegalStateException(
+                    "Only processing settlements can be confirmed.");
+        }
+        if (settlement.getTransactionReference() == null
+                || settlement.getTransactionReference().isBlank()
+                || settlement.getTransferDate() == null) {
+            throw new IllegalStateException(
+                    "Bank transfer details must be recorded first.");
+        }
+        Claims claim = settlement.getClaim();
         if (claim.getStatus() != ClaimStatus.APPROVED) {
             throw new IllegalStateException(
                     "Only approved claims can be settled.");
         }
+        validateApprovedAmount(claim, settlement.getAmount());
 
-        validateApprovedAmount(
-                claim, settlement.getAmount());
-
-        // =====================================================
-        // COMPLETE SETTLEMENT AND CLAIM
-        // =====================================================
-
+        // Manual confirmation is an administrator attestation,
+        // not an automatic bank/provider verification.
         settlement.setSettlementStatus("SETTLED");
+        settlement.setConfirmedAt(LocalDateTime.now());
+        settlement.setConfirmedBy(adminUsername.trim());
+        settlement.setConfirmationRemarks(confirmationRemarks.trim());
         settlement.setRejectionReason(null);
-
         claim.setStatus(ClaimStatus.SETTLED);
-
         claimsRepository.save(claim);
+        Settlement saved = settlementRepository.save(settlement);
 
-        Settlement saved =
-                settlementRepository.save(settlement);
-
-        notifySettlementOwner(
-                saved,
-                "Settlement Completed",
-                "Your settlement #"
-                        + saved.getSettlementNumber()
-                        + " for claim #"
-                        + claim.getClaimNumber()
-                        + " has been successfully settled for ₹"
-                        + saved.getAmount()
-                        + ".",
+        notifySettlementOwner(saved,
+                "Settlement Confirmed",
+                "Your settlement #" + saved.getSettlementNumber()
+                        + " for claim #" + claim.getClaimNumber()
+                        + " has been confirmed by the administrator for ₹"
+                        + saved.getAmount() + ".",
                 "SETTLEMENT");
-
         return mapToDto(saved);
     }
 
+    // =========================================================
+    // BANK TRANSFER FAILURE (PROCESSING -> FAILED)
+    // =========================================================
+
+    public SettlementDto failSettlement(
+            Long settlementNumber, String reason) {
+
+        if (reason == null || reason.isBlank()
+                || reason.trim().length() > 1000) {
+            throw new IllegalArgumentException(
+                    "A failure reason of 1-1000 characters is required.");
+        }
+        Settlement settlement = getSettlementWithLockedPolicy(settlementNumber);
+        if (!"PROCESSING".equalsIgnoreCase(
+                settlement.getSettlementStatus())) {
+            throw new IllegalStateException(
+                    "Only processing transfers can be marked failed.");
+        }
+        if (settlement.getClaim().getStatus() != ClaimStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Claim must be approved to record a transfer failure.");
+        }
+        settlement.setSettlementStatus("FAILED");
+        settlement.setRejectionReason(reason.trim());
+        Settlement saved = settlementRepository.save(settlement);
+        notifySettlementOwner(saved,
+                "Settlement Transfer Failed",
+                "The transfer for claim #"
+                        + saved.getClaim().getClaimNumber()
+                        + " could not be completed. Your approved claim "
+                        + "remains approved while the transfer is resolved.",
+                "SETTLEMENT");
+        return mapToDto(saved);
+    }
+
+    private void requireAdminName(String adminUsername) {
+        if (adminUsername == null || adminUsername.isBlank()) {
+            throw new IllegalArgumentException(
+                    "Authenticated administrator is required.");
+        }
+        if (adminUsername.length() > 150) {
+            throw new IllegalArgumentException("Administrator name is too long.");
+        }
+    }
+
+    // =========================================================
     // =========================================================
     // REJECT SETTLEMENT
     // =========================================================
@@ -796,6 +919,12 @@ public class SettlementService {
 
         dto.setRejectionReason(
                 settlement.getRejectionReason());
+        dto.setTransactionReference(settlement.getTransactionReference());
+        dto.setTransferDate(settlement.getTransferDate());
+        dto.setTransferRecordedBy(settlement.getTransferRecordedBy());
+        dto.setConfirmedAt(settlement.getConfirmedAt());
+        dto.setConfirmedBy(settlement.getConfirmedBy());
+        dto.setConfirmationRemarks(settlement.getConfirmationRemarks());
 
         if (settlement.getClaim() != null) {
             dto.setClaimNumber(
