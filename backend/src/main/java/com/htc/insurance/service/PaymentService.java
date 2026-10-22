@@ -407,6 +407,21 @@ public class PaymentService {
         }
 
         // =====================================================
+        // VERIFY STORED ORIGINAL PLAN ID
+        // =====================================================
+
+        // The renewal service resolves the plan ID from the
+        // original purchase or verified historical payment record.
+        // Recheck it here when a stored plan ID is available.
+        // Never infer a plan from current premium or coverage.
+        if (originalPurchase.getPlanId() != null
+                && !originalPurchase.getPlanId().equals(originalPlanId)) {
+
+            throw new IllegalStateException(
+                    "Renewal plan does not match the original purchase.");
+        }
+
+        // =====================================================
         // VERIFY ORIGINAL PAYMENT
         // =====================================================
 
