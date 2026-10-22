@@ -11,26 +11,36 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.json.JSONObject;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
+
 import com.htc.insurance.dto.PaymentOrderRequest;
 import com.htc.insurance.dto.PaymentOrderResponse;
 import com.htc.insurance.dto.PaymentVerificationRequest;
+
 import com.htc.insurance.entity.InsurancePlan;
-import com.htc.insurance.entity.PaymentAttempt;
 import com.htc.insurance.entity.Policy;
+import com.htc.insurance.entity.PolicyLifecycleStatus;
 import com.htc.insurance.entity.PolicyPurchase;
+
 import com.htc.insurance.repository.InsurancePlanRepository;
 import com.htc.insurance.repository.PolicyPurchaseRepository;
+
 import com.razorpay.Order;
+import com.razorpay.Payment;
 import com.razorpay.RazorpayClient;
 
 @Service
 public class PaymentService {
+
+    // =========================================================
+    // PAYMENT CONFIGURATION
+    // =========================================================
 
     private static final BigDecimal MIN_COVERAGE =
             new BigDecimal("1000000");
@@ -45,14 +55,22 @@ public class PaymentService {
             new BigDecimal("0.05");
 
     private static final BigDecimal ZERO =
-            BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+            BigDecimal.ZERO.setScale(
+                    2,
+                    RoundingMode.HALF_UP);
+
+    // =========================================================
+    // DEPENDENCIES
+    // =========================================================
 
     private final InsurancePlanRepository insurancePlanRepository;
+
     private final PaymentAttemptService paymentAttemptService;
 
-    // New dependencies for renewal validation.
     private final PolicyDao policyDao;
+
     private final PolicyPurchaseDao policyPurchaseDao;
+
     private final PolicyPurchaseRepository policyPurchaseRepository;
 
     @Value("${razorpay.key.id}")
@@ -63,6 +81,10 @@ public class PaymentService {
 
     @Value("${razorpay.currency:INR}")
     private String currency;
+
+    // =========================================================
+    // CONSTRUCTOR
+    // =========================================================
 
     public PaymentService(
             InsurancePlanRepository insurancePlanRepository,
@@ -79,122 +101,176 @@ public class PaymentService {
     }
 
     // =========================================================
-    // CREATE ORDER USING BACKEND-CALCULATED PREMIUM
-    // EXISTING NORMAL PURCHASE FLOW
+    // CREATE NORMAL PURCHASE ORDER
     // =========================================================
 
+    /**
+     * Creates a Razorpay order using a premium calculated
+     * entirely by the backend.
+     *
+     * Never trust a premium supplied by the frontend.
+     */
     public PaymentOrderResponse createOrder(
             PaymentOrderRequest request,
             String authenticatedUsername) throws Exception {
 
         if (request == null) {
+
             throw new IllegalArgumentException(
                     "Payment request is required.");
         }
 
-        if (authenticatedUsername == null
-                || authenticatedUsername.isBlank()) {
-            throw new IllegalArgumentException(
-                    "An authenticated user is required.");
-        }
+        requireUsername(authenticatedUsername);
 
         if (request.getPlanId() == null
                 || request.getPlanId() <= 0) {
+
             throw new IllegalArgumentException(
                     "A valid insurance plan is required.");
         }
 
+        // =====================================================
+        // VALIDATE COVERAGE
+        // =====================================================
+
         if (request.getCoverageAmount() == null
                 || request.getCoverageAmount()
-                        .compareTo(MIN_COVERAGE) < 0
+                    .compareTo(MIN_COVERAGE) < 0
                 || request.getCoverageAmount()
-                        .compareTo(MAX_COVERAGE) > 0) {
+                    .compareTo(MAX_COVERAGE) > 0) {
+
             throw new IllegalArgumentException(
-                    "Coverage must be between ₹10,00,000 and ₹1,00,00,000.");
+                    "Coverage must be between "
+                    + "₹10,00,000 and ₹1,00,00,000.");
         }
+
+        // =====================================================
+        // VALIDATE DURATION
+        // =====================================================
 
         if (request.getDurationYears() == null
                 || request.getDurationYears() < MIN_DURATION_YEARS
                 || request.getDurationYears() > MAX_DURATION_YEARS) {
+
             throw new IllegalArgumentException(
-                    "Policy duration must be between 1 and 5 years.");
+                    "Policy duration must be between "
+                    + "1 and 5 years.");
         }
+
+        // =====================================================
+        // VALIDATE CURRENCY
+        // =====================================================
 
         if (request.getCurrency() != null
                 && !request.getCurrency().isBlank()
                 && !currency.equalsIgnoreCase(
                         request.getCurrency().trim())) {
+
             throw new IllegalArgumentException(
-                    "Unsupported payment currency. Only "
-                    + currency + " is supported.");
+                    "Unsupported payment currency. "
+                    + "Only " + currency + " is supported.");
         }
 
-        // -----------------------------------------------------
-        // 1. Load and validate the insurance plan
-        // -----------------------------------------------------
+        // =====================================================
+        // LOAD INSURANCE PLAN
+        // =====================================================
 
         InsurancePlan plan = insurancePlanRepository
                 .findById(request.getPlanId())
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "The selected insurance plan was not found."));
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "The selected insurance plan "
+                                + "was not found."));
 
         if (!Boolean.TRUE.equals(plan.getIsActive())) {
+
             throw new IllegalArgumentException(
-                    "The selected insurance plan is not available.");
+                    "The selected insurance plan "
+                    + "is not available.");
         }
 
-        BigDecimal basePremium = plan.getBasePremium();
-        BigDecimal baseCoverage = plan.getBaseCoverage();
+        BigDecimal basePremium =
+                plan.getBasePremium();
+
+        BigDecimal baseCoverage =
+                plan.getBaseCoverage();
 
         if (basePremium == null
                 || basePremium.compareTo(BigDecimal.ZERO) <= 0
                 || baseCoverage == null
                 || baseCoverage.compareTo(BigDecimal.ZERO) <= 0) {
+
             throw new IllegalStateException(
-                    "The selected insurance plan has invalid pricing.");
+                    "The selected insurance plan "
+                    + "has invalid pricing.");
         }
 
-        // -----------------------------------------------------
-        // 2. Calculate the premium on the backend
-        // -----------------------------------------------------
+        // =====================================================
+        // CALCULATE PREMIUM
+        // =====================================================
 
-        BigDecimal coverageAmount = request.getCoverageAmount()
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal coverageAmount =
+                request.getCoverageAmount()
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP);
 
-        BigDecimal coverageFactor = coverageAmount.divide(
-                baseCoverage, 10, RoundingMode.HALF_UP);
+        BigDecimal coverageFactor =
+                coverageAmount.divide(
+                        baseCoverage,
+                        10,
+                        RoundingMode.HALF_UP);
 
-        BigDecimal calculatedBasePremium = basePremium
-                .multiply(coverageFactor)
-                .multiply(BigDecimal.valueOf(
-                        request.getDurationYears()))
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal calculatedBasePremium =
+                basePremium
+                        .multiply(coverageFactor)
+                        .multiply(
+                                BigDecimal.valueOf(
+                                        request.getDurationYears()))
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP);
+
+        // =====================================================
+        // LONG-TERM DISCOUNT
+        // =====================================================
 
         BigDecimal discount = ZERO;
 
         if (request.getDurationYears() >= 2) {
+
             discount = calculatedBasePremium
                     .multiply(LONG_TERM_DISCOUNT)
-                    .setScale(2, RoundingMode.HALF_UP);
+                    .setScale(
+                            2,
+                            RoundingMode.HALF_UP);
         }
 
-        BigDecimal taxableAmount = calculatedBasePremium
-                .subtract(discount)
-                .setScale(2, RoundingMode.HALF_UP);
+        BigDecimal taxableAmount =
+                calculatedBasePremium
+                        .subtract(discount)
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP);
 
-        // Preserve the existing GST behavior.
-        BigDecimal totalPremium = taxableAmount
-                .add(ZERO)
-                .setScale(2, RoundingMode.HALF_UP);
+        // Preserve existing GST calculation behavior.
+        BigDecimal totalPremium =
+                taxableAmount
+                        .add(ZERO)
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP);
 
-        if (totalPremium.compareTo(BigDecimal.ZERO) <= 0) {
+        if (totalPremium.compareTo(
+                BigDecimal.ZERO) <= 0) {
+
             throw new IllegalArgumentException(
-                    "The calculated premium must be greater than zero.");
+                    "Calculated premium must be greater than zero.");
         }
 
-        // -----------------------------------------------------
-        // 3. Persist the attempt BEFORE contacting Razorpay
-        // -----------------------------------------------------
+        // =====================================================
+        // CREATE PAYMENT ATTEMPT
+        // =====================================================
 
         String attemptReference =
                 paymentAttemptService.createAttempt(
@@ -211,9 +287,9 @@ public class PaymentService {
             receipt = attemptReference;
         }
 
-        // -----------------------------------------------------
-        // 4. Create Razorpay order and persist its ID
-        // -----------------------------------------------------
+        // =====================================================
+        // CREATE RAZORPAY ORDER
+        // =====================================================
 
         return createAndRecordOrder(
                 attemptReference,
@@ -222,125 +298,190 @@ public class PaymentService {
     }
 
     // =========================================================
-    // NEW - CREATE SAME-PRICE RENEWAL ORDER
+    // CREATE RENEWAL ORDER
     // =========================================================
 
     /**
-     * Creates a renewal payment order for an original policy.
+     * Creates a renewal order using the original
+     * paid purchase amount.
      *
-     * The original purchase is the trusted source of:
-     * - Coverage amount
-     * - Duration
-     * - Total premium
+     * Important:
+     * PolicyRenewalService must enforce successful-claim
+     * eligibility before calling this method.
      *
-     * Claim approval eligibility is additionally checked
-     * by the renewal service before exposing this method.
-     *
-     * This method verifies ownership and purchase/payment
-     * details but must not be exposed directly as a public
-     * controller endpoint without claim eligibility checks.
+     * Do not expose this method directly to a controller.
      */
     public PaymentOrderResponse createRenewalOrder(
             Long originalPolicyNumber,
             Long originalPlanId,
             String authenticatedUsername) throws Exception {
 
+        requireUsername(authenticatedUsername);
+
         if (originalPolicyNumber == null
                 || originalPolicyNumber <= 0) {
+
             throw new IllegalArgumentException(
                     "A valid original policy number is required.");
         }
 
         if (originalPlanId == null
                 || originalPlanId <= 0) {
+
             throw new IllegalArgumentException(
                     "A valid original plan ID is required.");
         }
 
-        if (authenticatedUsername == null
-                || authenticatedUsername.isBlank()) {
-            throw new IllegalArgumentException(
-                    "An authenticated user is required.");
-        }
+        // =====================================================
+        // LOAD ORIGINAL POLICY
+        // =====================================================
 
-        Policy policy = policyDao.getPolicyById(
-                originalPolicyNumber);
+        Policy policy =
+                policyDao.getPolicyById(
+                        originalPolicyNumber);
 
         if (policy == null
                 || policy.getPolicyHolder() == null
                 || policy.getPolicyHolder().getUser() == null) {
+
             throw new IllegalArgumentException(
                     "Original policy was not found.");
         }
 
-        String owner = policy.getPolicyHolder()
-                .getUser()
-                .getUsername();
+        // =====================================================
+        // VERIFY OWNERSHIP
+        // =====================================================
+
+        String owner =
+                policy.getPolicyHolder()
+                        .getUser()
+                        .getUsername();
 
         if (!authenticatedUsername.equals(owner)) {
+
             throw new AccessDeniedException(
                     "This policy belongs to another customer.");
         }
 
+        // =====================================================
+        // VERIFY POLICY LIFECYCLE
+        // =====================================================
+
+        PolicyLifecycleStatus lifecycle =
+                policy.getLifecycleStatus();
+
+        if (lifecycle == PolicyLifecycleStatus.REFUND_PENDING
+                || lifecycle == PolicyLifecycleStatus.REFUNDED) {
+
+            throw new IllegalStateException(
+                    "Policies with pending or completed refunds "
+                    + "cannot be renewed.");
+        }
+
+        if (lifecycle == PolicyLifecycleStatus.ADMIN_DISABLED) {
+
+            throw new IllegalStateException(
+                    "Administratively disabled policies "
+                    + "cannot be renewed.");
+        }
+
+        // CLAIM_LOCKED is allowed because successful
+        // claim eligibility is checked by renewal service.
+        //
+        // EXPIRED is also allowed when all other
+        // renewal conditions are satisfied.
+
+        // =====================================================
+        // LOAD ORIGINAL PURCHASE
+        // =====================================================
+
         PolicyPurchase originalPurchase =
-                policyPurchaseDao.getPurchaseByPolicyNumber(
-                        originalPolicyNumber);
+                policyPurchaseDao
+                        .getPurchaseByPolicyNumber(
+                                originalPolicyNumber);
 
         if (originalPurchase == null) {
+
             throw new IllegalStateException(
                     "Original policy purchase was not found.");
         }
 
+        // =====================================================
+        // VERIFY ORIGINAL PAYMENT
+        // =====================================================
+
         if (!"PAID".equalsIgnoreCase(
                 originalPurchase.getPaymentStatus())) {
+
             throw new IllegalStateException(
                     "Only paid policies can be renewed.");
         }
 
         if (!"NOT_REFUNDED".equalsIgnoreCase(
                 originalPurchase.getRefundStatus())) {
+
             throw new IllegalStateException(
                     "Refunded or refund-processing policies "
                     + "cannot be renewed.");
         }
 
+        // =====================================================
+        // PREVENT DUPLICATE RENEWAL
+        // =====================================================
+
         if (policyPurchaseRepository
                 .existsByRenewedFromPurchasePurchaseId(
                         originalPurchase.getPurchaseId())) {
+
             throw new IllegalStateException(
                     "This policy has already been renewed.");
         }
 
+        // =====================================================
+        // VALIDATE ORIGINAL DURATION
+        // =====================================================
+
         if (policy.getDurationYears() == null
                 || policy.getDurationYears() < MIN_DURATION_YEARS
                 || policy.getDurationYears() > MAX_DURATION_YEARS) {
+
             throw new IllegalStateException(
                     "Original policy duration is invalid.");
         }
+
+        // =====================================================
+        // VALIDATE ORIGINAL PREMIUM
+        // =====================================================
 
         BigDecimal originalPremium =
                 originalPurchase.getTotalPremium();
 
         if (originalPremium == null
-                || originalPremium.compareTo(BigDecimal.ZERO) <= 0) {
+                || originalPremium.compareTo(
+                        BigDecimal.ZERO) <= 0) {
+
             throw new IllegalStateException(
                     "Original paid premium is invalid.");
         }
+
+        // =====================================================
+        // VALIDATE ORIGINAL COVERAGE
+        // =====================================================
 
         BigDecimal coverage =
                 originalPurchase.getCoverageAmount();
 
         if (coverage == null
-                || coverage.compareTo(BigDecimal.ZERO) <= 0) {
+                || coverage.compareTo(
+                        BigDecimal.ZERO) <= 0) {
+
             throw new IllegalStateException(
                     "Original policy coverage is invalid.");
         }
 
-        /*
-         * The original plan ID must be recovered and validated
-         * by the trusted renewal service from the original
-         * payment attempt. Do not accept it from the browser.
-         */
+        // =====================================================
+        // CREATE RENEWAL PAYMENT ATTEMPT
+        // =====================================================
 
         String attemptReference =
                 paymentAttemptService.createRenewalAttempt(
@@ -352,6 +493,10 @@ public class PaymentService {
                         originalPremium,
                         currency);
 
+        // =====================================================
+        // CREATE RENEWAL RAZORPAY ORDER
+        // =====================================================
+
         return createAndRecordOrder(
                 attemptReference,
                 originalPremium,
@@ -359,57 +504,86 @@ public class PaymentService {
     }
 
     // =========================================================
-    // SHARED RAZORPAY ORDER / RECONCILIATION FLOW
+    // SHARED RAZORPAY ORDER CREATION
     // =========================================================
 
+    /**
+     * Creates an external Razorpay order and records
+     * the returned order ID.
+     *
+     * Does not automatically retry order creation.
+     */
     private PaymentOrderResponse createAndRecordOrder(
             String attemptReference,
             BigDecimal totalPremium,
             String receipt) throws Exception {
 
+        PaymentOrderResponse response;
+
+        // =====================================================
+        // CREATE REMOTE ORDER
+        // =====================================================
+
         try {
-            PaymentOrderResponse response =
-                    createRazorpayOrder(
-                            totalPremium,
-                            receipt);
 
-            try {
-                paymentAttemptService.markOrderCreated(
-                        attemptReference,
-                        response.getOrderId());
+            response = createRazorpayOrder(
+                    totalPremium,
+                    receipt);
 
-            } catch (Exception persistenceException) {
+        } catch (Exception exception) {
 
-                try {
-                    paymentAttemptService.markReconciliationRequired(
-                            attemptReference,
-                            "Razorpay order was created, but its ID "
-                            + "could not be saved.");
-                } catch (Exception ignored) {
-                    // Original attempt remains for reconciliation.
-                }
+            markReconciliationSafely(
+                    attemptReference,
+                    "Razorpay order creation outcome "
+                    + "could not be confirmed.");
 
-                throw new IllegalStateException(
-                        "The payment order could not be fully recorded. "
-                        + "Do not start another payment. Contact support "
-                        + "for payment reconciliation.",
-                        persistenceException);
-            }
+            throw exception;
+        }
 
-            return response;
+        // =====================================================
+        // RECORD ORDER ID
+        // =====================================================
 
-        } catch (Exception orderException) {
+        try {
 
-            try {
-                paymentAttemptService.markReconciliationRequired(
-                        attemptReference,
-                        "Order creation outcome is uncertain; "
-                        + "reconciliation is required.");
-            } catch (Exception ignored) {
-                // Keep original exception.
-            }
+            paymentAttemptService.markOrderCreated(
+                    attemptReference,
+                    response.getOrderId());
 
-            throw orderException;
+        } catch (Exception persistenceException) {
+
+            markReconciliationSafely(
+                    attemptReference,
+                    "Razorpay order was created, but "
+                    + "its order ID could not be saved.");
+
+            throw new IllegalStateException(
+                    "The payment order could not be fully recorded. "
+                    + "Do not start another payment. "
+                    + "Contact support for reconciliation.",
+                    persistenceException);
+        }
+
+        return response;
+    }
+
+    // =========================================================
+    // MARK RECONCILIATION SAFELY
+    // =========================================================
+
+    private void markReconciliationSafely(
+            String attemptReference,
+            String reason) {
+
+        try {
+
+            paymentAttemptService.markReconciliationRequired(
+                    attemptReference,
+                    reason);
+
+        } catch (Exception exception) {
+
+            // Preserve the original payment exception.
         }
     }
 
@@ -421,48 +595,82 @@ public class PaymentService {
             BigDecimal amount,
             String requestedReceipt) throws Exception {
 
-        BigDecimal normalizedAmount = amount.setScale(
-                2, RoundingMode.HALF_UP);
+        if (amount == null
+                || amount.compareTo(
+                        BigDecimal.ZERO) <= 0) {
 
-        long amountInPaise = normalizedAmount
-                .multiply(BigDecimal.valueOf(100))
-                .longValueExact();
+            throw new IllegalArgumentException(
+                    "Payment amount must be positive.");
+        }
+
+        BigDecimal normalizedAmount =
+                amount.setScale(
+                        2,
+                        RoundingMode.HALF_UP);
+
+        long amountInPaise =
+                normalizedAmount
+                        .movePointRight(2)
+                        .longValueExact();
+
+        // =====================================================
+        // PREPARE RECEIPT
+        // =====================================================
 
         String receipt = requestedReceipt;
 
         if (receipt == null || receipt.isBlank()) {
-            receipt = "INSX_" + UUID.randomUUID()
-                    .toString()
-                    .replace("-", "")
-                    .substring(0, 12)
-                    .toUpperCase();
+
+            receipt = "INSX_"
+                    + UUID.randomUUID()
+                        .toString()
+                        .replace("-", "")
+                        .substring(0, 12)
+                        .toUpperCase();
+
         } else {
+
             receipt = receipt.trim();
 
             if (receipt.length() > 40) {
+
                 throw new IllegalArgumentException(
-                        "Payment receipt must not exceed 40 characters.");
+                        "Payment receipt must not exceed "
+                        + "40 characters.");
             }
         }
 
-        RazorpayClient razorpayClient = new RazorpayClient(
-                razorpayKeyId, razorpayKeySecret);
+        // =====================================================
+        // CREATE RAZORPAY CLIENT
+        // =====================================================
 
-        JSONObject orderRequest = new JSONObject();
+        RazorpayClient razorpayClient =
+                new RazorpayClient(
+                        razorpayKeyId,
+                        razorpayKeySecret);
+
+        JSONObject orderRequest =
+                new JSONObject();
+
         orderRequest.put("amount", amountInPaise);
         orderRequest.put("currency", currency);
         orderRequest.put("receipt", receipt);
 
-        Order order = razorpayClient.orders.create(orderRequest);
+        Order order =
+                razorpayClient.orders.create(
+                        orderRequest);
 
         if (order == null) {
+
             throw new IllegalStateException(
                     "Unable to create Razorpay order.");
         }
 
-        String orderId = order.get("id");
+        String orderId =
+                order.get("id");
 
         if (orderId == null || orderId.isBlank()) {
+
             throw new IllegalStateException(
                     "Razorpay did not return an order ID.");
         }
@@ -476,37 +684,60 @@ public class PaymentService {
     }
 
     // =========================================================
-    // SECURE VERIFICATION
+    // VERIFY PAYMENT WITH EXPECTED AMOUNT
     // =========================================================
 
+    /**
+     * Preferred verification method.
+     *
+     * Validates the exact expected premium in paise.
+     */
     public boolean verifyPayment(
             PaymentVerificationRequest request,
             BigDecimal expectedAmount) throws Exception {
 
         if (expectedAmount == null
-                || expectedAmount.compareTo(BigDecimal.ZERO) <= 0) {
+                || expectedAmount.compareTo(
+                        BigDecimal.ZERO) <= 0) {
+
             return false;
         }
 
-        BigDecimal normalizedExpectedAmount = expectedAmount
-                .setScale(2, RoundingMode.HALF_UP);
+        final long expectedAmountInPaise;
 
-        long expectedAmountInPaise = normalizedExpectedAmount
-                .multiply(BigDecimal.valueOf(100))
-                .longValueExact();
+        try {
+
+            expectedAmountInPaise =
+                    expectedAmount
+                            .movePointRight(2)
+                            .longValueExact();
+
+        } catch (ArithmeticException exception) {
+
+            return false;
+        }
 
         return verifyPaymentInternally(
-                request, expectedAmountInPaise);
+                request,
+                expectedAmountInPaise);
     }
 
     // =========================================================
-    // LEGACY VERIFICATION - PRESERVED
+    // LEGACY VERIFICATION
     // =========================================================
 
+    /**
+     * Preserved for existing callers.
+     *
+     * Prefer verifyPayment(request, expectedAmount)
+     * when the trusted purchase amount is available.
+     */
     public boolean verifyPayment(
             PaymentVerificationRequest request) throws Exception {
 
-        return verifyPaymentInternally(request, null);
+        return verifyPaymentInternally(
+                request,
+                null);
     }
 
     // =========================================================
@@ -521,92 +752,168 @@ public class PaymentService {
             return false;
         }
 
-        String orderId = request.getRazorpayOrderId().trim();
-        String paymentId = request.getRazorpayPaymentId().trim();
-        String signature = request.getRazorpaySignature().trim();
+        String orderId =
+                request.getRazorpayOrderId().trim();
 
-        String signatureData = orderId + "|" + paymentId;
+        String paymentId =
+                request.getRazorpayPaymentId().trim();
 
-        String generatedSignature = generateHmacSha256(
-                signatureData, razorpayKeySecret);
+        String signature =
+                request.getRazorpaySignature().trim();
 
-        boolean signatureValid = MessageDigest.isEqual(
-                generatedSignature.getBytes(StandardCharsets.UTF_8),
-                signature.getBytes(StandardCharsets.UTF_8));
+        // =====================================================
+        // VERIFY HMAC SIGNATURE
+        // =====================================================
+
+        String signatureData =
+                orderId + "|" + paymentId;
+
+        String generatedSignature =
+                generateHmacSha256(
+                        signatureData,
+                        razorpayKeySecret);
+
+        boolean signatureValid =
+                MessageDigest.isEqual(
+                        generatedSignature.getBytes(
+                                StandardCharsets.UTF_8),
+                        signature.toLowerCase(java.util.Locale.ROOT)
+                                .getBytes(
+                                        StandardCharsets.UTF_8));
 
         if (!signatureValid) {
             return false;
         }
 
-        RazorpayClient razorpayClient = new RazorpayClient(
-                razorpayKeyId, razorpayKeySecret);
+        // =====================================================
+        // FETCH RAZORPAY ORDER
+        // =====================================================
 
-        Order order = razorpayClient.orders.fetch(orderId);
+        RazorpayClient razorpayClient =
+                new RazorpayClient(
+                        razorpayKeyId,
+                        razorpayKeySecret);
+
+        Order order =
+                razorpayClient.orders.fetch(orderId);
 
         if (order == null) {
             return false;
         }
 
-        String fetchedOrderId = order.get("id");
+        String fetchedOrderId =
+                order.get("id");
 
-        if (fetchedOrderId == null
-                || !orderId.equals(fetchedOrderId)) {
+        if (!orderId.equals(fetchedOrderId)) {
             return false;
         }
 
-        String orderCurrency = order.get("currency");
+        String orderCurrency =
+                order.get("currency");
 
         if (orderCurrency == null
-                || !currency.equalsIgnoreCase(orderCurrency)) {
+                || !currency.equalsIgnoreCase(
+                        orderCurrency)) {
+
             return false;
         }
 
-        Long orderAmountInPaise = readAmountInPaise(
-                order.get("amount"));
+        // =====================================================
+        // VALIDATE ORDER STATUS
+        // =====================================================
+
+        String orderStatus =
+                order.get("status");
+
+        if (!"paid".equalsIgnoreCase(orderStatus)) {
+            return false;
+        }
+
+        // =====================================================
+        // VALIDATE ORDER AMOUNT
+        // =====================================================
+
+        Long orderAmountInPaise =
+                readAmountInPaise(
+                        order.get("amount"));
 
         if (orderAmountInPaise == null
                 || orderAmountInPaise <= 0) {
+
             return false;
         }
 
         if (expectedAmountInPaise != null
-                && !expectedAmountInPaise.equals(orderAmountInPaise)) {
+                && !expectedAmountInPaise.equals(
+                        orderAmountInPaise)) {
+
             return false;
         }
 
-        var payment = razorpayClient.payments.fetch(paymentId);
+        // =====================================================
+        // FETCH RAZORPAY PAYMENT
+        // =====================================================
+
+        Payment payment =
+                razorpayClient.payments.fetch(
+                        paymentId);
 
         if (payment == null) {
             return false;
         }
 
-        String paymentOrderId = payment.get("order_id");
+        // =====================================================
+        // VERIFY PAYMENT ORDER
+        // =====================================================
 
-        if (paymentOrderId == null
-                || !orderId.equals(paymentOrderId)) {
+        String paymentOrderId =
+                payment.get("order_id");
+
+        if (!orderId.equals(paymentOrderId)) {
             return false;
         }
 
-        String paymentStatus = payment.get("status");
+        // =====================================================
+        // VERIFY PAYMENT CAPTURE
+        // =====================================================
 
-        if (paymentStatus == null
-                || !"captured".equalsIgnoreCase(paymentStatus)) {
+        String paymentStatus =
+                payment.get("status");
+
+        if (!"captured".equalsIgnoreCase(
+                paymentStatus)) {
+
             return false;
         }
 
-        Long paymentAmountInPaise = readAmountInPaise(
-                payment.get("amount"));
+        // =====================================================
+        // VERIFY PAYMENT AMOUNT
+        // =====================================================
+
+        Long paymentAmountInPaise =
+                readAmountInPaise(
+                        payment.get("amount"));
 
         if (paymentAmountInPaise == null
-                || !orderAmountInPaise.equals(paymentAmountInPaise)) {
+                || !orderAmountInPaise.equals(
+                        paymentAmountInPaise)) {
+
             return false;
         }
 
-        String paymentCurrency = payment.get("currency");
+        // =====================================================
+        // VERIFY PAYMENT CURRENCY
+        // =====================================================
+
+        String paymentCurrency =
+                payment.get("currency");
 
         if (paymentCurrency == null
-                || !currency.equalsIgnoreCase(paymentCurrency)
-                || !orderCurrency.equalsIgnoreCase(paymentCurrency)) {
+                || !currency.equalsIgnoreCase(
+                        paymentCurrency)
+                || !orderCurrency.equalsIgnoreCase(
+                        paymentCurrency)) {
+
             return false;
         }
 
@@ -617,24 +924,28 @@ public class PaymentService {
     // PARSE RAZORPAY AMOUNT
     // =========================================================
 
-    private Long readAmountInPaise(Object amountObject) {
+    private Long readAmountInPaise(
+            Object amountObject) {
 
         if (amountObject == null) {
             return null;
         }
 
         try {
-            return new BigDecimal(String.valueOf(amountObject))
-                    .longValueExact();
+
+            return new BigDecimal(
+                    String.valueOf(amountObject))
+                            .longValueExact();
 
         } catch (NumberFormatException
                 | ArithmeticException exception) {
+
             return null;
         }
     }
 
     // =========================================================
-    // COMMON REQUEST VALIDATION
+    // VALIDATE VERIFICATION REQUEST
     // =========================================================
 
     private boolean hasVerificationFields(
@@ -650,6 +961,20 @@ public class PaymentService {
     }
 
     // =========================================================
+    // VALIDATE AUTHENTICATED USER
+    // =========================================================
+
+    private void requireUsername(
+            String username) {
+
+        if (username == null || username.isBlank()) {
+
+            throw new IllegalArgumentException(
+                    "An authenticated user is required.");
+        }
+    }
+
+    // =========================================================
     // GENERATE HMAC SHA256
     // =========================================================
 
@@ -657,21 +982,31 @@ public class PaymentService {
             String data,
             String secret) throws Exception {
 
-        Mac mac = Mac.getInstance("HmacSHA256");
+        Mac mac =
+                Mac.getInstance("HmacSHA256");
 
-        SecretKeySpec secretKey = new SecretKeySpec(
-                secret.getBytes(StandardCharsets.UTF_8),
-                "HmacSHA256");
+        SecretKeySpec secretKey =
+                new SecretKeySpec(
+                        secret.getBytes(
+                                StandardCharsets.UTF_8),
+                        "HmacSHA256");
 
         mac.init(secretKey);
 
-        byte[] hash = mac.doFinal(
-                data.getBytes(StandardCharsets.UTF_8));
+        byte[] hash =
+                mac.doFinal(
+                        data.getBytes(
+                                StandardCharsets.UTF_8));
 
-        StringBuilder result = new StringBuilder();
+        StringBuilder result =
+                new StringBuilder();
 
         for (byte b : hash) {
-            result.append(String.format("%02x", b & 0xff));
+
+            result.append(
+                    String.format(
+                            "%02x",
+                            b & 0xff));
         }
 
         return result.toString();
