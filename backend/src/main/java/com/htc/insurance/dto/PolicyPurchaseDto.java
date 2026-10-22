@@ -1,3 +1,4 @@
+
 package com.htc.insurance.dto;
 
 import java.math.BigDecimal;
@@ -9,6 +10,14 @@ public class PolicyPurchaseDto {
     private Long planId;
     private Long purchaseId;
     private Long policyNumber;
+
+    // =========================================================
+    // RENEWAL RELATIONSHIP
+    // =========================================================
+
+    private Long renewedFromPurchaseId;
+    private Long renewedFromPolicyNumber;
+
     private String username;
     private String coveredTypes;
     private Integer durationYears;
@@ -47,102 +56,357 @@ public class PolicyPurchaseDto {
     private LocalDateTime refundDeadline;
     private Boolean refundEligible;
 
-    public Long getPlanId() { return planId; }
-    public void setPlanId(Long planId) { this.planId = planId; }
+    // =========================================================
+    // PLAN
+    // =========================================================
 
-    public Long getPurchaseId() { return purchaseId; }
-    public void setPurchaseId(Long purchaseId) { this.purchaseId = purchaseId; }
+    public Long getPlanId() {
+        return planId;
+    }
 
-    public Long getPolicyNumber() { return policyNumber; }
-    public void setPolicyNumber(Long policyNumber) { this.policyNumber = policyNumber; }
+    public void setPlanId(Long planId) {
+        this.planId = planId;
+    }
 
-    public String getUsername() { return username; }
-    public void setUsername(String username) { this.username = username; }
+    // =========================================================
+    // PURCHASE
+    // =========================================================
 
-    public String getCoveredTypes() { return coveredTypes; }
-    public void setCoveredTypes(String coveredTypes) { this.coveredTypes = coveredTypes; }
+    public Long getPurchaseId() {
+        return purchaseId;
+    }
 
-    public Integer getDurationYears() { return durationYears; }
-    public void setDurationYears(Integer durationYears) { this.durationYears = durationYears; }
+    public void setPurchaseId(Long purchaseId) {
+        this.purchaseId = purchaseId;
+    }
 
-    public BigDecimal getCoverageAmount() { return coverageAmount; }
-    public void setCoverageAmount(BigDecimal coverageAmount) { this.coverageAmount = coverageAmount; }
+    public Long getPolicyNumber() {
+        return policyNumber;
+    }
 
-    public String getNomineeName() { return nomineeName; }
-    public void setNomineeName(String nomineeName) { this.nomineeName = nomineeName; }
+    public void setPolicyNumber(Long policyNumber) {
+        this.policyNumber = policyNumber;
+    }
 
-    public String getNomineeRelation() { return nomineeRelation; }
-    public void setNomineeRelation(String nomineeRelation) { this.nomineeRelation = nomineeRelation; }
+    // =========================================================
+    // RENEWAL RELATIONSHIP
+    // =========================================================
 
-    public String getNomineeContact() { return nomineeContact; }
-    public void setNomineeContact(String nomineeContact) { this.nomineeContact = nomineeContact; }
+    public Long getRenewedFromPurchaseId() {
+        return renewedFromPurchaseId;
+    }
 
-    public String getPaymentMethod() { return paymentMethod; }
-    public void setPaymentMethod(String paymentMethod) { this.paymentMethod = paymentMethod; }
+    public void setRenewedFromPurchaseId(
+            Long renewedFromPurchaseId) {
 
-    public BigDecimal getBasePremium() { return basePremium; }
-    public void setBasePremium(BigDecimal basePremium) { this.basePremium = basePremium; }
+        this.renewedFromPurchaseId =
+                renewedFromPurchaseId;
+    }
 
-    public BigDecimal getDiscountAmount() { return discountAmount; }
-    public void setDiscountAmount(BigDecimal discountAmount) { this.discountAmount = discountAmount; }
+    public Long getRenewedFromPolicyNumber() {
+        return renewedFromPolicyNumber;
+    }
 
-    public BigDecimal getTaxableAmount() { return taxableAmount; }
-    public void setTaxableAmount(BigDecimal taxableAmount) { this.taxableAmount = taxableAmount; }
+    public void setRenewedFromPolicyNumber(
+            Long renewedFromPolicyNumber) {
 
-    public BigDecimal getGstRate() { return gstRate; }
-    public void setGstRate(BigDecimal gstRate) { this.gstRate = gstRate; }
+        this.renewedFromPolicyNumber =
+                renewedFromPolicyNumber;
+    }
 
-    public BigDecimal getGstAmount() { return gstAmount; }
-    public void setGstAmount(BigDecimal gstAmount) { this.gstAmount = gstAmount; }
+    // =========================================================
+    // CUSTOMER
+    // =========================================================
 
-    public BigDecimal getTotalPremium() { return totalPremium; }
-    public void setTotalPremium(BigDecimal totalPremium) { this.totalPremium = totalPremium; }
+    public String getUsername() {
+        return username;
+    }
 
-    public String getPaymentStatus() { return paymentStatus; }
-    public void setPaymentStatus(String paymentStatus) { this.paymentStatus = paymentStatus; }
+    public void setUsername(String username) {
+        this.username = username;
+    }
 
-    public String getTransactionId() { return transactionId; }
-    public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
+    // =========================================================
+    // POLICY DETAILS
+    // =========================================================
 
-    public String getRazorpayOrderId() { return razorpayOrderId; }
-    public void setRazorpayOrderId(String razorpayOrderId) { this.razorpayOrderId = razorpayOrderId; }
+    public String getCoveredTypes() {
+        return coveredTypes;
+    }
 
-    public String getRazorpayPaymentId() { return razorpayPaymentId; }
-    public void setRazorpayPaymentId(String razorpayPaymentId) { this.razorpayPaymentId = razorpayPaymentId; }
+    public void setCoveredTypes(String coveredTypes) {
+        this.coveredTypes = coveredTypes;
+    }
 
-    public String getRazorpaySignature() { return razorpaySignature; }
-    public void setRazorpaySignature(String razorpaySignature) { this.razorpaySignature = razorpaySignature; }
+    public Integer getDurationYears() {
+        return durationYears;
+    }
 
-    public LocalDate getPaymentDate() { return paymentDate; }
-    public void setPaymentDate(LocalDate paymentDate) { this.paymentDate = paymentDate; }
+    public void setDurationYears(Integer durationYears) {
+        this.durationYears = durationYears;
+    }
 
-    public LocalDateTime getPaymentDateTime() { return paymentDateTime; }
-    public void setPaymentDateTime(LocalDateTime paymentDateTime) { this.paymentDateTime = paymentDateTime; }
+    public BigDecimal getCoverageAmount() {
+        return coverageAmount;
+    }
 
-    public LocalDate getPurchaseDate() { return purchaseDate; }
-    public void setPurchaseDate(LocalDate purchaseDate) { this.purchaseDate = purchaseDate; }
+    public void setCoverageAmount(
+            BigDecimal coverageAmount) {
 
-    public LocalDateTime getCreatedAt() { return createdAt; }
-    public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+        this.coverageAmount = coverageAmount;
+    }
 
-    public String getRefundStatus() { return refundStatus; }
-    public void setRefundStatus(String refundStatus) { this.refundStatus = refundStatus; }
+    // =========================================================
+    // NOMINEE
+    // =========================================================
 
-    public String getRefundId() { return refundId; }
-    public void setRefundId(String refundId) { this.refundId = refundId; }
+    public String getNomineeName() {
+        return nomineeName;
+    }
 
-    public BigDecimal getRefundAmount() { return refundAmount; }
-    public void setRefundAmount(BigDecimal refundAmount) { this.refundAmount = refundAmount; }
+    public void setNomineeName(String nomineeName) {
+        this.nomineeName = nomineeName;
+    }
 
-    public String getRefundReason() { return refundReason; }
-    public void setRefundReason(String refundReason) { this.refundReason = refundReason; }
+    public String getNomineeRelation() {
+        return nomineeRelation;
+    }
 
-    public LocalDateTime getRefundDateTime() { return refundDateTime; }
-    public void setRefundDateTime(LocalDateTime refundDateTime) { this.refundDateTime = refundDateTime; }
+    public void setNomineeRelation(String nomineeRelation) {
+        this.nomineeRelation = nomineeRelation;
+    }
 
-    public LocalDateTime getRefundDeadline() { return refundDeadline; }
-    public void setRefundDeadline(LocalDateTime refundDeadline) { this.refundDeadline = refundDeadline; }
+    public String getNomineeContact() {
+        return nomineeContact;
+    }
 
-    public Boolean getRefundEligible() { return refundEligible; }
-    public void setRefundEligible(Boolean refundEligible) { this.refundEligible = refundEligible; }
+    public void setNomineeContact(String nomineeContact) {
+        this.nomineeContact = nomineeContact;
+    }
+
+    // =========================================================
+    // PAYMENT METHOD
+    // =========================================================
+
+    public String getPaymentMethod() {
+        return paymentMethod;
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
+    }
+
+    // =========================================================
+    // PREMIUM BREAKDOWN
+    // =========================================================
+
+    public BigDecimal getBasePremium() {
+        return basePremium;
+    }
+
+    public void setBasePremium(BigDecimal basePremium) {
+        this.basePremium = basePremium;
+    }
+
+    public BigDecimal getDiscountAmount() {
+        return discountAmount;
+    }
+
+    public void setDiscountAmount(
+            BigDecimal discountAmount) {
+
+        this.discountAmount = discountAmount;
+    }
+
+    public BigDecimal getTaxableAmount() {
+        return taxableAmount;
+    }
+
+    public void setTaxableAmount(
+            BigDecimal taxableAmount) {
+
+        this.taxableAmount = taxableAmount;
+    }
+
+    public BigDecimal getGstRate() {
+        return gstRate;
+    }
+
+    public void setGstRate(BigDecimal gstRate) {
+        this.gstRate = gstRate;
+    }
+
+    public BigDecimal getGstAmount() {
+        return gstAmount;
+    }
+
+    public void setGstAmount(BigDecimal gstAmount) {
+        this.gstAmount = gstAmount;
+    }
+
+    public BigDecimal getTotalPremium() {
+        return totalPremium;
+    }
+
+    public void setTotalPremium(BigDecimal totalPremium) {
+        this.totalPremium = totalPremium;
+    }
+
+    // =========================================================
+    // PAYMENT STATUS AND REFERENCES
+    // =========================================================
+
+    public String getPaymentStatus() {
+        return paymentStatus;
+    }
+
+    public void setPaymentStatus(String paymentStatus) {
+        this.paymentStatus = paymentStatus;
+    }
+
+    public String getTransactionId() {
+        return transactionId;
+    }
+
+    public void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
+    }
+
+    public String getRazorpayOrderId() {
+        return razorpayOrderId;
+    }
+
+    public void setRazorpayOrderId(
+            String razorpayOrderId) {
+
+        this.razorpayOrderId = razorpayOrderId;
+    }
+
+    public String getRazorpayPaymentId() {
+        return razorpayPaymentId;
+    }
+
+    public void setRazorpayPaymentId(
+            String razorpayPaymentId) {
+
+        this.razorpayPaymentId = razorpayPaymentId;
+    }
+
+    public String getRazorpaySignature() {
+        return razorpaySignature;
+    }
+
+    public void setRazorpaySignature(
+            String razorpaySignature) {
+
+        this.razorpaySignature = razorpaySignature;
+    }
+
+    // =========================================================
+    // PAYMENT AND PURCHASE DATES
+    // =========================================================
+
+    public LocalDate getPaymentDate() {
+        return paymentDate;
+    }
+
+    public void setPaymentDate(LocalDate paymentDate) {
+        this.paymentDate = paymentDate;
+    }
+
+    public LocalDateTime getPaymentDateTime() {
+        return paymentDateTime;
+    }
+
+    public void setPaymentDateTime(
+            LocalDateTime paymentDateTime) {
+
+        this.paymentDateTime = paymentDateTime;
+    }
+
+    public LocalDate getPurchaseDate() {
+        return purchaseDate;
+    }
+
+    public void setPurchaseDate(LocalDate purchaseDate) {
+        this.purchaseDate = purchaseDate;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    // =========================================================
+    // REFUND DETAILS
+    // =========================================================
+
+    public String getRefundStatus() {
+        return refundStatus;
+    }
+
+    public void setRefundStatus(String refundStatus) {
+        this.refundStatus = refundStatus;
+    }
+
+    public String getRefundId() {
+        return refundId;
+    }
+
+    public void setRefundId(String refundId) {
+        this.refundId = refundId;
+    }
+
+    public BigDecimal getRefundAmount() {
+        return refundAmount;
+    }
+
+    public void setRefundAmount(
+            BigDecimal refundAmount) {
+
+        this.refundAmount = refundAmount;
+    }
+
+    public String getRefundReason() {
+        return refundReason;
+    }
+
+    public void setRefundReason(String refundReason) {
+        this.refundReason = refundReason;
+    }
+
+    public LocalDateTime getRefundDateTime() {
+        return refundDateTime;
+    }
+
+    public void setRefundDateTime(
+            LocalDateTime refundDateTime) {
+
+        this.refundDateTime = refundDateTime;
+    }
+
+    // =========================================================
+    // REFUND ELIGIBILITY
+    // =========================================================
+
+    public LocalDateTime getRefundDeadline() {
+        return refundDeadline;
+    }
+
+    public void setRefundDeadline(
+            LocalDateTime refundDeadline) {
+
+        this.refundDeadline = refundDeadline;
+    }
+
+    public Boolean getRefundEligible() {
+        return refundEligible;
+    }
+
+    public void setRefundEligible(Boolean refundEligible) {
+        this.refundEligible = refundEligible;
+    }
 }
