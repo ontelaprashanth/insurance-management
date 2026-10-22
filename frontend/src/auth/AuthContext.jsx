@@ -1,4 +1,3 @@
-
 import {
   createContext,
   useCallback,
@@ -28,9 +27,87 @@ import {
    Login / Logout
    Unauthorized Handling
    React Query Cache Isolation
+   Render Cold-Start Handling
+   Concurrent Session Protection
+
+   Compatible with:
+   - src/api/client.js
+   - src/api/endpoints.js
 ========================================================= */
 
 const Ctx = createContext(null)
+
+/* =========================================================
+   HELPERS
+========================================================= */
+
+function normalizeRole(role) {
+  const value = String(role ?? '')
+    .trim()
+    .toUpperCase()
+
+  if (value === 'ROLE_ADMIN') return 'ADMIN'
+  if (value === 'ROLE_USER') return 'USER'
+
+  return value
+}
+
+function validRole(role) {
+  return role === 'ADMIN' || role === 'USER'
+}
+
+function normalizeSession(session) {
+  const payload = session?.user ?? session
+
+  if (
+    !payload ||
+    typeof payload !== 'object' ||
+    Array.isArray(payload)
+  ) {
+    throw new Error(
+      'The server returned an invalid session.',
+    )
+  }
+
+  const role = normalizeRole(
+    payload.role ?? session?.role,
+  )
+
+  if (!validRole(role)) {
+    throw new Error(
+      'Your account role could not be verified.',
+    )
+  }
+
+  return {
+    ...payload,
+    role,
+  }
+}
+
+function isUnauthorized(error) {
+  return (
+    error?.response?.status === 401 ||
+    error?.response?.status === 403
+  )
+}
+
+function isTemporaryFailure(error) {
+  const status = error?.response?.status
+
+  return (
+    error?.code === 'ERR_NETWORK' ||
+    error?.code === 'ECONNABORTED' ||
+    error?.code === 'ETIMEDOUT' ||
+    status === 408 ||
+    status === 429 ||
+    status >= 500
+  )
+}
+
+/* =========================================================
+   AUTH HOOK
+========================================================= */
 
 export function useAuth() {
   const context = useContext(Ctx)
@@ -51,32 +128,78 @@ export function useAuth() {
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient()
 
+  /* =======================================================
+     STATE
+  ======================================================= */
+
   const [user, setUser] = useState(null)
+
   const [booting, setBooting] = useState(true)
 
+  const [sessionError, setSessionError] = useState(null)
+
+  const [sessionChecking, setSessionChecking] =
+    useState(false)
+
+  /* =======================================================
+     REFS
+
+     authVersionRef:
+     Prevents stale asynchronous responses from changing
+     the currently authenticated account.
+
+     sessionRequestRef:
+     Deduplicates simultaneous /api/session requests.
+
+     mountedRef:
+     Prevents state updates after provider unmount.
+  ======================================================= */
+
   const authVersionRef = useRef(0)
+
   const sessionRequestRef = useRef(null)
+
+  const mountedRef = useRef(false)
 
   /* =======================================================
      CLEAR AUTHENTICATION STATE
+
+     Called on:
+     - Logout
+     - Confirmed session expiration
+     - Invalid authenticated session
+
+     Also removes cached account-specific data.
   ======================================================= */
 
   const clearSession = useCallback(() => {
     authVersionRef.current += 1
+
     sessionRequestRef.current = null
 
     tokenStore.clear()
-    setUser(null)
-    setBooting(false)
 
+    queryClient.cancelQueries()
     queryClient.clear()
+
+    if (mountedRef.current) {
+      setUser(null)
+      setBooting(false)
+      setSessionChecking(false)
+      setSessionError(null)
+    }
   }, [queryClient])
 
   /* =======================================================
      LOAD CURRENT SESSION
 
-     Validate JWT with backend.
-     Ignore responses from previous sessions.
+     Validates the JWT with the backend.
+
+     Important:
+     - An HTTP 401 means the token is no longer accepted.
+     - A temporary network error does not prove the token
+       is invalid.
+     - Stale responses cannot replace a newer login.
   ======================================================= */
 
   const loadSession = useCallback(async () => {
@@ -96,6 +219,11 @@ export function AuthProvider({ children }) {
 
     const version = authVersionRef.current
 
+    if (mountedRef.current) {
+      setSessionChecking(true)
+      setSessionError(null)
+    }
+
     const request = auth.session()
       .then((session) => {
         if (
@@ -107,40 +235,30 @@ export function AuthProvider({ children }) {
           )
         }
 
-        const role = String(
-          session?.role ?? '',
-        ).toUpperCase()
+        const authenticatedUser =
+          normalizeSession(session)
 
-        if (
-          role !== 'ADMIN' &&
-          role !== 'USER'
-        ) {
-          clearSession()
-
-          throw new Error(
-            'Your account role could not be verified.',
-          )
+        if (mountedRef.current) {
+          setUser(authenticatedUser)
+          setSessionError(null)
+          setBooting(false)
         }
-
-        const authenticatedUser = {
-          ...session,
-          role,
-        }
-
-        setUser(authenticatedUser)
-        setBooting(false)
 
         return authenticatedUser
       })
       .catch((error) => {
-        const status = error?.response?.status
-
-        if (
+        const sameSession =
           version === authVersionRef.current &&
-          tokenStore.get() === token &&
-          (status === 401 || status === 403)
-        ) {
+          tokenStore.get() === token
+
+        if (!sameSession) {
+          throw error
+        }
+
+        if (isUnauthorized(error)) {
           clearSession()
+        } else if (mountedRef.current) {
+          setSessionError(error)
         }
 
         throw error
@@ -150,6 +268,13 @@ export function AuthProvider({ children }) {
           sessionRequestRef.current?.promise === request
         ) {
           sessionRequestRef.current = null
+        }
+
+        if (
+          version === authVersionRef.current &&
+          mountedRef.current
+        ) {
+          setSessionChecking(false)
         }
       })
 
@@ -162,21 +287,31 @@ export function AuthProvider({ children }) {
   }, [clearSession])
 
   /* =======================================================
-     INITIALIZE SESSION
+     INITIAL SESSION RESTORATION
 
-     Runs when application starts.
+     On page refresh:
+     - Read existing token.
+     - Validate with backend.
+     - Restore authenticated user.
+     - Preserve token during temporary network failures.
+
+     The app does not treat a temporary backend failure
+     as a successful authentication.
   ======================================================= */
 
   useEffect(() => {
+    mountedRef.current = true
+
     let cancelled = false
 
-    const initialize = async () => {
+    async function initialize() {
       const token = tokenStore.get()
 
       if (!token) {
         if (!cancelled) {
           setUser(null)
           setBooting(false)
+          setSessionError(null)
         }
 
         return
@@ -185,16 +320,22 @@ export function AuthProvider({ children }) {
       try {
         await loadSession()
       } catch (error) {
-        const status = error?.response?.status
+        if (cancelled) return
 
-        if (
-          status !== 401 &&
-          status !== 403
-        ) {
+        if (!isUnauthorized(error)) {
           console.warn(
             'InsureX session restoration failed:',
             error,
           )
+
+          // Keep the token for a later verification attempt.
+          // Do not mark the user as authenticated.
+          if (
+            isTemporaryFailure(error) &&
+            tokenStore.get()
+          ) {
+            setSessionError(error)
+          }
         }
       } finally {
         if (!cancelled) {
@@ -207,11 +348,15 @@ export function AuthProvider({ children }) {
 
     return () => {
       cancelled = true
+      mountedRef.current = false
     }
   }, [loadSession])
 
   /* =======================================================
-     HANDLE UNAUTHORIZED RESPONSES
+     UNAUTHORIZED HANDLER
+
+     client.js invokes this only when a 401 belongs
+     to the current JWT session.
   ======================================================= */
 
   useEffect(() => {
@@ -225,15 +370,46 @@ export function AuthProvider({ children }) {
   /* =======================================================
      LOGIN
 
-     Username / Email / Mobile + Password
+     Supported identifiers:
+     - Username
+     - Email
+     - Mobile number
+
+     Steps:
+     1. Authenticate credentials.
+     2. Receive JWT.
+     3. Clear previous account cache.
+     4. Save JWT.
+     5. Validate /api/session.
+     6. Return authenticated user.
+
+     An older login response cannot overwrite a newer
+     login attempt.
   ======================================================= */
 
   const login = useCallback(
     async (identifier, password) => {
+      const loginVersion =
+        ++authVersionRef.current
+
+      sessionRequestRef.current = null
+
+      if (mountedRef.current) {
+        setSessionError(null)
+      }
+
       const response = await auth.login({
-        identifier,
+        identifier: String(identifier ?? '').trim(),
         password,
       })
+
+      if (
+        loginVersion !== authVersionRef.current
+      ) {
+        throw new Error(
+          'A newer authentication action has replaced this login.',
+        )
+      }
 
       const token = response?.token
 
@@ -246,13 +422,16 @@ export function AuthProvider({ children }) {
         )
       }
 
-      // Invalidate any previous account session.
-      authVersionRef.current += 1
-      sessionRequestRef.current = null
+      // Remove any previous user's cached data.
+      queryClient.cancelQueries()
+      queryClient.clear()
 
       tokenStore.clear()
-      setUser(null)
-      queryClient.clear()
+
+      if (mountedRef.current) {
+        setUser(null)
+        setBooting(true)
+      }
 
       resetUnauthorizedState()
       tokenStore.set(token)
@@ -261,29 +440,78 @@ export function AuthProvider({ children }) {
         const authenticatedUser =
           await loadSession()
 
-        setBooting(false)
+        if (
+          loginVersion !== authVersionRef.current ||
+          tokenStore.get() !== token
+        ) {
+          throw new Error(
+            'The authentication session changed during login.',
+          )
+        }
+
+        if (mountedRef.current) {
+          setBooting(false)
+          setSessionError(null)
+        }
 
         return authenticatedUser
       } catch (error) {
-        // Only clear the token belonging to this login.
-        if (tokenStore.get() === token) {
+        // Login has not been completed successfully.
+        // Do not retain an unverified authenticated session.
+        if (
+          loginVersion === authVersionRef.current &&
+          tokenStore.get() === token
+        ) {
           clearSession()
         }
 
         throw error
       }
     },
-    [clearSession, loadSession, queryClient],
+    [
+      clearSession,
+      loadSession,
+      queryClient,
+    ],
   )
 
   /* =======================================================
      LOGOUT
+
+     Clears:
+     - JWT
+     - Authenticated user
+     - Pending session reference
+     - React Query cache
   ======================================================= */
 
   const logout = useCallback(() => {
     clearSession()
     resetUnauthorizedState()
   }, [clearSession])
+
+  /* =======================================================
+     REFRESH SESSION
+
+     Useful after:
+     - Profile updates
+     - Returning to the browser tab
+     - Temporary backend outages
+  ======================================================= */
+
+  const refresh = useCallback(async () => {
+    const token = tokenStore.get()
+
+    if (!token) {
+      clearSession()
+
+      throw new Error(
+        'No active session. Please sign in.',
+      )
+    }
+
+    return loadSession()
+  }, [clearSession, loadSession])
 
   /* =======================================================
      CONTEXT VALUE
@@ -296,19 +524,30 @@ export function AuthProvider({ children }) {
 
       login,
       logout,
+      refresh,
 
-      refresh: loadSession,
+      sessionChecking,
+      sessionError,
 
       isAuthenticated: Boolean(user),
-      isAdmin: user?.role === 'ADMIN',
-      isUser: user?.role === 'USER',
+
+      isAdmin:
+        user?.role === 'ADMIN',
+
+      isUser:
+        user?.role === 'USER',
+
+      hasStoredSession:
+        Boolean(tokenStore.get()),
     }),
     [
       user,
       booting,
       login,
       logout,
-      loadSession,
+      refresh,
+      sessionChecking,
+      sessionError,
     ],
   )
 
