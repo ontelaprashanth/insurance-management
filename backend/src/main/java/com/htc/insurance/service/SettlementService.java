@@ -210,6 +210,8 @@ public class SettlementService {
         // A rejected settlement also rejects the claim, as required by InsureX.
         // The rejected claim and settlement are retained for audit/history.
         claim.setStatus(ClaimStatus.REJECTED);
+        claim.setRejectionReason(reason);
+        claim.setApprovedAmount(null);
         claimsRepository.save(claim);
 
         Settlement saved = settlementRepository.save(settlement);
@@ -221,7 +223,8 @@ public class SettlementService {
                         + " for claim #" + getClaimNumber(saved)
                         + " has been rejected. The associated claim has also been rejected. Reason: "
                         + reason
-                        + ". You may submit a new claim if your policy is eligible.",
+                        + ". You may file a new claim after your policy eligibility is verified. "
+                        + "Contact support if your policy is inactive.",
                 "SETTLEMENT");
 
         return mapToDto(saved);
