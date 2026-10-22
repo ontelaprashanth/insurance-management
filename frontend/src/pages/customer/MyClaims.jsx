@@ -161,7 +161,7 @@ export function ClaimDetail({
         </>
       }
     >
-      <div className="stack">
+      <div className="stack ix-claim-detail-green">
 
         {/* Claim status and filing date */}
 
@@ -430,9 +430,50 @@ export default function MyClaims() {
         .ix-claim-card-actions .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; }
         @media(max-width:950px) { .ix-claims-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         @media(max-width:520px) { .ix-claims-stats { gap:9px; } .ix-claims-stat { padding:13px; gap:9px; } .ix-claims-stat strong { font-size:21px; } .ix-claims-stat svg { width:19px; } .ix-claims-cards { padding:12px; } .ix-claim-card { padding:16px; } .ix-claims-toolbar { align-items:stretch; } }
+
+        /* INSUREX PREMIUM EMERALD — ENHANCED ANIMATION */
+        @keyframes ixClaimsReveal { from { opacity:0; transform:translateY(23px) scale(.965); filter:blur(3px); } to { opacity:1; transform:translateY(0) scale(1); filter:blur(0); } }
+        @keyframes ixClaimsIconFloat { 0%,100% { transform:translateY(0) rotate(0deg); } 50% { transform:translateY(-4px) rotate(-5deg); } }
+        @keyframes ixClaimsGlow { 0%,100% { box-shadow:0 8px 25px rgba(16,99,62,.07); } 50% { box-shadow:0 12px 32px rgba(16,99,62,.14); } }
+        @keyframes ixClaimsSweep { from { transform:translateX(-150%) skewX(-22deg); } to { transform:translateX(450%) skewX(-22deg); } }
+        .ix-claims-green .ix-claims-stat { position:relative; overflow:hidden; isolation:isolate; background:linear-gradient(145deg,#fff 15%,#f0faf4 100%); border:1px solid #c9e6d5; border-radius:19px; box-shadow:0 8px 25px rgba(16,99,62,.07); animation:ixClaimsReveal .58s cubic-bezier(.2,.8,.2,1) both; transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease; }
+        .ix-claims-green .ix-claims-stat:nth-child(2) { animation-delay:75ms; }
+        .ix-claims-green .ix-claims-stat:nth-child(3) { animation-delay:150ms; }
+        .ix-claims-green .ix-claims-stat:nth-child(4) { animation-delay:225ms; }
+        .ix-claims-green .ix-claims-stat:hover { transform:translateY(-6px) scale(1.018); box-shadow:0 17px 38px rgba(16,99,62,.17); border-color:#72c99a; }
+        .ix-claims-green .ix-claims-stat svg { color:#16834d; opacity:1; background:#e0f5e8; box-sizing:content-box; padding:10px; border-radius:13px; animation:ixClaimsIconFloat 3.2s ease-in-out infinite; }
+        .ix-claims-green .ix-claims-stat span { color:#4b6658; font-weight:700; }
+        .ix-claims-green .ix-claims-stat strong { color:#103e2d; font-weight:850; letter-spacing:-.035em; }
+        .ix-claims-toolbar { background:#f4fbf7; border-bottom:1px solid #d9eadf; }
+        .ix-claims-toolbar input { color:#143e2e; }
+        .ix-claims-cards { background:#f6fbf8; }
+        .ix-claim-card { position:relative; isolation:isolate; overflow:hidden; border-color:#d3e9db; background:linear-gradient(150deg,#fff 40%,#f2faf5 100%); box-shadow:0 8px 25px rgba(16,99,62,.06); animation:ixClaimsReveal .55s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(var(--ix-claim-index,0) * 65ms); transition:transform .3s cubic-bezier(.2,.8,.2,1),box-shadow .3s ease,border-color .3s ease; }
+        .ix-claim-card::after { content:''; position:absolute; z-index:-1; pointer-events:none; inset:0 auto 0 -45%; width:35%; background:linear-gradient(90deg,transparent,rgba(111,217,155,.16),transparent); transform:translateX(-150%) skewX(-22deg); }
+        .ix-claim-card:hover { transform:translateY(-7px) scale(1.012); box-shadow:0 20px 44px rgba(16,99,62,.15); border-color:#79cda0; }
+        .ix-claim-card:hover::after { animation:ixClaimsSweep 1s ease-out; }
+        .ix-claim-card:focus-within { outline:2px solid #48ae78; outline-offset:2px; }
+        .ix-claim-card-head strong { color:#103e2d; font-weight:850; }
+        .ix-claim-card-head small,.ix-claim-card-head .muted { color:#527062; }
+        .ix-claim-card-meta { background:rgba(230,247,236,.55); border:1px solid #e1eee5; border-radius:13px; padding:14px; }
+        .ix-claim-card-meta span { color:#567061; font-weight:650; }
+        .ix-claim-card-meta b { color:#183d2d; font-weight:750; }
+        .ix-claim-card-footer { border-top-color:#d5e9db; }
+        .ix-claim-card-actions .btn { transition:transform .22s ease,box-shadow .22s ease,background .22s ease; }
+        .ix-claim-card-actions .btn:hover { transform:translateY(-3px); box-shadow:0 7px 17px rgba(16,99,62,.14); }
+        .ix-claim-card-actions .btn:active { transform:scale(.97); }
+        .ix-claim-card-actions .btn.primary { background:#16834d; color:white; border-color:#16834d; }
+        .ix-claim-card-actions .btn.primary:hover { background:#10683c; }
+        .ix-claim-detail-green { color:#173d2d; }
+        .ix-claim-detail-green h4 { color:#103e2d; }
+        .ix-claim-detail-green .muted { color:#536c5d; }
+        .ix-claim-detail-green .alert.info { background:#eaf8ef; color:#174f32; border-color:#c4e7d0; }
+        .ix-claim-detail-green .alert.ok { background:#e7f7ec; color:#14532d; border-color:#b8e5c7; }
+        .ix-claim-detail-green .btn.primary { background:#16834d; border-color:#16834d; color:#fff; }
+        @media (max-width:520px) { .ix-claims-green .ix-claims-stat svg { padding:7px; } .ix-claim-card-meta { padding:11px; } .ix-claim-card-actions { width:100%; } .ix-claim-card-actions .btn { flex:1; } }
+        @media (prefers-reduced-motion:reduce) { .ix-claims-green .ix-claims-stat,.ix-claims-green .ix-claims-stat svg,.ix-claim-card,.ix-claim-card::after { animation:none !important; transition:none !important; filter:none !important; } .ix-claims-green .ix-claims-stat:hover,.ix-claim-card:hover,.ix-claim-card-actions .btn:hover { transform:none !important; } }
       `}</style>
 
-      <div className="ix-claims-stats">
+      <div className="ix-claims-stats ix-claims-green">
         {[
           { label: 'Total claims', value: claimSummary.total, icon: ClipboardList },
           { label: 'In review', value: claimSummary.inReview, icon: Clock3 },
@@ -514,12 +555,12 @@ export default function MyClaims() {
               </div>
             ) : (
               <div className="ix-claims-cards" aria-label="My claim history">
-                {sortedRows.map((c) => {
+                {sortedRows.map((c, index) => {
                   const renewed = c.policyNumber != null && renewedSources.has(String(c.policyNumber))
                   const eligible = canRequestRenewal(c, renewedSources, renewalReady)
                   const approved = SUCCESSFUL_CLAIM_STATUSES.includes(claimStatus(c))
                   return (
-                    <article className="ix-claim-card" key={String(c.claimNumber)}>
+                    <article className="ix-claim-card" key={String(c.claimNumber)} style={{ '--ix-claim-index': Math.min(index, 10) }}>
                       <div className="ix-claim-card-head">
                         <div>
                           <span className="muted">Insurance claim</span>
