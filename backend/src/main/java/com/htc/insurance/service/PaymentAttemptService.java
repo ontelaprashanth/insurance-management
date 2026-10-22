@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -31,7 +32,9 @@ public class PaymentAttemptService {
     // NORMAL POLICY PURCHASE - CREATE PAYMENT ATTEMPT
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public String createAttempt(
             String username,
             Long planId,
@@ -67,20 +70,9 @@ public class PaymentAttemptService {
     // RENEWAL - CREATE PAYMENT ATTEMPT
     // =========================================================
 
-    /**
-     * Called only by the trusted backend renewal service.
-     *
-     * The renewal service must first verify:
-     *
-     * 1. Customer owns the original policy.
-     * 2. Original policy has an APPROVED or SETTLED claim.
-     * 3. Original purchase was paid and not refunded.
-     * 4. No completed renewal exists.
-     * 5. Premium equals the original paid premium.
-     *
-     * Never accept the premium directly from the browser.
-     */
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public String createRenewalAttempt(
             String username,
             Long originalPolicyNumber,
@@ -114,7 +106,6 @@ public class PaymentAttemptService {
                 currency);
 
         attempt.setPurchaseType(PURCHASE_TYPE_RENEWAL);
-
         attempt.setRenewalSourcePolicyNumber(
                 originalPolicyNumber);
 
@@ -146,8 +137,11 @@ public class PaymentAttemptService {
         attempt.setCoverageAmount(coverageAmount);
         attempt.setDurationYears(durationYears);
         attempt.setCalculatedPremium(calculatedPremium);
-        attempt.setCurrency(currency.trim().toUpperCase());
-        attempt.setStatus(PaymentAttemptStatus.ORDER_CREATING);
+        attempt.setCurrency(currency.trim().toUpperCase(
+                java.util.Locale.ROOT));
+
+        attempt.setStatus(
+                PaymentAttemptStatus.ORDER_CREATING);
 
         return attempt;
     }
@@ -156,20 +150,18 @@ public class PaymentAttemptService {
     // MARK RAZORPAY ORDER CREATED
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public void markOrderCreated(
             String attemptReference,
             String razorpayOrderId) {
 
+        requireText(razorpayOrderId,
+                "A Razorpay order ID is required.");
+
         PaymentAttempt attempt =
-                findByReference(attemptReference);
-
-        if (razorpayOrderId == null
-                || razorpayOrderId.isBlank()) {
-
-            throw new IllegalArgumentException(
-                    "A Razorpay order ID is required.");
-        }
+                findByReferenceForUpdate(attemptReference);
 
         if (attempt.getRazorpayOrderId() != null
                 && !attempt.getRazorpayOrderId()
@@ -180,20 +172,46 @@ public class PaymentAttemptService {
                     + "associated with another order.");
         }
 
-        if (attempt.getStatus()
-                == PaymentAttemptStatus.PURCHASE_COMPLETED) {
+        PaymentAttemptStatus status = attempt.getStatus();
+
+        if (status == PaymentAttemptStatus.PURCHASE_COMPLETED
+                || status == PaymentAttemptStatus.PAYMENT_VERIFIED) {
+
+            if (razorpayOrderId.equals(
+                    attempt.getRazorpayOrderId())) {
+                return;
+            }
 
             throw new IllegalStateException(
-                    "A completed payment attempt "
+                    "A verified or completed attempt "
                     + "cannot create another order.");
         }
 
-        if (attempt.getStatus()
-                == PaymentAttemptStatus.PAYMENT_VERIFIED) {
+        if (status == PaymentAttemptStatus.ORDER_CREATED) {
+
+            if (razorpayOrderId.equals(
+                    attempt.getRazorpayOrderId())) {
+                return;
+            }
 
             throw new IllegalStateException(
-                    "A verified payment attempt "
-                    + "cannot create another order.");
+                    "The attempt already has an order.");
+        }
+
+        if (status == PaymentAttemptStatus.REQUIRES_RECONCILIATION) {
+
+            // Save the verified order ID without clearing
+            // the reconciliation flag.
+            attempt.setRazorpayOrderId(razorpayOrderId);
+            repository.saveAndFlush(attempt);
+            return;
+        }
+
+        if (status != PaymentAttemptStatus.ORDER_CREATING) {
+
+            throw new IllegalStateException(
+                    "The payment attempt is not in "
+                    + "an order-creating state.");
         }
 
         attempt.setRazorpayOrderId(razorpayOrderId);
@@ -213,34 +231,43 @@ public class PaymentAttemptService {
     public PaymentAttempt getAttemptByOrderId(
             String razorpayOrderId) {
 
-        if (razorpayOrderId == null
-                || razorpayOrderId.isBlank()) {
+        requireText(razorpayOrderId,
+                "Razorpay order ID is required.");
 
-            throw new IllegalArgumentException(
-                    "Razorpay order ID is required.");
-        }
-
-        return findByOrderId(razorpayOrderId);
+        return repository.findByRazorpayOrderId(
+                        razorpayOrderId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "No payment attempt was found "
+                                + "for this Razorpay order."));
     }
 
     // =========================================================
     // MARK PAYMENT VERIFIED
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Call this only after trusted Razorpay verification
+     * has confirmed the payment is captured.
+     *
+     * Uses REQUIRES_NEW so the verified payment can
+     * survive a later purchase transaction rollback.
+     */
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public void markPaymentVerified(
             String razorpayOrderId,
             String razorpayPaymentId) {
 
-        if (razorpayPaymentId == null
-                || razorpayPaymentId.isBlank()) {
+        requireText(razorpayOrderId,
+                "Razorpay order ID is required.");
 
-            throw new IllegalArgumentException(
-                    "Razorpay payment ID is required.");
-        }
+        requireText(razorpayPaymentId,
+                "Razorpay payment ID is required.");
 
         PaymentAttempt attempt =
-                findByOrderId(razorpayOrderId);
+                findByOrderIdForUpdate(razorpayOrderId);
 
         if (attempt.getRazorpayPaymentId() != null
                 && !attempt.getRazorpayPaymentId()
@@ -251,11 +278,38 @@ public class PaymentAttemptService {
                     + "with another payment.");
         }
 
-        if (attempt.getStatus()
-                == PaymentAttemptStatus.PURCHASE_COMPLETED) {
+        PaymentAttemptStatus status = attempt.getStatus();
 
-            // Preserve idempotency for completed purchases.
+        if (status == PaymentAttemptStatus.PURCHASE_COMPLETED) {
+
+            if (!razorpayPaymentId.equals(
+                    attempt.getRazorpayPaymentId())) {
+
+                throw new IllegalStateException(
+                        "Completed attempt has a different "
+                        + "or missing payment ID.");
+            }
+
             return;
+        }
+
+        if (status == PaymentAttemptStatus.PAYMENT_VERIFIED) {
+
+            if (razorpayPaymentId.equals(
+                    attempt.getRazorpayPaymentId())) {
+                return;
+            }
+
+            throw new IllegalStateException(
+                    "Verified attempt has a conflicting payment ID.");
+        }
+
+        if (status != PaymentAttemptStatus.ORDER_CREATED
+                && status != PaymentAttemptStatus.REQUIRES_RECONCILIATION) {
+
+            throw new IllegalStateException(
+                    "The payment order is not ready "
+                    + "for payment verification.");
         }
 
         if (attempt.getRazorpayOrderId() == null) {
@@ -275,20 +329,21 @@ public class PaymentAttemptService {
     // MARK PURCHASE COMPLETED
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public void markPurchaseCompleted(
             String razorpayOrderId,
             String razorpayPaymentId) {
 
-        if (razorpayPaymentId == null
-                || razorpayPaymentId.isBlank()) {
+        requireText(razorpayOrderId,
+                "Razorpay order ID is required.");
 
-            throw new IllegalArgumentException(
-                    "Razorpay payment ID is required.");
-        }
+        requireText(razorpayPaymentId,
+                "Razorpay payment ID is required.");
 
         PaymentAttempt attempt =
-                findByOrderId(razorpayOrderId);
+                findByOrderIdForUpdate(razorpayOrderId);
 
         if (attempt.getRazorpayPaymentId() != null
                 && !attempt.getRazorpayPaymentId()
@@ -301,6 +356,14 @@ public class PaymentAttemptService {
 
         if (attempt.getStatus()
                 == PaymentAttemptStatus.PURCHASE_COMPLETED) {
+
+            if (!razorpayPaymentId.equals(
+                    attempt.getRazorpayPaymentId())) {
+
+                throw new IllegalStateException(
+                    "Completed purchase has a missing "
+                    + "or conflicting payment ID.");
+            }
 
             return;
         }
@@ -324,25 +387,28 @@ public class PaymentAttemptService {
     // MARK RECONCILIATION REQUIRED
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public void markReconciliationRequired(
             String attemptReference,
             String reason) {
 
         PaymentAttempt attempt =
-                findByReference(attemptReference);
+                findByReferenceForUpdate(attemptReference);
 
         if (attempt.getStatus()
                 == PaymentAttemptStatus.PURCHASE_COMPLETED) {
-
             return;
         }
+
+        // Preserve existing Razorpay order and payment IDs.
+        // Reconciliation must not discard known external IDs.
 
         attempt.setStatus(
                 PaymentAttemptStatus.REQUIRES_RECONCILIATION);
 
-        attempt.setFailureReason(
-                limit(reason, 500));
+        attempt.setFailureReason(limit(reason, 500));
 
         repository.saveAndFlush(attempt);
     }
@@ -368,7 +434,7 @@ public class PaymentAttemptService {
     }
 
     // =========================================================
-    // VALIDATION
+    // VALIDATE PAYMENT DETAILS
     // =========================================================
 
     private void validatePaymentDetails(
@@ -379,12 +445,11 @@ public class PaymentAttemptService {
             BigDecimal calculatedPremium,
             String currency) {
 
-        if (username == null || username.isBlank()) {
-            throw new IllegalArgumentException(
-                    "An authenticated user is required.");
-        }
+        requireText(username,
+                "An authenticated user is required.");
 
         if (planId == null || planId <= 0) {
+
             throw new IllegalArgumentException(
                     "A valid insurance plan is required.");
         }
@@ -397,6 +462,7 @@ public class PaymentAttemptService {
         }
 
         if (durationYears == null || durationYears <= 0) {
+
             throw new IllegalArgumentException(
                     "Policy duration must be positive.");
         }
@@ -409,45 +475,55 @@ public class PaymentAttemptService {
         }
 
         if (!"INR".equalsIgnoreCase(currency)) {
+
             throw new IllegalArgumentException(
                     "Only INR currency is supported.");
         }
     }
 
     // =========================================================
-    // INTERNAL LOOKUPS
+    // LOCKED LOOKUPS FOR STATUS UPDATES
     // =========================================================
 
-    private PaymentAttempt findByReference(
+    private PaymentAttempt findByReferenceForUpdate(
             String reference) {
 
-        if (reference == null || reference.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Payment attempt reference is required.");
-        }
+        requireText(reference,
+                "Payment attempt reference is required.");
 
-        return repository.findByAttemptReference(reference)
-                .orElseThrow(() -> new IllegalStateException(
-                        "Payment attempt was not found."));
+        return repository
+                .findByAttemptReferenceForUpdate(reference)
+                .orElseThrow(() ->
+                        new IllegalStateException(
+                                "Payment attempt was not found."));
     }
 
-    private PaymentAttempt findByOrderId(
+    private PaymentAttempt findByOrderIdForUpdate(
             String orderId) {
 
-        if (orderId == null || orderId.isBlank()) {
-            throw new IllegalArgumentException(
-                    "Razorpay order ID is required.");
-        }
+        requireText(orderId,
+                "Razorpay order ID is required.");
 
-        return repository.findByRazorpayOrderId(orderId)
-                .orElseThrow(() -> new IllegalArgumentException(
-                        "No payment attempt was found "
-                        + "for this Razorpay order."));
+        return repository
+                .findByRazorpayOrderIdForUpdate(orderId)
+                .orElseThrow(() ->
+                        new IllegalArgumentException(
+                                "No payment attempt was found "
+                                + "for this Razorpay order."));
     }
 
     // =========================================================
-    // RECONCILIATION ERROR MESSAGE
+    // COMMON HELPERS
     // =========================================================
+
+    private void requireText(
+            String value,
+            String message) {
+
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+    }
 
     private String limit(String value, int maxLength) {
 
