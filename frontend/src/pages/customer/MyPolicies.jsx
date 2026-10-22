@@ -280,12 +280,12 @@ function refundStatusLabel(status) {
    RENEWAL HELPERS
 ========================================================= */
 
+// A renewal child is a NEW policy created from an earlier purchase.
+// It remains ACTIVE; only its original source policy is marked RENEWED.
 function isRenewedPolicy(policy, purchase) {
   return (
     getRenewalSourceNumber(policy) != null ||
-    getPurchaseRenewalSource(purchase) != null ||
-    normalizedStatus(policy?.status) === 'RENEWED' ||
-    normalizedStatus(policy?.lifecycleStatus) === 'RENEWED'
+    getPurchaseRenewalSource(purchase) != null
   )
 }
 
@@ -769,19 +769,29 @@ export default function MyPolicies() {
           relatedPurchase,
         )
 
-        const displayStatus = getPolicyStatus(
+        const baseStatus = getPolicyStatus(
           policy,
           relatedClaims,
           relatedPurchase,
         )
 
+        // A completed, paid renewal supersedes CLAIMED for the
+        // original policy, but never hides a refund lifecycle.
+        const alreadyRenewed =
+          renewedSourceNumbers.has(number)
+
+        const displayStatus =
+          alreadyRenewed &&
+          !isRefundPending(baseStatus) &&
+          !isRefunded(baseStatus) &&
+          !isRefundFailed(baseStatus)
+            ? 'RENEWED'
+            : baseStatus
+
         const pendingClaim = isPendingClaim(
           policy,
           relatedClaims,
         )
-
-        const alreadyRenewed =
-          renewedSourceNumbers.has(number)
 
         const renewalChild = isRenewedPolicy(
           policy,
@@ -868,11 +878,7 @@ export default function MyPolicies() {
         }
 
         if (status === 'renewed') {
-          return (
-            policy.renewalChild ||
-            policy.alreadyRenewed ||
-            policy.displayStatus === 'RENEWED'
-          )
+          return policy.displayStatus === 'RENEWED'
         }
 
         return (
@@ -916,10 +922,7 @@ export default function MyPolicies() {
       ).length,
 
       renewed: enrichedPolicies.filter(
-        (p) =>
-          p.renewalChild ||
-          p.alreadyRenewed ||
-          p.displayStatus === 'RENEWED',
+        (p) => p.displayStatus === 'RENEWED',
       ).length,
 
       refunds: enrichedPolicies.filter(
