@@ -1,10 +1,11 @@
-
 import {
   Navigate,
   Route,
   Routes,
   useLocation,
 } from 'react-router-dom'
+
+import { useState } from 'react'
 
 import { useAuth } from './auth/AuthContext'
 
@@ -53,29 +54,28 @@ import AdminBroadcast from './pages/admin/Broadcast'
    INSUREX — APPLICATION ROUTING
 
    Public Authentication
-   Customer Dashboard
+   Protected Customer Routes
+   Protected Admin Routes
+   JWT Session Restoration
+   Session Recovery
    Insurance Purchases
    Policy Renewals
    Refund Tracking
-   Claims & Notifications
-   Admin Management
-   Animated Loading Screen
+   Claims and Notifications
 ========================================================= */
 
 /* =========================================================
-   ROLE-BASED HOME PAGE
+   ROLE-BASED HOME
 ========================================================= */
 
-const home = (user) => {
-  if (user?.role === 'ADMIN') {
-    return '/admin'
-  }
-
-  return '/app'
+function home(user) {
+  return user?.role === 'ADMIN'
+    ? '/admin'
+    : '/app'
 }
 
 /* =========================================================
-   ANIMATED APPLICATION LOADING SCREEN
+   LOADING SCREEN
 ========================================================= */
 
 function Splash() {
@@ -88,73 +88,270 @@ function Splash() {
 }
 
 /* =========================================================
-   PROTECTED ROUTES
+   SESSION RECOVERY
 
-   - Wait for session initialization.
-   - Show branded loading animation.
-   - Redirect unauthenticated users to login.
-   - Restrict access by user role.
+   Shown when:
+   - A JWT exists in sessionStorage
+   - The backend could not verify it
+   - The failure was not a confirmed invalid session
+
+   This screen does NOT grant protected access.
+   Authentication must succeed before continuing.
 ========================================================= */
 
-function Guard({ role, children }) {
-  const { user, booting } = useAuth()
-  const location = useLocation()
+function SessionRecovery() {
+  const {
+    refresh,
+    logout,
+    sessionChecking,
+  } = useAuth()
+
+  const [error, setError] = useState('')
+
+  async function retry() {
+    setError('')
+
+    try {
+      await refresh()
+    } catch {
+      setError(
+        'The server is still unavailable or your session could not be verified. Please try again.',
+      )
+    }
+  }
+
+  return (
+    <div
+      style={{
+        minHeight: '100dvh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+        background:
+          'linear-gradient(145deg, #f0fdfa 0%, #f8fafc 55%, #eff6ff 100%)',
+      }}
+    >
+      <div
+        style={{
+          width: '100%',
+          maxWidth: 440,
+          padding: '36px 28px',
+          borderRadius: 22,
+          background: '#ffffff',
+          border: '1px solid #e2e8f0',
+          boxShadow:
+            '0 20px 55px rgba(15, 23, 42, 0.08)',
+          textAlign: 'center',
+        }}
+      >
+        <div
+          style={{
+            width: 64,
+            height: 64,
+            borderRadius: 20,
+            margin: '0 auto 20px',
+            display: 'grid',
+            placeItems: 'center',
+            background: '#ccfbf1',
+            color: '#0f766e',
+            fontSize: 30,
+          }}
+        >
+          🛡
+        </div>
+
+        <h2
+          style={{
+            fontSize: 24,
+            fontWeight: 750,
+            color: '#0f172a',
+            marginBottom: 12,
+          }}
+        >
+          Reconnecting to InsureX
+        </h2>
+
+        <p
+          style={{
+            color: '#64748b',
+            lineHeight: 1.7,
+            fontSize: 14,
+            marginBottom: 22,
+          }}
+        >
+          Your previous session is still stored, but
+          we could not verify it with the server.
+          Render may be starting up. Your account
+          information remains protected until
+          verification succeeds.
+        </p>
+
+        {error && (
+          <div
+            role="alert"
+            style={{
+              padding: 12,
+              marginBottom: 18,
+              borderRadius: 10,
+              background: '#fef2f2',
+              color: '#b91c1c',
+              fontSize: 13,
+              lineHeight: 1.6,
+            }}
+          >
+            {error}
+          </div>
+        )}
+
+        <button
+          type="button"
+          disabled={sessionChecking}
+          onClick={retry}
+          style={{
+            width: '100%',
+            minHeight: 46,
+            padding: '12px 18px',
+            borderRadius: 12,
+            border: 0,
+            background: '#0f766e',
+            color: '#ffffff',
+            fontWeight: 650,
+            cursor: sessionChecking
+              ? 'wait'
+              : 'pointer',
+            opacity: sessionChecking ? 0.7 : 1,
+          }}
+        >
+          {sessionChecking
+            ? 'Verifying session...'
+            : 'Retry connection'}
+        </button>
+
+        <button
+          type="button"
+          disabled={sessionChecking}
+          onClick={logout}
+          style={{
+            width: '100%',
+            marginTop: 12,
+            padding: 12,
+            border: 0,
+            background: 'transparent',
+            color: '#64748b',
+            fontWeight: 600,
+            cursor: 'pointer',
+          }}
+        >
+          Sign out and use another account
+        </button>
+
+        <p
+          style={{
+            marginTop: 18,
+            fontSize: 12,
+            color: '#94a3b8',
+          }}
+        >
+          InsureX Secure Insurance Platform
+        </p>
+      </div>
+    </div>
+  )
+}
+
+/* =========================================================
+   SESSION GATE
+
+   Centralized authentication decision:
+
+   1. Booting -> Loading
+   2. Authenticated -> Continue
+   3. Stored JWT, verification unavailable -> Recovery
+   4. No session -> Continue to public/redirect logic
+========================================================= */
+
+function SessionGate({ children }) {
+  const {
+    user,
+    booting,
+    hasStoredSession,
+  } = useAuth()
 
   if (booting) {
     return <Splash />
   }
 
-  if (!user) {
-    return (
-      <Navigate
-        to="/login"
-        state={{
-          from:
-            location.pathname +
-            location.search +
-            location.hash,
-        }}
-        replace
-      />
-    )
-  }
-
-  if (user.role !== role) {
-    return (
-      <Navigate
-        to={home(user)}
-        replace
-      />
-    )
+  if (!user && hasStoredSession) {
+    return <SessionRecovery />
   }
 
   return children
 }
 
 /* =========================================================
+   PROTECTED ROUTES
+
+   USER:
+   - Customer pages only
+
+   ADMIN:
+   - Admin pages only
+
+   Direct URLs and page refreshes are supported.
+========================================================= */
+
+function Guard({ role, children }) {
+  const { user } = useAuth()
+  const location = useLocation()
+
+  return (
+    <SessionGate>
+      {!user ? (
+        <Navigate
+          to="/login"
+          state={{
+            from:
+              location.pathname +
+              location.search +
+              location.hash,
+          }}
+          replace
+        />
+      ) : user.role !== role ? (
+        <Navigate
+          to={home(user)}
+          replace
+        />
+      ) : (
+        children
+      )}
+    </SessionGate>
+  )
+}
+
+/* =========================================================
    GUEST-ONLY ROUTES
 
-   Signed-in users should not return to login
-   or registration unnecessarily.
+   Logged-in users cannot access login/register
+   unless they sign out first.
 ========================================================= */
 
 function GuestOnly({ children }) {
-  const { user, booting } = useAuth()
+  const { user } = useAuth()
 
-  if (booting) {
-    return <Splash />
-  }
-
-  if (user) {
-    return (
-      <Navigate
-        to={home(user)}
-        replace
-      />
-    )
-  }
-
-  return children
+  return (
+    <SessionGate>
+      {user ? (
+        <Navigate
+          to={home(user)}
+          replace
+        />
+      ) : (
+        children
+      )}
+    </SessionGate>
+  )
 }
 
 /* =========================================================
@@ -166,22 +363,20 @@ function GuestOnly({ children }) {
 ========================================================= */
 
 function RootPage() {
-  const { user, booting } = useAuth()
+  const { user } = useAuth()
 
-  if (booting) {
-    return <Splash />
-  }
-
-  if (user) {
-    return (
-      <Navigate
-        to={home(user)}
-        replace
-      />
-    )
-  }
-
-  return <Landing />
+  return (
+    <SessionGate>
+      {user ? (
+        <Navigate
+          to={home(user)}
+          replace
+        />
+      ) : (
+        <Landing />
+      )}
+    </SessionGate>
+  )
 }
 
 /* =========================================================
@@ -191,7 +386,6 @@ function RootPage() {
 export default function App() {
   return (
     <Routes>
-
       {/* ===================================================
           PUBLIC ROUTES
       =================================================== */}
@@ -230,8 +424,6 @@ export default function App() {
 
       {/* ===================================================
           CUSTOMER ROUTES
-
-          Accessible only to USER accounts.
       =================================================== */}
 
       <Route
@@ -242,61 +434,49 @@ export default function App() {
           </Guard>
         }
       >
-
-        {/* Customer Dashboard */}
+        {/* Dashboard */}
 
         <Route
           index
           element={<CustomerDashboard />}
         />
 
-        {/* Explore Insurance */}
+        {/* Insurance Plans */}
 
         <Route
           path="plans"
           element={<Plans />}
         />
 
-        {/* Buy Insurance - Existing Route */}
+        {/* Buy Insurance */}
 
         <Route
           path="plans/:policyNumber/buy"
           element={<BuyPolicy />}
         />
 
-        {/* =================================================
-            POLICY RENEWAL - NEW ROUTE
-
-            URL:
-            /app/renew/:policyNumber
-
-            The parameter is the original purchased
-            policy number, NOT the insurance plan ID.
-
-            Uses the existing BuyPolicy component
-            with renewal mode enabled.
-        ================================================= */}
+        {/* Renew Existing Policy */}
 
         <Route
           path="renew/:policyNumber"
           element={<BuyPolicy />}
         />
 
-        {/* Purchased Policies */}
+        {/* My Policies */}
 
         <Route
           path="policies"
           element={<MyPolicies />}
         />
 
-        {/* Payments & Refund Submission */}
+        {/* Purchases and Payments */}
 
         <Route
           path="purchases"
           element={<MyPurchases />}
         />
 
-        {/* Dedicated Refund Tracking */}
+        {/* Refund Tracking */}
 
         <Route
           path="refunds"
@@ -324,19 +504,16 @@ export default function App() {
           element={<Notifications />}
         />
 
-        {/* Customer Profile */}
+        {/* Profile */}
 
         <Route
           path="profile"
           element={<Profile />}
         />
-
       </Route>
 
       {/* ===================================================
           ADMIN ROUTES
-
-          Accessible only to ADMIN accounts.
       =================================================== */}
 
       <Route
@@ -347,70 +524,68 @@ export default function App() {
           </Guard>
         }
       >
-
-        {/* Admin Dashboard */}
+        {/* Dashboard */}
 
         <Route
           index
           element={<AdminDashboard />}
         />
 
-        {/* Customer Management */}
+        {/* Users */}
 
         <Route
           path="users"
           element={<AdminUsers />}
         />
 
-        {/* Policy Holder Management */}
+        {/* Policy Holders */}
 
         <Route
           path="policy-holders"
           element={<AdminPolicyHolders />}
         />
 
-        {/* Insurance Policy Management */}
+        {/* Policies */}
 
         <Route
           path="policies"
           element={<AdminPolicies />}
         />
 
-        {/* Customer Purchase Management */}
+        {/* Purchases */}
 
         <Route
           path="purchases"
           element={<AdminPurchases />}
         />
 
-        {/* Claims Management */}
+        {/* Claims */}
 
         <Route
           path="claims"
           element={<AdminClaims />}
         />
 
-        {/* Settlements Management */}
+        {/* Settlements */}
 
         <Route
           path="settlements"
           element={<AdminSettlements />}
         />
 
-        {/* Customer Reviews */}
+        {/* Reviews */}
 
         <Route
           path="reviews"
           element={<AdminReviews />}
         />
 
-        {/* Admin Broadcast Notifications */}
+        {/* Broadcast Notifications */}
 
         <Route
           path="broadcast"
           element={<AdminBroadcast />}
         />
-
       </Route>
 
       {/* ===================================================
@@ -436,7 +611,6 @@ export default function App() {
           />
         }
       />
-
     </Routes>
   )
 }
