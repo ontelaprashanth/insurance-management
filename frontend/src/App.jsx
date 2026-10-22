@@ -55,6 +55,7 @@ import AdminBroadcast from './pages/admin/Broadcast'
    Public Authentication
    Customer Dashboard
    Insurance Purchases
+   Policy Renewals
    Refund Tracking
    Claims & Notifications
    Admin Management
@@ -256,10 +257,28 @@ export default function App() {
           element={<Plans />}
         />
 
-        {/* Buy Insurance */}
+        {/* Buy Insurance - Existing Route */}
 
         <Route
           path="plans/:policyNumber/buy"
+          element={<BuyPolicy />}
+        />
+
+        {/* =================================================
+            POLICY RENEWAL - NEW ROUTE
+
+            URL:
+            /app/renew/:policyNumber
+
+            The parameter is the original purchased
+            policy number, NOT the insurance plan ID.
+
+            Uses the existing BuyPolicy component
+            with renewal mode enabled.
+        ================================================= */}
+
+        <Route
+          path="renew/:policyNumber"
           element={<BuyPolicy />}
         />
 
