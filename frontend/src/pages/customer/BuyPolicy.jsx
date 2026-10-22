@@ -46,13 +46,7 @@ import {
   TextInput,
 } from '../../components/ui'
 
-import CoverageDial from '../../components/CoverageDial'
-
-import {
-  COVERAGE_MAX,
-  COVERAGE_MIN,
-  planFor,
-} from '../../lib/premium'
+import { planFor } from '../../lib/premium'
 
 import {
   dateTime,
@@ -415,7 +409,7 @@ export default function BuyPolicy() {
   const [step, setStep] = useState(0)
 
   const [val, setVal] = useState({
-    coverage: 2_500_000,
+    coverage: 0,
     years: 1,
   })
 
@@ -491,6 +485,18 @@ export default function BuyPolicy() {
       ) ?? null,
     [catalogue, routeId],
   )
+
+  // Start at the actual selected plan's base coverage, not a
+  // hardcoded ₹25 lakh (which mismatches Motor/Health plans).
+  useEffect(() => {
+    if (isRenewal || !policy) return
+    const base = Number(policy.baseCoverage)
+    if (Number.isFinite(base) && base > 0) {
+      setVal({ coverage: base, years: 1 })
+    }
+  }, [isRenewal, policy?.planId, policy?.baseCoverage])
+
+  const planName = policy?.planName || policy?.planCode || 'Insurance plan'
 
   const originalPolicy = useMemo(() => {
     if (!isRenewal) return null
@@ -663,8 +669,7 @@ export default function BuyPolicy() {
         Number.isFinite(
           Number(val.coverage),
         ) &&
-        Number(val.coverage) >= COVERAGE_MIN &&
-        Number(val.coverage) <= COVERAGE_MAX
+        Number(val.coverage) > 0
       )
 
   const durationIsValid = isRenewal
@@ -1268,7 +1273,7 @@ export default function BuyPolicy() {
           isRenewal
             ? `Renew policy #${originalPolicyNumber} at the original paid premium`
             : policy
-              ? `${policy.planName || coveredType} · ${
+              ? `${planName} · ${coveredType} · ${
                   policy.planCode ||
                   `Plan #${policy.planId}`
                 }`
@@ -1502,6 +1507,12 @@ export default function BuyPolicy() {
                           </>
                         )}
 
+                        {!isRenewal && (
+                          <>
+                            <dt>Selected plan</dt>
+                            <dd>{planName}</dd>
+                          </>
+                        )}
                         <dt>Cover type</dt>
                         <dd>{coveredType}</dd>
 
@@ -1651,7 +1662,7 @@ export default function BuyPolicy() {
                         )}
 
                         <dt>Insurance</dt>
-                        <dd>{coveredType}</dd>
+                        <dd>{isRenewal ? coveredType : `${planName} (${coveredType})`}</dd>
 
                         <dt>Coverage</dt>
                         <dd>
@@ -1781,18 +1792,50 @@ export default function BuyPolicy() {
                 {/* COVERAGE SELECTOR */}
 
                 {!isRenewal && (
-                  <CoverageDial
-                    value={val}
-                    onChange={setVal}
-                    planKey={
-                      planDetails?.key ||
-                      String(
-                        policy.planCode ||
-                        'insurance',
-                      ).toLowerCase()
-                    }
-                    lockedPlan
-                  />
+                  <Panel title="Customize your coverage">
+                    <p className="muted" style={{ marginBottom: 14 }}>
+                      {planName} · {coveredType}. Base cover: {inr(policy.baseCoverage)}.
+                      The backend confirms the final payable amount.
+                    </p>
+                    <div className="form-grid">
+                      <div className="full">
+                        <TextInput
+                          label="Coverage amount (₹)"
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={val.coverage || ''}
+                          onChange={(event) => setVal((current) => ({
+                            ...current,
+                            coverage: event.target.value,
+                          }))}
+                        />
+                      </div>
+                      <div className="full">
+                        <label htmlFor="ix-duration-years" style={{ display: 'block', marginBottom: 8 }}>
+                          Duration (years)
+                        </label>
+                        <select
+                          id="ix-duration-years"
+                          value={val.years}
+                          onChange={(event) => setVal((current) => ({
+                            ...current,
+                            years: Number(event.target.value),
+                          }))}
+                          style={{ width: '100%', minHeight: 44, borderRadius: 10, padding: 10 }}
+                        >
+                          {[1, 2, 3, 4, 5].map((years) => (
+                            <option key={years} value={years}>
+                              {years} {years === 1 ? 'year' : 'years'}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
+                      Availability of custom coverage and terms depends on backend rules.
+                    </p>
+                  </Panel>
                 )}
               </div>
             </>
