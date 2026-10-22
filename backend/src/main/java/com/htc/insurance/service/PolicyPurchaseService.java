@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyHolderDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
@@ -36,6 +37,7 @@ import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.User;
 
 import com.htc.insurance.repository.InsurancePlanRepository;
+import com.htc.insurance.repository.RefundAttemptRepository;
 
 @Service
 public class PolicyPurchaseService {
@@ -55,6 +57,10 @@ public class PolicyPurchaseService {
     private static final BigDecimal GST_RATE =
             new BigDecimal("0.00");
 
+    private static final long REFUND_WINDOW_HOURS = 24;
+
+    private final ClaimsDao claimsDao;
+    private final RefundAttemptRepository refundAttemptRepository;
     private final PolicyDao policyDao;
     private final PolicyHolderDao policyHolderDao;
     private final UserDao userDao;
@@ -65,6 +71,8 @@ public class PolicyPurchaseService {
 
     public PolicyPurchaseService(
             PolicyDao policyDao,
+            ClaimsDao claimsDao,
+            RefundAttemptRepository refundAttemptRepository,
             PolicyHolderDao policyHolderDao,
             UserDao userDao,
             PolicyPurchaseDao policyPurchaseDao,
@@ -73,6 +81,8 @@ public class PolicyPurchaseService {
             InsurancePlanRepository insurancePlanRepository) {
 
         this.policyDao = policyDao;
+        this.claimsDao = claimsDao;
+        this.refundAttemptRepository = refundAttemptRepository;
         this.policyHolderDao = policyHolderDao;
         this.userDao = userDao;
         this.policyPurchaseDao = policyPurchaseDao;
@@ -738,11 +748,36 @@ public class PolicyPurchaseService {
         dto.setRefundDateTime(
                 purchase.getRefundDateTime());
 
-        // Eligibility must be calculated by the
-        // authoritative refund rules, not guessed here.
+        // Match the rules enforced by RefundPreparationService.
+        // The refund deadline is informational even when
+        // the purchase is no longer eligible.
+        LocalDateTime paidAt = purchase.getPaymentDateTime();
+        LocalDateTime deadline = paidAt == null
+                ? null
+                : paidAt.plusHours(REFUND_WINDOW_HOURS);
 
-        dto.setRefundEligible(null);
-        dto.setRefundDeadline(null);
+        dto.setRefundDeadline(deadline);
+
+        boolean eligible = false;
+        String refundStatus = purchase.getRefundStatus();
+
+        if (policy != null
+                && policy.getPolicyNumber() != null
+                && paidAt != null
+                && !paidAt.isAfter(LocalDateTime.now())
+                && LocalDateTime.now().isBefore(deadline)
+                && "PAID".equalsIgnoreCase(purchase.getPaymentStatus())
+                && "NOT_REFUNDED".equalsIgnoreCase(refundStatus)
+                && !isBlank(purchase.getRazorpayPaymentId())
+                && purchase.getTotalPremium() != null
+                && purchase.getTotalPremium().compareTo(BigDecimal.ZERO) > 0
+                && !refundAttemptRepository.existsByPurchaseId(purchase.getPurchaseId())
+                && !claimsDao.existsClaimsByPolicyNumber(policy.getPolicyNumber())) {
+
+            eligible = true;
+        }
+
+        dto.setRefundEligible(eligible);
 
         // Never expose a payment signature in responses.
         dto.setRazorpaySignature(null);
