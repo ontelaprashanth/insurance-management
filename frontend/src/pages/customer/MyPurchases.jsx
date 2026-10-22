@@ -1584,6 +1584,25 @@ export default function MyPurchases() {
 
         .ix-purchase-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr)); gap:16px; padding:18px; }
         .ix-purchase-card { display:flex; flex-direction:column; gap:16px; min-width:0; padding:20px; background:var(--surface,#fff); border:1px solid var(--line,#e3e9e8); border-radius:18px; }
+        /* Motion: subtle entrance, hover lift, and accessible reduced-motion fallback */
+        @keyframes ixPurchaseReveal { from { opacity:0; transform:translateY(14px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
+        @keyframes ixPaymentSummaryReveal { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
+        .ix-purchase-card { animation:ixPurchaseReveal .46s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(min(var(--ix-card-index, 0), 8) * 55ms); transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease; will-change:transform; }
+        .ix-purchase-card:hover { transform:translateY(-5px); border-color:#b8d8ce; box-shadow:0 14px 32px rgba(24,66,57,.11); }
+        .ix-purchase-card:focus-within { border-color:#67a99a; box-shadow:0 0 0 3px rgba(55,139,119,.12); }
+        .ix-purchase-card-icon { transition:transform .25s ease,background-color .25s ease; }
+        .ix-purchase-card:hover .ix-purchase-card-icon { transform:rotate(-5deg) scale(1.08); background:#d8eee6; }
+        .ix-purchase-card-actions button { transition:transform .18s ease,filter .18s ease; }
+        .ix-purchase-card-actions button:not(:disabled):hover { transform:translateY(-2px); filter:brightness(.98); }
+        .ix-payment-summary-grid > * { animation:ixPaymentSummaryReveal .42s ease-out both; }
+        .ix-payment-summary-grid > :nth-child(2) { animation-delay:65ms; }
+        .ix-payment-summary-grid > :nth-child(3) { animation-delay:130ms; }
+        .ix-payment-summary-grid > :nth-child(4) { animation-delay:195ms; }
+        @media (prefers-reduced-motion:reduce) {
+          .ix-purchase-card,.ix-payment-summary-grid > * { animation:none !important; }
+          .ix-purchase-card,.ix-purchase-card-icon,.ix-purchase-card-actions button { transition:none !important; will-change:auto; }
+          .ix-purchase-card:hover,.ix-purchase-card:hover .ix-purchase-card-icon,.ix-purchase-card-actions button:not(:disabled):hover { transform:none; }
+        }
         .ix-purchase-card-head, .ix-purchase-card-heading { display:flex; align-items:flex-start; gap:12px; min-width:0; }
         .ix-purchase-card-head { justify-content:space-between; flex-wrap:wrap; }
         .ix-purchase-card-icon { display:grid; place-items:center; width:42px; height:42px; flex-shrink:0; border-radius:12px; background:#eaf3f0; color:#21685b; }
@@ -1808,7 +1827,7 @@ export default function MyPurchases() {
                   const uncertain = uncertainRefundIds.has(String(p.purchaseId))
                   const showRefundAction = isPaid(p) && isRefundNotRequested(p)
                   return (
-                    <article className="ix-purchase-card" key={String(p.purchaseId)}>
+                    <article className="ix-purchase-card" key={String(p.purchaseId)} style={{ '--ix-card-index': rows.indexOf(p) }}>
                       <div className="ix-purchase-card-head">
                         <div className="ix-purchase-card-heading">
                           <div className="ix-purchase-card-icon"><ShieldCheck size={22} /></div>
