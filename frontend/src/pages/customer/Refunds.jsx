@@ -1,10 +1,14 @@
-
 import { useEffect, useMemo, useState } from 'react'
+
 import {
   useLocation,
   useNavigate,
 } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+
+import {
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 
 import {
   AlertCircle,
@@ -38,14 +42,22 @@ import {
 /* =========================================================
    INSUREX — CUSTOMER REFUNDS
 
-   Submitted Refund Requests
-   Pending Refunds
-   Processing Refunds
-   Completed Refunds
-   Failed Refunds
+   Refund Request Tracking
+   Pending / Processing / Reconciliation
+   Completed / Failed Refunds
+   Automatic Status Synchronization
+   Manual Refresh
+   Live Refund Details
+   Responsive Desktop / Mobile UI
 
    Backend:
    GET /policy/my-purchases
+
+   No additional backend endpoints required.
+========================================================= */
+
+/* =========================================================
+   HELPERS
 ========================================================= */
 
 function money(value) {
@@ -59,54 +71,84 @@ function money(value) {
 }
 
 function normalize(value) {
-  return String(value || '')
+  return String(value ?? '')
     .trim()
     .toUpperCase()
 }
+
+function normalizeRows(value) {
+  if (Array.isArray(value)) {
+    return value
+  }
+
+  if (Array.isArray(value?.content)) {
+    return value.content
+  }
+
+  if (Array.isArray(value?.data)) {
+    return value.data
+  }
+
+  if (Array.isArray(value?.data?.content)) {
+    return value.data.content
+  }
+
+  if (Array.isArray(value?.purchases)) {
+    return value.purchases
+  }
+
+  return []
+}
+
+/* =========================================================
+   REFUND STATUS
+
+   Purchase refundStatus is authoritative.
+
+   Do not treat Razorpay's intermediate PROCESSING
+   status as a completed refund.
+
+   A backend-confirmed REFUNDED status is required.
+========================================================= */
 
 function getRefundStatus(purchase) {
   const status = normalize(
     purchase?.refundStatus,
   )
 
-  if (
-    status === 'REFUNDED' ||
-    status === 'FULLY_REFUNDED' ||
-    status === 'PROCESSED'
-  ) {
-    return 'REFUNDED'
-  }
+  switch (status) {
+    case 'REFUNDED':
+    case 'FULLY_REFUNDED':
+      return 'REFUNDED'
 
-  if (
-    status === 'REFUND_FAILED' ||
-    status === 'FAILED'
-  ) {
-    return 'FAILED'
-  }
+    case 'REFUND_FAILED':
+    case 'FAILED':
+      return 'FAILED'
 
-  if (
-    status ===
-      'REFUND_REQUIRES_RECONCILIATION' ||
-    status === 'REQUIRES_RECONCILIATION'
-  ) {
-    return 'RECONCILIATION'
-  }
+    case 'REFUND_REQUIRES_RECONCILIATION':
+    case 'REQUIRES_RECONCILIATION':
+      return 'RECONCILIATION'
 
-  if (
-    status === 'REFUND_PROCESSING' ||
-    status === 'PROCESSING'
-  ) {
-    return 'PROCESSING'
-  }
+    case 'REFUND_PROCESSING':
+    case 'PROCESSING':
+      return 'PROCESSING'
 
-  if (
-    status === 'REFUND_PENDING' ||
-    status === 'PENDING'
-  ) {
-    return 'PENDING'
-  }
+    case 'REFUND_PENDING':
+    case 'PENDING':
+    case 'REQUESTED':
+      return 'PENDING'
 
-  return 'NONE'
+    default:
+      return 'NONE'
+  }
+}
+
+function isActiveRefund(purchase) {
+  return [
+    'PENDING',
+    'PROCESSING',
+    'RECONCILIATION',
+  ].includes(getRefundStatus(purchase))
 }
 
 function hasRefundActivity(purchase) {
@@ -116,9 +158,37 @@ function hasRefundActivity(purchase) {
     status !== 'NONE' ||
     Boolean(purchase?.refundId) ||
     Boolean(purchase?.refundReason) ||
-    Boolean(purchase?.refundDateTime)
+    Boolean(purchase?.refundDateTime) ||
+    Boolean(purchase?.refundRequestedAt)
   )
 }
+
+function refundTimestamp(purchase) {
+  return (
+    purchase?.refundDateTime ||
+    purchase?.refundProcessedAt ||
+    purchase?.refundRequestedAt ||
+    null
+  )
+}
+
+function refundTimestampLabel(purchase) {
+  const status = getRefundStatus(purchase)
+
+  if (status === 'REFUNDED') {
+    return 'Refund completed'
+  }
+
+  if (status === 'FAILED') {
+    return 'Refund updated'
+  }
+
+  return 'Refund activity'
+}
+
+/* =========================================================
+   REFUND STATUS BADGE
+========================================================= */
 
 function RefundBadge({ purchase }) {
   const status = getRefundStatus(purchase)
@@ -128,18 +198,22 @@ function RefundBadge({ purchase }) {
       value: 'REFUNDED',
       label: 'Refunded',
     },
+
     FAILED: {
       value: 'FAILED',
       label: 'Refund failed',
     },
+
     RECONCILIATION: {
       value: 'PENDING',
       label: 'Under verification',
     },
+
     PROCESSING: {
       value: 'PENDING',
       label: 'Processing',
     },
+
     PENDING: {
       value: 'PENDING',
       label: 'Pending',
@@ -166,14 +240,20 @@ function RefundBadge({ purchase }) {
 }
 
 /* =========================================================
-   REFUND DETAILS
+   REFUND DETAILS MODAL
 ========================================================= */
 
 function RefundDetails({
   purchase,
   onClose,
+  onRefresh,
+  refreshing,
 }) {
-  if (!purchase) return null
+  if (!purchase) {
+    return null
+  }
+
+  const status = getRefundStatus(purchase)
 
   return (
     <Modal
@@ -181,27 +261,50 @@ function RefundDetails({
       onClose={onClose}
       wide
       footer={
-        <Button onClick={onClose}>
-          Close
-        </Button>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 10,
+          }}
+        >
+          <Button
+            onClick={onRefresh}
+            disabled={refreshing}
+          >
+            <RotateCcw
+              size={15}
+              className={
+                refreshing
+                  ? 'ix-refunds-spin'
+                  : ''
+              }
+            />
+
+            {refreshing
+              ? 'Refreshing...'
+              : 'Refresh status'}
+          </Button>
+
+          <Button onClick={onClose}>
+            Close
+          </Button>
+        </div>
       }
     >
       <div
         className="stack"
-        style={{ gap: 18 }}
+        style={{
+          gap: 18,
+        }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            flexWrap: 'wrap',
-            padding: 16,
-            border:
-              '1px solid var(--line, #e3e9e8)',
-            borderRadius: 14,
-          }}
-        >
+        {/* ===============================================
+            POLICY SUMMARY
+        =============================================== */}
+
+        <div className="ix-refunds-detail-header">
           <ShieldCheck
             size={24}
             color="var(--fjord, #0f3d3e)"
@@ -230,6 +333,10 @@ function RefundDetails({
           <RefundBadge purchase={purchase} />
         </div>
 
+        {/* ===============================================
+            REFUND DETAILS
+        =============================================== */}
+
         <Details
           items={[
             [
@@ -249,7 +356,10 @@ function RefundDetails({
             [
               'Payment status',
               <StatusBadge
-                value={purchase.paymentStatus}
+                value={
+                  purchase.paymentStatus ||
+                  'UNKNOWN'
+                }
               />,
             ],
             [
@@ -277,10 +387,12 @@ function RefundDetails({
               purchase.refundReason || '—',
             ],
             [
-              'Refund date',
-              dateTime(
-                purchase.refundDateTime,
-              ),
+              refundTimestampLabel(purchase),
+              refundTimestamp(purchase)
+                ? dateTime(
+                    refundTimestamp(purchase),
+                  )
+                : '—',
             ],
             [
               'Transaction ID',
@@ -294,44 +406,99 @@ function RefundDetails({
           ]}
         />
 
-        {getRefundStatus(purchase) ===
-          'REFUNDED' && (
-          <div className="alert success">
-            <CheckCircle2 size={17} />
+        {/* ===============================================
+            COMPLETED
+        =============================================== */}
+
+        {status === 'REFUNDED' && (
+          <div
+            className="alert success"
+            role="status"
+          >
+            <CheckCircle2 size={18} />
 
             <span>
-              The backend reports this refund
-              as completed.
+              Your refund is marked as completed
+              in the InsureX backend. The
+              corresponding payment provider
+              processing has been reconciled.
             </span>
           </div>
         )}
 
-        {[
-          'PENDING',
-          'PROCESSING',
-          'RECONCILIATION',
-        ].includes(
-          getRefundStatus(purchase),
-        ) && (
-          <div className="alert info">
-            <Clock3 size={17} />
+        {/* ===============================================
+            PENDING
+        =============================================== */}
+
+        {status === 'PENDING' && (
+          <div
+            className="alert info"
+            role="status"
+          >
+            <Clock3 size={18} />
 
             <span>
-              Your refund is still being
-              processed or verified.
-              Please check again later.
+              Your refund request has been
+              recorded and is waiting for
+              further processing.
             </span>
           </div>
         )}
 
-        {getRefundStatus(purchase) ===
-          'FAILED' && (
-          <div className="alert error">
-            <AlertCircle size={17} />
+        {/* ===============================================
+            PROCESSING
+        =============================================== */}
+
+        {status === 'PROCESSING' && (
+          <div
+            className="alert info"
+            role="status"
+          >
+            <Clock3 size={18} />
 
             <span>
-              This refund is marked as failed.
-              Contact support for assistance.
+              Your refund is being processed.
+              The final result has not yet
+              been confirmed by the backend.
+            </span>
+          </div>
+        )}
+
+        {/* ===============================================
+            RECONCILIATION
+        =============================================== */}
+
+        {status === 'RECONCILIATION' && (
+          <div
+            className="alert info"
+            role="status"
+          >
+            <ShieldCheck size={18} />
+
+            <span>
+              Your refund requires verification
+              against the payment provider.
+              Do not submit another refund
+              request for this purchase.
+            </span>
+          </div>
+        )}
+
+        {/* ===============================================
+            FAILED
+        =============================================== */}
+
+        {status === 'FAILED' && (
+          <div
+            className="alert error"
+            role="alert"
+          >
+            <AlertCircle size={18} />
+
+            <span>
+              The backend reports that this
+              refund failed. Contact support
+              before attempting another request.
             </span>
           </div>
         )}
@@ -348,9 +515,19 @@ export default function Refunds() {
   const location = useLocation()
   const navigate = useNavigate()
 
+  const queryClient = useQueryClient()
+
+  /* =======================================================
+     STATE
+  ======================================================= */
+
   const [search, setSearch] = useState('')
+
   const [filter, setFilter] = useState('ALL')
-  const [selected, setSelected] = useState(null)
+
+  const [selectedPurchaseId, setSelectedPurchaseId] =
+    useState(null)
+
   const [pageError, setPageError] = useState('')
 
   const [successMessage, setSuccessMessage] =
@@ -361,51 +538,92 @@ export default function Refunds() {
         : '',
     )
 
-  const requestedPurchaseId =
+  const [requestedPurchaseId] = useState(
     location.state?.refundRequested
       ? location.state.purchaseId
-      : null
+      : null,
+  )
 
-  /* Clear navigation state after arrival */
+  /* =======================================================
+     CLEAR NAVIGATION STATE
+
+     Prevents a refund request success message from
+     reappearing after refreshing the browser.
+  ======================================================= */
 
   useEffect(() => {
     if (!location.state?.refundRequested) {
       return
     }
 
-    navigate(location.pathname, {
-      replace: true,
-      state: null,
-    })
+    navigate(
+      location.pathname +
+        location.search,
+      {
+        replace: true,
+        state: null,
+      },
+    )
   }, [
     location.pathname,
+    location.search,
     location.state,
     navigate,
   ])
 
   /* =======================================================
-     FETCH REFUNDS
+     PURCHASES QUERY
+
+     Refund information comes from the backend.
+
+     Poll every 15 seconds only when there are
+     refunds that are not yet in a final state.
+
+     Polling does not initiate any refund.
+     It only reads the latest purchase statuses.
   ======================================================= */
 
   const q = useQuery({
     queryKey: ['my-purchases'],
+
     queryFn: purchases.mine,
+
     staleTime: 0,
+
     refetchOnMount: 'always',
+
     refetchOnWindowFocus: true,
-    refetchInterval: 30_000,
+
+    refetchOnReconnect: true,
+
+    refetchInterval: (query) => {
+      const rows = normalizeRows(
+        query.state.data,
+      )
+
+      return rows.some(isActiveRefund)
+        ? 15_000
+        : false
+    },
+
+    refetchIntervalInBackground: false,
   })
 
+  /* =======================================================
+     NORMALIZE PURCHASE DATA
+  ======================================================= */
+
   const allPurchases = useMemo(
-    () =>
-      Array.isArray(q.data)
-        ? q.data
-        : [],
+    () => normalizeRows(q.data),
     [q.data],
   )
 
+  /* =======================================================
+     REFUND ROWS
+  ======================================================= */
+
   const refundRows = useMemo(() => {
-    const rows = allPurchases
+    return allPurchases
       .filter(hasRefundActivity)
       .slice()
       .sort(
@@ -413,12 +631,43 @@ export default function Refunds() {
           Number(b.purchaseId || 0) -
           Number(a.purchaseId || 0),
       )
-
-    return rows
   }, [allPurchases])
 
+  /* =======================================================
+     SELECTED REFUND
+
+     Look up the selected purchase from the current
+     query result rather than storing an old object.
+
+     This ensures the modal updates when polling or
+     manual refresh returns a new refund status.
+  ======================================================= */
+
+  const selectedPurchase = useMemo(() => {
+    if (selectedPurchaseId == null) {
+      return null
+    }
+
+    return (
+      refundRows.find(
+        (purchase) =>
+          String(purchase.purchaseId) ===
+          String(selectedPurchaseId),
+      ) || null
+    )
+  }, [
+    refundRows,
+    selectedPurchaseId,
+  ])
+
+  /* =======================================================
+     FILTER REFUNDS
+  ======================================================= */
+
   const filteredRows = useMemo(() => {
-    const term = search.trim().toLowerCase()
+    const term = search
+      .trim()
+      .toLowerCase()
 
     return refundRows.filter((purchase) => {
       const status = getRefundStatus(purchase)
@@ -430,7 +679,9 @@ export default function Refunds() {
         return false
       }
 
-      if (!term) return true
+      if (!term) {
+        return true
+      }
 
       return [
         purchase.purchaseId,
@@ -439,6 +690,7 @@ export default function Refunds() {
         purchase.refundId,
         purchase.refundReason,
         purchase.transactionId,
+        purchase.razorpayPaymentId,
       ].some((value) =>
         String(value ?? '')
           .toLowerCase()
@@ -456,24 +708,29 @@ export default function Refunds() {
   ======================================================= */
 
   const summary = useMemo(() => {
-    const pending = refundRows.filter(
-      (p) =>
-        [
-          'PENDING',
-          'PROCESSING',
-          'RECONCILIATION',
-        ].includes(getRefundStatus(p)),
-    ).length
+    let pending = 0
+    let refunded = 0
+    let failed = 0
 
-    const refunded = refundRows.filter(
-      (p) =>
-        getRefundStatus(p) === 'REFUNDED',
-    ).length
+    for (const purchase of refundRows) {
+      const status = getRefundStatus(purchase)
 
-    const failed = refundRows.filter(
-      (p) =>
-        getRefundStatus(p) === 'FAILED',
-    ).length
+      if (
+        status === 'PENDING' ||
+        status === 'PROCESSING' ||
+        status === 'RECONCILIATION'
+      ) {
+        pending += 1
+      }
+
+      if (status === 'REFUNDED') {
+        refunded += 1
+      }
+
+      if (status === 'FAILED') {
+        failed += 1
+      }
+    }
 
     return {
       total: refundRows.length,
@@ -484,7 +741,12 @@ export default function Refunds() {
   }, [refundRows])
 
   /* =======================================================
-     REFRESH
+     REFRESH REFUNDS
+
+     Refetch the backend's purchase data.
+
+     Invalidate related policy information after
+     receiving the latest refund statuses.
   ======================================================= */
 
   async function refreshRefunds() {
@@ -496,8 +758,25 @@ export default function Refunds() {
       if (result.error) {
         throw result.error
       }
+
+      await Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: ['my-policies'],
+          refetchType: 'active',
+        }),
+
+        queryClient.invalidateQueries({
+          queryKey: ['insurance-plans'],
+          refetchType: 'active',
+        }),
+      ])
     } catch (error) {
-      setPageError(errorMessage(error))
+      setPageError(
+        errorMessage(
+          error,
+          'Unable to refresh refund statuses.',
+        ),
+      )
     }
   }
 
@@ -508,58 +787,210 @@ export default function Refunds() {
   return (
     <>
       <style>{`
-        /* Scoped layout: only the customer Refunds page */
-        .ix-refunds-toolbar { gap: 12px; align-items: center; }
-        .ix-refunds-toolbar > * { max-width: 100%; }
+        /* ===============================================
+           INSUREX REFUNDS — RESPONSIVE STYLES
+        =============================================== */
+
+        .ix-refunds-toolbar {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+        }
+
+        .ix-refunds-toolbar > * {
+          max-width: 100%;
+        }
+
+        .ix-refunds-summary {
+          display: grid;
+          grid-template-columns:
+            repeat(auto-fit, minmax(180px, 1fr));
+          gap: 14px;
+          margin-bottom: 20px;
+        }
+
         .ix-refunds-table {
-          width: 100%; max-width: 100%; min-width: 0;
-          overflow-x: auto; overflow-y: hidden;
+          width: 100%;
+          max-width: 100%;
+          min-width: 0;
+          overflow-x: auto;
+          overflow-y: hidden;
           -webkit-overflow-scrolling: touch;
         }
+
         .ix-refunds-table .table-wrap {
-          width: 100%; max-width: 100%;
-          overflow-x: auto; -webkit-overflow-scrolling: touch;
+          width: 100%;
+          max-width: 100%;
+          overflow-x: auto;
+          -webkit-overflow-scrolling: touch;
         }
+
         .ix-refunds-table table {
-          width: 100%; min-width: 1020px;
-          table-layout: fixed; border-collapse: collapse;
+          width: 100%;
+          min-width: 1020px;
+          table-layout: fixed;
+          border-collapse: collapse;
         }
-        .ix-refunds-table th, .ix-refunds-table td {
-          box-sizing: border-box; padding: 16px 14px;
-          vertical-align: middle; white-space: nowrap;
+
+        .ix-refunds-table th,
+        .ix-refunds-table td {
+          box-sizing: border-box;
+          padding: 16px 14px;
+          vertical-align: middle;
+          white-space: nowrap;
         }
+
         .ix-refunds-table th:nth-child(1),
-        .ix-refunds-table td:nth-child(1) { width: 9%; }
+        .ix-refunds-table td:nth-child(1) {
+          width: 9%;
+        }
+
         .ix-refunds-table th:nth-child(2),
-        .ix-refunds-table td:nth-child(2) { width: 23%; }
+        .ix-refunds-table td:nth-child(2) {
+          width: 23%;
+        }
+
         .ix-refunds-table th:nth-child(3),
-        .ix-refunds-table td:nth-child(3) { width: 14%; }
+        .ix-refunds-table td:nth-child(3) {
+          width: 14%;
+        }
+
         .ix-refunds-table th:nth-child(4),
-        .ix-refunds-table td:nth-child(4) { width: 15%; }
+        .ix-refunds-table td:nth-child(4) {
+          width: 15%;
+        }
+
         .ix-refunds-table th:nth-child(5),
-        .ix-refunds-table td:nth-child(5) { width: 16%; }
+        .ix-refunds-table td:nth-child(5) {
+          width: 16%;
+        }
+
         .ix-refunds-table th:nth-child(6),
-        .ix-refunds-table td:nth-child(6) { width: 13%; }
+        .ix-refunds-table td:nth-child(6) {
+          width: 13%;
+        }
+
         .ix-refunds-table th:nth-child(7),
-        .ix-refunds-table td:nth-child(7) { width: 10%; text-align: right; }
-        .ix-refunds-purchase { display: block; font-weight: 700; }
-        .ix-refunds-plan { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
-        .ix-refunds-plan strong { display: block; font-weight: 700; white-space: nowrap; }
-        .ix-refunds-plan .muted { display: block; font-size: 13px; white-space: nowrap; }
-        .ix-refunds-amount, .ix-refunds-updated { display: inline-block; white-space: nowrap; font-variant-numeric: tabular-nums; }
-        .ix-refunds-status { display: inline-flex; white-space: nowrap; }
-        .ix-refunds-status * { white-space: nowrap !important; word-break: normal !important; overflow-wrap: normal !important; }
-        .ix-refunds-action { display: inline-flex; align-items: center; justify-content: flex-end; white-space: nowrap; }
-        .ix-refunds-action button { white-space: nowrap; flex-shrink: 0; }
+        .ix-refunds-table td:nth-child(7) {
+          width: 10%;
+          text-align: right;
+        }
+
+        .ix-refunds-purchase {
+          display: block;
+          font-weight: 700;
+        }
+
+        .ix-refunds-plan {
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .ix-refunds-plan strong {
+          display: block;
+          font-weight: 700;
+          white-space: nowrap;
+        }
+
+        .ix-refunds-plan .muted {
+          display: block;
+          font-size: 13px;
+          white-space: nowrap;
+        }
+
+        .ix-refunds-amount,
+        .ix-refunds-updated {
+          display: inline-block;
+          white-space: nowrap;
+          font-variant-numeric: tabular-nums;
+        }
+
+        .ix-refunds-status {
+          display: inline-flex;
+          white-space: nowrap;
+        }
+
+        .ix-refunds-status * {
+          white-space: nowrap !important;
+          word-break: normal !important;
+          overflow-wrap: normal !important;
+        }
+
+        .ix-refunds-action {
+          display: inline-flex;
+          align-items: center;
+          justify-content: flex-end;
+          white-space: nowrap;
+        }
+
+        .ix-refunds-action button {
+          white-space: nowrap;
+          flex-shrink: 0;
+        }
+
+        .ix-refunds-detail-header {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          flex-wrap: wrap;
+          padding: 16px;
+          border: 1px solid
+            var(--line, #e3e9e8);
+          border-radius: 14px;
+        }
+
+        @keyframes ixRefundSpin {
+          to {
+            transform: rotate(360deg);
+          }
+        }
+
+        .ix-refunds-spin {
+          animation:
+            ixRefundSpin 0.9s linear infinite;
+        }
+
         @media (max-width: 700px) {
-          .ix-refunds-table table { min-width: 940px; }
-          .ix-refunds-table th, .ix-refunds-table td { padding: 12px 11px; }
+          .ix-refunds-summary {
+            grid-template-columns:
+              repeat(2, minmax(0, 1fr));
+            gap: 10px;
+          }
+
+          .ix-refunds-table table {
+            min-width: 940px;
+          }
+
+          .ix-refunds-table th,
+          .ix-refunds-table td {
+            padding: 12px 11px;
+          }
+        }
+
+        @media (max-width: 380px) {
+          .ix-refunds-summary {
+            grid-template-columns: 1fr;
+          }
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .ix-refunds-spin {
+            animation: none;
+          }
         }
       `}</style>
 
+      {/* ===================================================
+          PAGE HEADER
+      =================================================== */}
+
       <PageHeader
         title="Refunds"
-        subtitle="Track your insurance refund requests and their processing status."
+        subtitle="Track your insurance refund requests and their latest verified status."
       >
         <Button
           onClick={() =>
@@ -571,7 +1002,9 @@ export default function Refunds() {
         </Button>
       </PageHeader>
 
-      {/* SUCCESS MESSAGE */}
+      {/* ===================================================
+          REFUND REQUEST SUCCESS
+      =================================================== */}
 
       {successMessage && (
         <div
@@ -595,22 +1028,27 @@ export default function Refunds() {
         </div>
       )}
 
-      {/* REFUND REQUEST INFORMATION */}
+      {/* ===================================================
+          REQUESTED PURCHASE INFORMATION
+      =================================================== */}
 
-      {requestedPurchaseId && (
+      {requestedPurchaseId != null && (
         <div className="alert info">
           <Clock3 size={17} />
 
           <span>
             Refund request submitted for
             purchase #{requestedPurchaseId}.
-            The status below comes from the
-            backend and may take time to update.
+            The status shown below comes
+            from the backend and may take
+            time to update.
           </span>
         </div>
       )}
 
-      {/* PAGE ERROR */}
+      {/* ===================================================
+          PAGE ERROR
+      =================================================== */}
 
       {pageError && (
         <div
@@ -618,21 +1056,18 @@ export default function Refunds() {
           role="alert"
         >
           <AlertCircle size={17} />
-          <span>{pageError}</span>
+
+          <span>
+            {pageError}
+          </span>
         </div>
       )}
 
-      {/* SUMMARY CARDS */}
+      {/* ===================================================
+          SUMMARY CARDS
+      =================================================== */}
 
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns:
-            'repeat(auto-fit, minmax(180px, 1fr))',
-          gap: 14,
-          marginBottom: 20,
-        }}
-      >
+      <div className="ix-refunds-summary">
         <Panel>
           <div className="payment-summary">
             <RotateCcw size={23} />
@@ -643,7 +1078,7 @@ export default function Refunds() {
               </div>
 
               <strong>
-                {q.isLoading
+                {q.isPending
                   ? '…'
                   : summary.total}
               </strong>
@@ -661,7 +1096,7 @@ export default function Refunds() {
               </div>
 
               <strong>
-                {q.isLoading
+                {q.isPending
                   ? '…'
                   : summary.pending}
               </strong>
@@ -679,7 +1114,7 @@ export default function Refunds() {
               </div>
 
               <strong>
-                {q.isLoading
+                {q.isPending
                   ? '…'
                   : summary.refunded}
               </strong>
@@ -697,7 +1132,7 @@ export default function Refunds() {
               </div>
 
               <strong>
-                {q.isLoading
+                {q.isPending
                   ? '…'
                   : summary.failed}
               </strong>
@@ -706,15 +1141,12 @@ export default function Refunds() {
         </Panel>
       </div>
 
-      {/* FILTERS */}
+      {/* ===================================================
+          REFUND TABLE
+      =================================================== */}
 
       <Panel flush>
-        <div
-          className="toolbar ix-refunds-toolbar"
-          style={{
-            flexWrap: 'wrap',
-          }}
-        >
+        <div className="toolbar ix-refunds-toolbar">
           <SearchBox
             value={search}
             onChange={setSearch}
@@ -733,7 +1165,8 @@ export default function Refunds() {
               borderRadius: 10,
               border:
                 '1px solid var(--line, #e3e9e8)',
-              background: 'var(--surface, #fff)',
+              background:
+                'var(--surface, #fff)',
               color: 'inherit',
             }}
           >
@@ -766,8 +1199,18 @@ export default function Refunds() {
             onClick={refreshRefunds}
             disabled={q.isFetching}
           >
-            <RotateCcw size={15} />
-            Refresh
+            <RotateCcw
+              size={15}
+              className={
+                q.isFetching
+                  ? 'ix-refunds-spin'
+                  : ''
+              }
+            />
+
+            {q.isFetching
+              ? 'Refreshing'
+              : 'Refresh'}
           </Button>
         </div>
 
@@ -812,110 +1255,171 @@ export default function Refunds() {
                   Go to Payments
                 </Button>
               </div>
+            ) : filteredRows.length === 0 ? (
+              <div
+                style={{
+                  padding: 28,
+                  textAlign: 'center',
+                }}
+              >
+                <h3>
+                  No matching refunds
+                </h3>
+
+                <p className="muted">
+                  Try a different search or
+                  refund status filter.
+                </p>
+
+                <Button
+                  onClick={() => {
+                    setSearch('')
+                    setFilter('ALL')
+                  }}
+                >
+                  Clear filters
+                </Button>
+              </div>
             ) : (
-              <div className="ix-refunds-table" role="region" aria-label="Refund requests table" tabIndex={0}>
-              <Table
-                rowKey="purchaseId"
-                rows={filteredRows}
-                onRowClick={setSelected}
-                columns={[
-                  {
-                    key: 'purchaseId',
-                    header: 'Purchase',
-                    render: (p) => (
-                      <span className="ix-refunds-purchase">
-                        #{p.purchaseId}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: 'coveredTypes',
-                    header: 'Insurance plan',
-                    render: (p) => (
-                      <div className="ix-refunds-plan">
-                        <strong>
-                          {p.coveredTypes || 'Insurance'}
-                        </strong>
-                        <span className="muted">
-                          {p.policyNumber
-                            ? `Policy #${p.policyNumber}`
+              <div
+                className="ix-refunds-table"
+                role="region"
+                aria-label="Refund requests table"
+                tabIndex={0}
+              >
+                <Table
+                  rowKey="purchaseId"
+                  rows={filteredRows}
+                  onRowClick={(purchase) =>
+                    setSelectedPurchaseId(
+                      purchase.purchaseId,
+                    )
+                  }
+                  columns={[
+                    {
+                      key: 'purchaseId',
+                      header: 'Purchase',
+                      render: (p) => (
+                        <span className="ix-refunds-purchase">
+                          #{p.purchaseId}
+                        </span>
+                      ),
+                    },
+
+                    {
+                      key: 'coveredTypes',
+                      header: 'Insurance plan',
+                      render: (p) => (
+                        <div className="ix-refunds-plan">
+                          <strong>
+                            {p.coveredTypes ||
+                              'Insurance'}
+                          </strong>
+
+                          <span className="muted">
+                            {p.policyNumber
+                              ? `Policy #${p.policyNumber}`
+                              : '—'}
+                          </span>
+                        </div>
+                      ),
+                    },
+
+                    {
+                      key: 'totalPremium',
+                      header: 'Amount paid',
+                      render: (p) => (
+                        <span className="ix-refunds-amount">
+                          {money(
+                            p.totalPremium,
+                          )}
+                        </span>
+                      ),
+                    },
+
+                    {
+                      key: 'refundAmount',
+                      header: 'Refund amount',
+                      render: (p) => (
+                        <span className="ix-refunds-amount">
+                          {p.refundAmount != null
+                            ? money(
+                                p.refundAmount,
+                              )
                             : '—'}
                         </span>
-                      </div>
-                    ),
-                  },
-                  {
-                    key: 'totalPremium',
-                    header: 'Amount paid',
-                    render: (p) => (
-                      <span className="ix-refunds-amount">
-                        {money(p.totalPremium)}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: 'refundAmount',
-                    header: 'Refund amount',
-                    render: (p) => (
-                      <span className="ix-refunds-amount">
-                        {p.refundAmount != null
-                          ? money(p.refundAmount)
-                          : '—'}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: 'refundStatus',
-                    header: 'Status',
-                    render: (p) => (
-                      <span className="ix-refunds-status">
-                        <RefundBadge purchase={p} />
-                      </span>
-                    ),
-                  },
-                  {
-                    key: 'refundDateTime',
-                    header: 'Refund date',
-                    render: (p) => (
-                      <span className="ix-refunds-updated">
-                        {p.refundDateTime ? dateTime(p.refundDateTime) : '—'}
-                      </span>
-                    ),
-                  },
-                  {
-                    key: 'actions',
-                    header: '',
-                    align: 'right',
-                    render: (p) => (
-                      <span className="ix-refunds-action">
-                      <Button
-                        size="sm"
-                        onClick={(event) => {
-                          event?.stopPropagation?.()
-                          setSelected(p)
-                        }}
-                      >
-                        Details
-                      </Button>
-                      </span>
-                    ),
-                  },
-                ]}
-              />
+                      ),
+                    },
+
+                    {
+                      key: 'refundStatus',
+                      header: 'Status',
+                      render: (p) => (
+                        <span className="ix-refunds-status">
+                          <RefundBadge
+                            purchase={p}
+                          />
+                        </span>
+                      ),
+                    },
+
+                    {
+                      key: 'refundDateTime',
+                      header: 'Refund activity',
+                      render: (p) => (
+                        <span className="ix-refunds-updated">
+                          {refundTimestamp(p)
+                            ? dateTime(
+                                refundTimestamp(p),
+                              )
+                            : '—'}
+                        </span>
+                      ),
+                    },
+
+                    {
+                      key: 'actions',
+                      header: '',
+                      align: 'right',
+                      render: (p) => (
+                        <span className="ix-refunds-action">
+                          <Button
+                            size="sm"
+                            onClick={(event) => {
+                              event?.stopPropagation?.()
+
+                              setSelectedPurchaseId(
+                                p.purchaseId,
+                              )
+                            }}
+                          >
+                            Details
+                          </Button>
+                        </span>
+                      ),
+                    },
+                  ]}
+                />
               </div>
             )
           }
         </DataState>
       </Panel>
 
-      {/* REFUND DETAILS MODAL */}
+      {/* ===================================================
+          REFUND DETAILS MODAL
 
-      {selected && (
+          Reads from the latest query data.
+      =================================================== */}
+
+      {selectedPurchase && (
         <RefundDetails
-          purchase={selected}
+          purchase={selectedPurchase}
           onClose={() =>
-            setSelected(null)
+            setSelectedPurchaseId(null)
           }
+          onRefresh={refreshRefunds}
+          refreshing={q.isFetching}
         />
       )}
     </>
