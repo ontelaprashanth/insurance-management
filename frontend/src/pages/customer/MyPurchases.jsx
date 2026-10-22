@@ -1582,6 +1582,32 @@ export default function MyPurchases() {
 
       <style>{`
 
+        /* InsureX emerald theme: explicit contrast independent of app theme variables. */
+        .ix-purchase-card-grid { color:#153b31; }
+        .ix-purchase-card { background:linear-gradient(155deg,#ffffff 0%,#f4fbf7 100%) !important; border:1px solid #b8dccc !important; color:#153b31 !important; box-shadow:0 5px 18px rgba(13,86,58,.07); }
+        .ix-purchase-card:hover { border-color:#2f9366 !important; box-shadow:0 17px 36px rgba(14,96,61,.17) !important; }
+        .ix-purchase-card-title h3, .ix-purchase-card-facts strong { color:#103e2d !important; }
+        .ix-purchase-card .muted, .ix-purchase-card-note { color:#426b5b !important; opacity:1 !important; }
+        .ix-purchase-card-icon { background:#d9f5e6 !important; color:#147447 !important; }
+        .ix-purchase-card-facts { background:#eaf8f0 !important; border:1px solid #d1ebdd; }
+        .ix-purchase-card-statuses { padding:4px 0; }
+        .ix-purchase-card-actions { border-top-color:#cbe6d7 !important; }
+        .ix-purchase-card-actions button { font-weight:650; }
+        .ix-purchase-card-actions button:not(:disabled) { border-color:#218254; }
+        .ix-purchase-card-actions button:not(:disabled):hover { box-shadow:0 4px 12px rgba(23,112,73,.16); }
+        .ix-purchase-card-actions button:disabled { opacity:.7; }
+        .ix-payment-summary-grid > * { background:linear-gradient(140deg,#ffffff,#eef9f2); border:1px solid #c5e5d2; border-radius:16px; color:#174734; }
+        .ix-payment-summary-grid .payment-summary { color:#17683e; }
+        .ix-payment-summary-grid .payment-summary strong { color:#0d422d !important; font-weight:800; overflow-wrap:anywhere; }
+        .ix-payment-summary-grid .payment-summary .muted { color:#426b58 !important; opacity:1 !important; }
+        .ix-payment-detail-summary { background:#f0faf4; color:#153f2d; border-color:#c5e4d2 !important; }
+        .ix-payment-detail-summary h3, .ix-payment-detail-summary strong { color:#103e2d; }
+        .ix-payment-detail-summary .muted { color:#456c59 !important; opacity:1 !important; }
+        .ix-payment-confirm { color:#204735; }
+        .ix-payment-confirm input { accent-color:#17814f; }
+        .ix-purchase-card .badge { font-weight:700; }
+        @media (prefers-reduced-motion: reduce) { .ix-purchase-card,.ix-payment-summary-grid > * { animation:none !important; } }
+
         .ix-purchase-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr)); gap:16px; padding:18px; }
         .ix-purchase-card { display:flex; flex-direction:column; gap:16px; min-width:0; padding:20px; background:var(--surface,#fff); border:1px solid var(--line,#e3e9e8); border-radius:18px; }
         /* Motion: subtle entrance, hover lift, and accessible reduced-motion fallback */
