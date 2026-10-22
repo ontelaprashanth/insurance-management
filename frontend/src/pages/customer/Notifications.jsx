@@ -125,6 +125,7 @@ export default function Notifications() {
 
   const [filter, setFilter] = useState('all')
   const [pageError, setPageError] = useState('')
+  const [exitingId, setExitingId] = useState(null)
 
   /* =======================================================
      FETCH NOTIFICATIONS
@@ -265,10 +266,16 @@ export default function Notifications() {
     mutationFn: (notificationId) =>
       notifications.remove(notificationId),
 
-    onSuccess: async () => {
+    onSuccess: async (_result, notificationId) => {
       setPageError('')
-      await refreshNotifications()
-
+      // Animate only after the server confirms deletion.
+      setExitingId(notificationId)
+      await new Promise((resolve) => setTimeout(resolve, 380))
+      try {
+        await refreshNotifications()
+      } finally {
+        setExitingId(null)
+      }
       toast.success('Notification deleted.')
     },
 
@@ -278,6 +285,7 @@ export default function Notifications() {
         'Unable to delete notification.',
       )
 
+      setExitingId(null)
       setPageError(message)
       toast.error(message)
     },
@@ -415,7 +423,26 @@ export default function Notifications() {
           .ix-notification-item.unread { padding-left:9px; }
           .ix-notification-actions { padding-top:6px; }
         }
+        /* Modern micro-interactions: server-confirmed delete, reading and refresh */
+        @keyframes ixInboxDelete {
+          0% { opacity:1; transform:translateX(0) scale(1); max-height:500px; padding-top:25px; padding-bottom:25px; }
+          45% { opacity:.35; transform:translateX(24px) scale(.985); max-height:500px; padding-top:25px; padding-bottom:25px; }
+          100% { opacity:0; transform:translateX(65px) scale(.97); max-height:0; padding-top:0; padding-bottom:0; border-bottom-width:0; }
+        }
+        @keyframes ixInboxRead { 0% { background:#dcfce7; } 100% { background:transparent; } }
+        @keyframes ixInboxSpin { to { transform:rotate(360deg); } }
+        .ix-notification-item.ix-notification-exiting,
+        .ix-notification-item.unread.ix-notification-exiting {
+          animation:ixInboxDelete .38s cubic-bezier(.25,.7,.2,1) both !important;
+          pointer-events:none;
+          overflow:hidden;
+        }
+        .ix-notification-item.ix-notification-reading { background:#e5f8eb; }
+        .ix-notification-actions button:focus-visible { outline:2px solid #15834c; outline-offset:3px; }
+        .ix-notifications-toolbar button:disabled { opacity:.65; }
         @media(prefers-reduced-motion:reduce) {
+          .ix-notification-item.ix-notification-exiting,
+          .ix-notification-item.unread.ix-notification-exiting { animation:none !important; opacity:.35; }
           .ix-notification-item, .ix-notification-item.unread, .ix-notification-unread { animation:none !important; }
           .ix-notification-item .dot-icon, .ix-notification-actions button { transition:none !important; }
           .ix-notification-item:hover .dot-icon, .ix-notification-actions button:not(:disabled):hover { transform:none !important; }
@@ -601,7 +628,7 @@ export default function Notifications() {
                       unreadItem
                         ? 'unread'
                         : ''
-                    }`
+                    } ${String(exitingId) === String(notificationId) && exitingId != null ? 'ix-notification-exiting' : ''} ${readingThis ? 'ix-notification-reading' : ''}`
                   }
                 >
                   {/* ===================================
