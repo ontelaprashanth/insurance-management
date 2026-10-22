@@ -49,19 +49,20 @@ public class PolicyDao {
     /**
      * Acquires a pessimistic write lock on the policy row.
      *
-     * Use inside an active @Transactional method.
+     * Must be called inside an active @Transactional method.
      *
-     * Claim submission and refund preparation should
-     * both acquire this lock before eligibility checks.
+     * Claim submission, refund preparation, and renewal
+     * confirmation should acquire this lock before
+     * checking eligibility.
      *
      * The lock remains held until the transaction ends.
      */
     public Policy getPolicyByIdForUpdate(
             Long policyNumber) {
 
-        if (policyNumber == null) {
+        if (policyNumber == null || policyNumber <= 0) {
             throw new IllegalArgumentException(
-                    "Policy number is required.");
+                    "A valid policy number is required.");
         }
 
         return repository
