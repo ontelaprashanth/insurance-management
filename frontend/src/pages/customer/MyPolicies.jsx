@@ -279,8 +279,8 @@ function refundStatusLabel(status) {
    RENEWAL HELPERS
 ========================================================= */
 
-// A renewal child is a NEW policy created from an earlier purchase.
-// It remains ACTIVE; only its original source policy is marked RENEWED.
+// A renewal child is a separate policy, whose own lifecycle determines
+// whether its coverage is active. A refunded renewal is historical only.
 function isRenewedPolicy(policy, purchase) {
   return (
     getRenewalSourceNumber(policy) != null ||
@@ -387,6 +387,12 @@ function getPolicyStatus(
     return 'REFUNDED'
   }
 
+  // The purchase's verified failed outcome overrides the policy's
+  // deliberately retained REFUND_PENDING lifecycle.
+  if (isRefundFailed(refundStatus)) {
+    return 'REFUND_FAILED'
+  }
+
   if (
     isRefundPending(refundStatus) ||
     isRefundPending(lifecycleStatus)
@@ -407,13 +413,6 @@ function getPolicyStatus(
     }
 
     return 'REFUND_PENDING'
-  }
-
-  if (
-    isRefundFailed(refundStatus) ||
-    lifecycleStatus === 'REFUND_FAILED'
-  ) {
-    return 'REFUND_FAILED'
   }
 
   if (
@@ -455,7 +454,7 @@ function getPolicyStatus(
 
   if (
     policy?.expiryDate &&
-    String(policy.expiryDate).slice(0, 10) < today()
+    String(policy.expiryDate).slice(0, 10) <= today()
   ) {
     return 'EXPIRED'
   }
@@ -841,8 +840,10 @@ export default function MyPolicies() {
         )
 
         const refundPending =
-          isRefundPending(refundStatus) ||
-          isRefundPending(policy.lifecycleStatus)
+          !isRefundFailed(refundStatus) &&
+          !isRefunded(refundStatus) &&
+          (isRefundPending(refundStatus) ||
+            isRefundPending(policy.lifecycleStatus))
 
         const refunded =
           isRefunded(refundStatus) ||
@@ -857,19 +858,24 @@ export default function MyPolicies() {
         // A renewed coverage record can accept claims, but an original
         // policy superseded by renewal cannot. Always use this policy's
         // own policyNumber in ClaimForm; never redirect to the old number.
+        // Coverage expiry is exclusive, matching PolicyService.hasExpired().
         const coverageCurrentlyValid =
-          (!policy.startDate || String(policy.startDate).slice(0, 10) <= today()) &&
-          (!policy.expiryDate || String(policy.expiryDate).slice(0, 10) >= today())
+          Boolean(policy.startDate && policy.expiryDate) &&
+          String(policy.startDate).slice(0, 10) <= today() &&
+          String(policy.expiryDate).slice(0, 10) > today()
 
-        const canFileClaim =
-          ['ACTIVE', 'RENEWED'].includes(displayStatus) &&
-          !alreadyRenewed &&
-          policy.isActive !== false &&
+        const coverageActive =
+          policy.isActive === true &&
+          ['', 'ACTIVE'].includes(normalizedStatus(policy.lifecycleStatus)) &&
           coverageCurrentlyValid &&
-          !pendingClaim &&
+          !alreadyRenewed &&
           !refundPending &&
           !refunded &&
           !refundFailed
+
+        // Frontend eligibility is advisory; backend rechecks all claim rules.
+        const canFileClaim = coverageActive && !pendingClaim &&
+          !hasSuccessfulClaim(policy, relatedClaims)
 
         // Preserve the existing business rule:
         // renewal is available for a claimed policy
@@ -898,6 +904,7 @@ export default function MyPolicies() {
           claimCount,
           alreadyRenewed,
           renewalChild,
+          coverageActive,
           canFileClaim,
           canRequestRenewal,
         }
@@ -938,7 +945,7 @@ export default function MyPolicies() {
         // Include renewed cover in the Active tab as requested.
         // Refund/expired/inactive statuses remain excluded.
         if (status === 'active') {
-          return ['ACTIVE', 'RENEWED'].includes(policy.displayStatus)
+          return policy.coverageActive
         }
 
         if (status === 'claimed') {
@@ -977,11 +984,8 @@ export default function MyPolicies() {
     () => ({
       total: enrichedPolicies.length,
 
-      // Renewed policies also contribute to the Active summary.
-      // They remain visible in the separate Renewed summary and filter.
-      active: enrichedPolicies.filter(
-        (p) => ['ACTIVE', 'RENEWED'].includes(p.displayStatus),
-      ).length,
+      // Count real, currently eligible coverage, not history labels.
+      active: enrichedPolicies.filter((p) => p.coverageActive).length,
 
       claimed: enrichedPolicies.filter(
         (p) => p.hasClaimHistory,
@@ -1385,8 +1389,8 @@ export default function MyPolicies() {
           <Clock3 size={17} />
           <span>
             {unlinkedPaidPurchases.length} paid {unlinkedPaidPurchases.length === 1 ? 'purchase has' : 'purchases have'}
-            {' '}a policy number that is not yet in My Policies. Refresh to check again.
-            If this persists, the purchase-to-policy link needs backend verification.
+            {' '}a policy number missing from the policy history response. Refresh after deploying the backend history fix.
+            If this persists, verify policy ownership and the purchase link.
           </span>
           <Button size="sm" onClick={refreshAll} disabled={refreshing}>
             <RefreshCw size={15} /> Refresh
@@ -1521,7 +1525,7 @@ export default function MyPolicies() {
                         {policy.alreadyRenewed
                           ? 'Previous cover renewed'
                           : policy.refundPending
-                            ? 'Refund being processed'
+                            ? 'Refund pending or processing'
                             : policy.pendingClaim
                               ? 'Claim under review'
                               : policy.displayStatus === 'ACTIVE'
