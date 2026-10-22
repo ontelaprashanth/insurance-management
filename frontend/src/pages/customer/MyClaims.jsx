@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
-import { claims } from '../../api/endpoints'
+import { claims, policies, purchases } from '../../api/endpoints'
 
 import {
   Button,
@@ -53,13 +53,47 @@ function claimStatus(claim) {
     .toUpperCase()
 }
 
-function canRequestRenewal(claim) {
-  const status = claimStatus(claim)
+function normalizeRows(data) {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.data?.content)) return data.data.content
+  return []
+}
 
-  return (
-    SUCCESSFUL_CLAIM_STATUSES.includes(status) &&
-    claim?.policyNumber != null
-  )
+function renewalSource(value) {
+  return value?.renewedFromPolicyNumber ??
+    value?.renewalSourcePolicyNumber ??
+    value?.renewedFromPurchase?.policyNumber ??
+    value?.renewedFromPurchase?.policy?.policyNumber ?? null
+}
+
+function buildRenewedSources(policyRows, purchaseRows) {
+  const renewed = new Set()
+  // Explicit policy renewal links are authoritative.
+  for (const policy of policyRows) {
+    const source = renewalSource(policy)
+    if (source != null) renewed.add(String(source))
+    const lifecycle = String(policy?.lifecycleStatus ?? policy?.status ?? '').toUpperCase()
+    if (lifecycle === 'RENEWED' && policy?.policyNumber != null) {
+      renewed.add(String(policy.policyNumber))
+    }
+  }
+  // A renewal purchase only counts once payment succeeds.
+  for (const purchase of purchaseRows) {
+    const source = renewalSource(purchase)
+    if (source != null && String(purchase?.paymentStatus ?? '').toUpperCase() === 'PAID') {
+      renewed.add(String(source))
+    }
+  }
+  return renewed
+}
+
+function canRequestRenewal(claim, renewedSources, ready = true) {
+  return ready &&
+    SUCCESSFUL_CLAIM_STATUSES.includes(claimStatus(claim)) &&
+    claim?.policyNumber != null &&
+    !renewedSources.has(String(claim.policyNumber))
 }
 
 function renewalUrl(claim) {
@@ -78,6 +112,8 @@ export function ClaimDetail({
   c,
   onClose,
   customerView = true,
+  renewedSources = new Set(),
+  renewalReady = true,
 }) {
   const status = claimStatus(c)
 
@@ -87,7 +123,7 @@ export function ClaimDetail({
 
   const renewalAvailable =
     customerView &&
-    canRequestRenewal(c)
+    canRequestRenewal(c, renewedSources, renewalReady)
 
   return (
     <Modal
@@ -231,6 +267,10 @@ export function ClaimDetail({
           </div>
         )}
 
+        {customerView && c.policyNumber != null && renewedSources.has(String(c.policyNumber)) && (
+          <div className="alert info">This policy has already been renewed. Its claim history remains available.</div>
+        )}
+
         {/* Renewal information */}
 
         {renewalAvailable && (
@@ -277,6 +317,20 @@ export function ClaimDetail({
 ========================================================= */
 
 export default function MyClaims() {
+  const policiesQuery = useQuery({
+    queryKey: ['my-policies'],
+    queryFn: policies.mine,
+  })
+  const purchasesQuery = useQuery({
+    queryKey: ['my-purchases'],
+    queryFn: purchases.mine,
+  })
+  const renewalReady = policiesQuery.isSuccess && purchasesQuery.isSuccess
+  const renewedSources = buildRenewedSources(
+    normalizeRows(policiesQuery.data),
+    normalizeRows(purchasesQuery.data),
+  )
+
   const q = useQuery({
     queryKey: ['my-claims'],
     queryFn: claims.mine,
@@ -338,6 +392,12 @@ export default function MyClaims() {
           File a claim
         </Button>
       </PageHeader>
+
+      {!renewalReady && (policiesQuery.isError || purchasesQuery.isError) && (
+        <div className="alert info" role="status" style={{ marginBottom: 16 }}>
+          Renewal eligibility could not be checked. Claim history is available, but renewal actions are temporarily hidden.
+        </div>
+      )}
 
       <Panel flush>
 
@@ -468,7 +528,9 @@ export default function MyClaims() {
                     header: 'Action',
                     align: 'right',
                     render: (c) =>
-                      canRequestRenewal(c) ? (
+                      renewedSources.has(String(c.policyNumber)) ? (
+                        <span className="muted">Already renewed</span>
+                      ) : canRequestRenewal(c, renewedSources, renewalReady) ? (
                         <Link
                           className="btn primary"
                           to={renewalUrl(c)}
@@ -496,6 +558,8 @@ export default function MyClaims() {
       {open && (
         <ClaimDetail
           c={open}
+          renewedSources={renewedSources}
+          renewalReady={renewalReady}
           onClose={() => setOpen(null)}
         />
       )}
