@@ -162,6 +162,87 @@ export default function Dashboard() {
         @media(max-width:1150px) { .ix-dash-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         @media(max-width:850px) { .ix-dash-sections { grid-template-columns:minmax(0,1fr); } }
         @media(max-width:640px) { .ix-dash-stats { gap:10px; } .ix-dash-stat { padding:14px; } .ix-dash-stat-icon { width:32px; height:32px; flex-basis:32px; } .ix-dash-stat-label { font-size:12px; } .ix-dash-section { padding:13px; } .ix-dash-policies { grid-template-columns:minmax(0,1fr); } .ix-dash-item { padding:11px; gap:9px; } .ix-dash-item-icon { width:30px; height:30px; flex-basis:30px; } .ix-dash-item-right { max-width:40%; } }
+
+        /* INSUREX EMERALD MOTION THEME — DASHBOARD ONLY */
+        .ix-dash {
+          --ix-line:#cfe6d9; --ix-soft:#f2fbf5; --ix-deep:#103e2d;
+          --ix-green:#17814f; --ix-muted:#48665a;
+          color:var(--ix-deep);
+        }
+        @keyframes ixDashReveal {
+          from { opacity:0; transform:translateY(20px) scale(.974); filter:blur(3px); }
+          to { opacity:1; transform:translateY(0) scale(1); filter:blur(0); }
+        }
+        @keyframes ixDashIconFloat {
+          0%,100% { transform:translateY(0) rotate(0); }
+          50% { transform:translateY(-4px) rotate(-5deg); }
+        }
+        @keyframes ixDashGlow {
+          0%,100% { box-shadow:0 8px 22px rgba(17,102,59,.075); }
+          50% { box-shadow:0 13px 29px rgba(17,102,59,.15); }
+        }
+        .ix-dash-stat,.ix-dash-section,.ix-dash-item,.ix-dash-policy {
+          position:relative; isolation:isolate; overflow:hidden;
+          border-color:var(--ix-line); background:#fff;
+          box-shadow:0 7px 22px rgba(16,62,45,.055);
+          transition:transform .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s,border-color .32s,background .32s;
+          animation:ixDashReveal .65s cubic-bezier(.2,.8,.2,1) both;
+        }
+        .ix-dash-stat { border-radius:20px; background:linear-gradient(145deg,#fff 30%,#f0faf4 100%); }
+        .ix-dash-stat:nth-child(1) { animation-delay:50ms; }
+        .ix-dash-stat:nth-child(2) { animation-delay:125ms; }
+        .ix-dash-stat:nth-child(3) { animation-delay:200ms; }
+        .ix-dash-stat:nth-child(4) { animation-delay:275ms; }
+        .ix-dash-sections > .ix-dash-section:nth-child(1) { animation-delay:320ms; }
+        .ix-dash-sections > .ix-dash-section:nth-child(2) { animation-delay:400ms; }
+        .ix-dash > .ix-dash-section { animation-delay:460ms; }
+        .ix-dash-item:nth-child(1),.ix-dash-policy:nth-child(1) { animation-delay:90ms; }
+        .ix-dash-item:nth-child(2),.ix-dash-policy:nth-child(2) { animation-delay:150ms; }
+        .ix-dash-item:nth-child(3),.ix-dash-policy:nth-child(3) { animation-delay:210ms; }
+        .ix-dash-item:nth-child(4),.ix-dash-policy:nth-child(4) { animation-delay:270ms; }
+        .ix-dash-item:nth-child(5) { animation-delay:330ms; }
+        .ix-dash-stat::before,.ix-dash-section::before,.ix-dash-policy::before {
+          content:''; position:absolute; z-index:-1; pointer-events:none;
+          inset:0; background:linear-gradient(105deg,transparent 25%,rgba(71,199,124,.095) 49%,transparent 72%);
+          transform:translateX(-130%); transition:transform .75s ease;
+        }
+        .ix-dash-stat:hover::before,.ix-dash-section:hover::before,.ix-dash-policy:hover::before { transform:translateX(130%); }
+        .ix-dash-stat:hover,.ix-dash-section:hover,.ix-dash-policy:hover {
+          transform:translateY(-5px); border-color:#79c89a;
+          box-shadow:0 18px 38px rgba(15,91,49,.15);
+        }
+        .ix-dash-item:hover { transform:translateY(-3px) translateX(2px); background:#e9f8ee; border-color:#a5d8b8; box-shadow:0 10px 22px rgba(16,62,45,.09); }
+        .ix-dash-stat-icon,.ix-dash-item-icon {
+          background:linear-gradient(145deg,#d6f5e3,#e9fbf0); color:#137344;
+          border:1px solid #c3e8d1; animation:ixDashIconFloat 4s ease-in-out infinite;
+        }
+        .ix-dash-stat:nth-child(2) .ix-dash-stat-icon { animation-delay:.6s; }
+        .ix-dash-stat:nth-child(3) .ix-dash-stat-icon { animation-delay:1.2s; }
+        .ix-dash-stat:nth-child(4) .ix-dash-stat-icon { animation-delay:1.8s; }
+        .ix-dash-stat:hover .ix-dash-stat-icon,.ix-dash-item:hover .ix-dash-item-icon { animation-play-state:paused; transform:rotate(-8deg) scale(1.1); }
+        .ix-dash-stat-label,.ix-dash-item-meta,.ix-dash-stat-sub,.ix-dash-policy-foot { color:var(--ix-muted); }
+        .ix-dash-stat-value,.ix-dash-section-head h2,.ix-dash-item-title,.ix-dash-policy-number,.ix-dash-policy-cover,.ix-dash-amount { color:var(--ix-deep); }
+        .ix-dash-stat-value { font-variant-numeric:tabular-nums; }
+        .ix-dash-item { background:#f5fbf7; border-color:#dbece1; }
+        .ix-dash-policy { background:linear-gradient(135deg,#fff,#f1fbf5); }
+        .ix-dash a { color:#116a40; font-weight:700; text-underline-offset:3px; }
+        .ix-dash .btn { transition:transform .23s,box-shadow .23s,background .23s,border-color .23s; }
+        .ix-dash .btn:hover { transform:translateY(-2px); box-shadow:0 7px 16px rgba(19,110,62,.14); }
+        .ix-dash .btn:active { transform:scale(.97); }
+        .ix-dash .btn:focus-visible,.ix-dash a:focus-visible { outline:3px solid #7dd4a3; outline-offset:3px; }
+        @media(max-width:640px) {
+          .ix-dash-stat { padding:14px; gap:9px; }
+          .ix-dash-stat-value { font-size:clamp(21px,6vw,29px); }
+          .ix-dash-stat-sub { font-size:11.5px; }
+          .ix-dash-item-right { max-width:43%; }
+        }
+        @media(max-width:360px) { .ix-dash-stats { grid-template-columns:minmax(0,1fr); } }
+        @media(hover:none) { .ix-dash-stat:hover,.ix-dash-section:hover,.ix-dash-item:hover,.ix-dash-policy:hover { transform:none; } }
+        @media(prefers-reduced-motion:reduce) {
+          .ix-dash *, .ix-dash *::before,.ix-dash *::after {
+            animation:none !important; transition:none !important; transform:none !important;
+          }
+        }
       `}</style>
 
       <div className="ix-dash">
