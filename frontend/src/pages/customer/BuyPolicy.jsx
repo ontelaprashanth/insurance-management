@@ -60,6 +60,8 @@ import {
   inrShort,
 } from '../../lib/format'
 
+import { ShieldCheck } from 'lucide-react'
+
 import { useAuth } from '../../auth/AuthContext'
 
 /* =========================================================
