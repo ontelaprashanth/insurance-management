@@ -1,9 +1,10 @@
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import { claims, policies, purchases } from '../../api/endpoints'
+import { ClipboardList, Clock3, CheckCircle2, WalletCards, ArrowUpRight } from 'lucide-react'
 
 import {
   Button,
@@ -15,7 +16,6 @@ import {
   SearchBox,
   Segmented,
   StatusBadge,
-  Table,
   useFilter,
 } from '../../components/ui'
 
@@ -326,9 +326,12 @@ export default function MyClaims() {
     queryFn: purchases.mine,
   })
   const renewalReady = policiesQuery.isSuccess && purchasesQuery.isSuccess
-  const renewedSources = buildRenewedSources(
-    normalizeRows(policiesQuery.data),
-    normalizeRows(purchasesQuery.data),
+  const renewedSources = useMemo(
+    () => buildRenewedSources(
+      normalizeRows(policiesQuery.data),
+      normalizeRows(purchasesQuery.data),
+    ),
+    [policiesQuery.data, purchasesQuery.data],
   )
 
   const q = useQuery({
@@ -354,7 +357,7 @@ export default function MyClaims() {
      FILTER CLAIMS
   ======================================================= */
 
-  const rows = searched.filter((claim) => {
+  const rows = (searched || []).filter((claim) => {
     if (status === 'all') {
       return true
     }
@@ -373,6 +376,14 @@ export default function MyClaims() {
         Number(b.claimNumber) -
         Number(a.claimNumber),
     )
+
+  const allClaims = normalizeRows(q.data)
+  const claimSummary = {
+    total: allClaims.length,
+    inReview: allClaims.filter((c) => ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(claimStatus(c))).length,
+    approved: allClaims.filter((c) => ['APPROVED', 'SETTLED'].includes(claimStatus(c))).length,
+    settled: allClaims.filter((c) => claimStatus(c) === 'SETTLED').length,
+  }
 
   /* =======================================================
      RENDER
@@ -399,11 +410,47 @@ export default function MyClaims() {
         </div>
       )}
 
+      <style>{`
+        .ix-claims-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:18px; }
+        .ix-claims-stat { padding:19px; border:1px solid var(--border, #dce4eb); border-radius:17px; background:var(--surface, #fff); display:flex; align-items:center; gap:13px; min-width:0; }
+        .ix-claims-stat svg { flex-shrink:0; opacity:.75; }
+        .ix-claims-stat span { display:block; font-size:13px; color:var(--muted, #64748b); }
+        .ix-claims-stat strong { display:block; font-size:25px; margin-top:4px; }
+        .ix-claims-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:center; padding:16px; }
+        .ix-claims-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr)); gap:16px; padding:16px; }
+        .ix-claim-card { border:1px solid var(--border, #dce4eb); background:var(--surface, #fff); border-radius:18px; padding:20px; min-width:0; display:flex; flex-direction:column; gap:16px; }
+        .ix-claim-card-head { display:flex; align-items:flex-start; justify-content:space-between; flex-wrap:wrap; gap:12px; }
+        .ix-claim-card-head strong { display:block; font-size:19px; }
+        .ix-claim-card-head small { display:block; color:var(--muted, #64748b); margin-top:4px; }
+        .ix-claim-card-meta { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px 12px; }
+        .ix-claim-card-meta span { display:block; font-size:12px; color:var(--muted, #64748b); margin-bottom:5px; }
+        .ix-claim-card-meta b { font-size:14px; overflow-wrap:anywhere; }
+        .ix-claim-card-footer { margin-top:auto; border-top:1px solid var(--border, #e2e8f0); padding-top:15px; display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+        .ix-claim-card-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+        .ix-claim-card-actions .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+        @media(max-width:950px) { .ix-claims-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media(max-width:520px) { .ix-claims-stats { gap:9px; } .ix-claims-stat { padding:13px; gap:9px; } .ix-claims-stat strong { font-size:21px; } .ix-claims-stat svg { width:19px; } .ix-claims-cards { padding:12px; } .ix-claim-card { padding:16px; } .ix-claims-toolbar { align-items:stretch; } }
+      `}</style>
+
+      <div className="ix-claims-stats">
+        {[
+          { label: 'Total claims', value: claimSummary.total, icon: ClipboardList },
+          { label: 'In review', value: claimSummary.inReview, icon: Clock3 },
+          { label: 'Approved / settled', value: claimSummary.approved, icon: CheckCircle2 },
+          { label: 'Settled', value: claimSummary.settled, icon: WalletCards },
+        ].map(({ label, value, icon: StatIcon }) => (
+          <div className="ix-claims-stat" key={label}>
+            <StatIcon size={23} aria-hidden="true" />
+            <div><span>{label}</span><strong>{q.isLoading ? '…' : value}</strong></div>
+          </div>
+        ))}
+      </div>
+
       <Panel flush>
 
         {/* Search and filters */}
 
-        <div className="toolbar">
+        <div className="ix-claims-toolbar">
           <SearchBox
             value={search}
             onChange={setSearch}
@@ -466,88 +513,40 @@ export default function MyClaims() {
                 </p>
               </div>
             ) : (
-              <Table
-                rowKey="claimNumber"
-                rows={sortedRows}
-                onRowClick={setOpen}
-                columns={[
-                  {
-                    key: 'claimNumber',
-                    header: 'Claim',
-                    render: (c) => (
-                      <b>#{c.claimNumber}</b>
-                    ),
-                  },
-                  {
-                    key: 'policyNumber',
-                    header: 'Policy',
-                    render: (c) =>
-                      c.policyNumber != null
-                        ? `#${c.policyNumber}`
-                        : '—',
-                  },
-                  {
-                    key: 'claimType',
-                    header: 'Type',
-                  },
-                  {
-                    key: 'claimDate',
-                    header: 'Filed',
-                    render: (c) =>
-                      date(c.claimDate),
-                  },
-                  {
-                    key: 'amount',
-                    header: 'Claimed',
-                    render: (c) =>
-                      inr(c.amount),
-                  },
-                  {
-                    key: 'approvedAmount',
-                    header: 'Approved',
-                    render: (c) =>
-                      (
-                        claimStatus(c) === 'APPROVED' ||
-                        claimStatus(c) === 'SETTLED'
-                      ) &&
-                      c.approvedAmount != null
-                        ? inr(c.approvedAmount)
-                        : '—',
-                  },
-                  {
-                    key: 'status',
-                    header: 'Status',
-                    render: (c) => (
-                      <StatusBadge
-                        value={claimStatus(c)}
-                      />
-                    ),
-                  },
-                  {
-                    key: 'renewal',
-                    header: 'Action',
-                    align: 'right',
-                    render: (c) =>
-                      renewedSources.has(String(c.policyNumber)) ? (
-                        <span className="muted">Already renewed</span>
-                      ) : canRequestRenewal(c, renewedSources, renewalReady) ? (
-                        <Link
-                          className="btn primary"
-                          to={renewalUrl(c)}
-                          onClick={(event) => {
-                            event.stopPropagation()
-                          }}
-                        >
-                          Renew policy
-                        </Link>
-                      ) : (
-                        <span className="muted">
-                          —
-                        </span>
-                      ),
-                  },
-                ]}
-              />
+              <div className="ix-claims-cards" aria-label="My claim history">
+                {sortedRows.map((c) => {
+                  const renewed = c.policyNumber != null && renewedSources.has(String(c.policyNumber))
+                  const eligible = canRequestRenewal(c, renewedSources, renewalReady)
+                  const approved = SUCCESSFUL_CLAIM_STATUSES.includes(claimStatus(c))
+                  return (
+                    <article className="ix-claim-card" key={String(c.claimNumber)}>
+                      <div className="ix-claim-card-head">
+                        <div>
+                          <span className="muted">Insurance claim</span>
+                          <strong>Claim #{c.claimNumber}</strong>
+                          <small>Policy #{c.policyNumber ?? c.policy?.policyNumber ?? '—'}</small>
+                        </div>
+                        <StatusBadge value={claimStatus(c)} />
+                      </div>
+                      <div className="ix-claim-card-meta">
+                        <div><span>Claim type</span><b>{c.claimType || '—'}</b></div>
+                        <div><span>Filed on</span><b>{date(c.claimDate)}</b></div>
+                        <div><span>Amount claimed</span><b>{inr(c.amount)}</b></div>
+                        <div><span>Amount approved</span><b>{approved && c.approvedAmount != null ? inr(c.approvedAmount) : '—'}</b></div>
+                      </div>
+                      <div className="ix-claim-card-footer">
+                        <div className="ix-claim-card-actions">
+                          <Button size="sm" onClick={() => setOpen(c)}>View details <ArrowUpRight size={14} /></Button>
+                          {eligible && (
+                            <Link className="btn primary" to={renewalUrl(c)}>Renew policy</Link>
+                          )}
+                        </div>
+                        {renewed && <span className="muted" style={{ fontSize: 12 }}>Already renewed</span>}
+                      </div>
+                    </article>
+                  )
+                })}
+              </div>
             )
           }
         </DataState>
