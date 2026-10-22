@@ -4,7 +4,12 @@ package com.htc.insurance.repository;
 import java.util.List;
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.htc.insurance.entity.PaymentAttempt;
@@ -59,45 +64,99 @@ public interface PaymentAttemptRepository
     );
 
     // =========================================================
-    // POLICY RENEWAL - NEW METHODS
+    // POLICY RENEWAL - PAYMENT ATTEMPT HISTORY
     // =========================================================
 
-    /*
-     * Retrieve all payment attempts created to renew an
-     * original policy.
+    /**
+     * Returns payment attempts for an original policy.
      *
-     * Includes completed, failed and abandoned attempts.
-     * Useful for reconciliation and payment history.
+     * Includes pending, completed, and reconciliation
+     * attempts.
      */
     List<PaymentAttempt>
             findByRenewalSourcePolicyNumberOrderByCreatedAtDesc(
                     Long renewalSourcePolicyNumber
             );
 
-    /*
-     * Retrieve payment attempts by purchase type.
+    // =========================================================
+    // FIND BY PURCHASE TYPE
+    // =========================================================
+
+    /**
+     * Supported purchase types:
      *
-     * Expected values:
      * NEW
      * RENEWAL
-     *
-     * Legacy records may have null purchaseType.
      */
     List<PaymentAttempt> findByPurchaseType(
             String purchaseType
     );
 
-    /*
-     * Check whether a particular original policy already
-     * has a payment attempt with a given status.
+    // =========================================================
+    // CHECK RENEWAL ATTEMPT STATUS
+    // =========================================================
+
+    /**
+     * Advisory duplicate-checking method.
      *
-     * Useful for detecting pending renewal checkouts.
-     *
-     * This is advisory only. It does not replace
-     * transaction locking or database uniqueness.
+     * Does not replace database uniqueness constraints
+     * or transactional locking.
      */
     boolean existsByRenewalSourcePolicyNumberAndStatus(
             Long renewalSourcePolicyNumber,
             PaymentAttemptStatus status
+    );
+
+    // =========================================================
+    // LOCK PAYMENT ATTEMPT BY REFERENCE
+    // =========================================================
+
+    /**
+     * Locks the payment attempt row before updating
+     * its order/payment status.
+     *
+     * Used by:
+     *
+     * PaymentAttemptService.markOrderCreated()
+     * PaymentAttemptService.markReconciliationRequired()
+     *
+     * Must execute inside an active transaction.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+           SELECT a
+           FROM PaymentAttempt a
+           WHERE a.attemptReference = :reference
+           """)
+    Optional<PaymentAttempt> findByAttemptReferenceForUpdate(
+            @Param("reference") String reference
+    );
+
+    // =========================================================
+    // LOCK PAYMENT ATTEMPT BY RAZORPAY ORDER ID
+    // =========================================================
+
+    /**
+     * Locks the payment attempt row before processing
+     * a captured Razorpay payment.
+     *
+     * Used by:
+     *
+     * PaymentAttemptService.markPaymentVerified()
+     * PaymentAttemptService.markPurchaseCompleted()
+     *
+     * Prevents concurrent requests from overwriting
+     * payment state.
+     *
+     * Must execute inside an active transaction.
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+           SELECT a
+           FROM PaymentAttempt a
+           WHERE a.razorpayOrderId = :orderId
+           """)
+    Optional<PaymentAttempt> findByRazorpayOrderIdForUpdate(
+            @Param("orderId") String orderId
     );
 }
