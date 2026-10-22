@@ -596,6 +596,8 @@ export default function MyPolicies() {
     ? requestedFilter
     : 'all'
 
+  const claimedSection = status === 'claimed'
+
   const [claimFor, setClaimFor] = useState(null)
   const [refreshError, setRefreshError] = useState('')
 
@@ -798,6 +800,8 @@ export default function MyPolicies() {
           normalizedStatus(policy.status) === 'CLAIMED' ||
           normalizedStatus(policy.lifecycleStatus) === 'CLAIMED'
 
+        const claimCount = relatedClaims.length || (Array.isArray(policy.claims) ? policy.claims.length : 0)
+
         const pendingClaim = isPendingClaim(
           policy,
           relatedClaims,
@@ -853,6 +857,7 @@ export default function MyPolicies() {
           refundFailed,
           pendingClaim,
           hasClaimHistory,
+          claimCount,
           alreadyRenewed,
           renewalChild,
           canFileClaim,
@@ -936,6 +941,10 @@ export default function MyPolicies() {
         (p) => p.hasClaimHistory,
       ).length,
 
+      linkedClaims: claimRows.filter((claim) =>
+        enrichedPolicies.some((p) => String(p.policyNumber) === String(claimPolicyNumber(claim)))
+      ).length,
+
       renewed: enrichedPolicies.filter(
         (p) => p.displayStatus === 'RENEWED',
       ).length,
@@ -944,7 +953,7 @@ export default function MyPolicies() {
         (p) => p.refundPending,
       ).length,
     }),
-    [enrichedPolicies],
+    [enrichedPolicies, claimRows],
   )
 
   /* =======================================================
@@ -1014,8 +1023,10 @@ export default function MyPolicies() {
   return (
     <>
       <PageHeader
-        title="My policies"
-        subtitle="Manage your insurance coverage, track claims, refunds and eligible renewals."
+        title={claimedSection ? 'Claimed policies' : 'My policies'}
+        subtitle={claimedSection
+          ? 'Review policies with claim history, including policies renewed after a claim.'
+          : 'Manage your insurance coverage, track claims, refunds and eligible renewals.'}
       >
         <Link
           className="btn primary"
@@ -1097,6 +1108,16 @@ export default function MyPolicies() {
           font-size: 13px;
         }
 
+        .ix-claimed-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr)); gap: 14px; padding: 18px; }
+        .ix-claimed-card { border: 1px solid #dce5e3; border-radius: 16px; padding: 20px; background: #fff; min-width: 0; display: flex; flex-direction: column; gap: 16px; }
+        .ix-claimed-top { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .ix-claimed-top strong { font-size: 19px; }
+        .ix-claimed-meta { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+        .ix-claimed-meta > div { min-width: 0; }
+        .ix-claimed-meta small { display: block; color: #617575; margin-bottom: 5px; }
+        .ix-claimed-meta b { overflow-wrap: anywhere; }
+        .ix-claimed-footer { border-top: 1px solid #e4eae8; padding-top: 14px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px; }
+        .ix-claimed-footer .btn { white-space: nowrap; }
         .ix-policy-toolbar {
           display: flex;
           align-items: center;
@@ -1121,8 +1142,38 @@ export default function MyPolicies() {
         }
       `}</style>
 
-      {/* SUMMARY */}
-
+      {/* The Claimed Policies sidebar destination has its own focused summary. */}
+      {claimedSection ? (
+        <div className="ix-policy-summary-grid">
+          <Panel>
+            <div className="ix-policy-summary-card">
+              <ShieldCheck size={22} />
+              <div>
+                <div className="muted">Policies with claims</div>
+                <strong>{query.isLoading ? '…' : summary.claimed}</strong>
+              </div>
+            </div>
+          </Panel>
+          <Panel>
+            <div className="ix-policy-summary-card">
+              <CheckCircle2 size={22} />
+              <div>
+                <div className="muted">Linked claims</div>
+                <strong>{query.isLoading ? '…' : summary.linkedClaims}</strong>
+              </div>
+            </div>
+          </Panel>
+          <Panel>
+            <div className="ix-policy-summary-card">
+              <RefreshCw size={22} />
+              <div>
+                <div className="muted">Renewed after claim</div>
+                <strong>{query.isLoading ? '…' : enrichedPolicies.filter(p => p.hasClaimHistory && p.alreadyRenewed).length}</strong>
+              </div>
+            </div>
+          </Panel>
+        </div>
+      ) : (
       <div className="ix-policy-summary-grid">
         <Panel>
           <div className="ix-policy-summary-card">
@@ -1181,6 +1232,8 @@ export default function MyPolicies() {
         </Panel>
       </div>
 
+      )}
+
       {/* REFUND NOTICE */}
 
       {summary.refunds > 0 && (
@@ -1220,11 +1273,13 @@ export default function MyPolicies() {
             placeholder="Search by policy number or type"
           />
 
-          <Segmented
-            value={status}
-            onChange={changeStatus}
-            options={FILTER_OPTIONS}
-          />
+          {!claimedSection && (
+            <Segmented
+              value={status}
+              onChange={changeStatus}
+              options={FILTER_OPTIONS}
+            />
+          )}
 
           <Button
             onClick={refreshAll}
@@ -1254,16 +1309,40 @@ export default function MyPolicies() {
           {() =>
             rows.length === 0 ? (
               <div className="empty">
-                <h4>No matching policies</h4>
-                <p>
-                  Try another search or status filter.
-                </p>
+                <h4>{claimedSection ? 'No claimed policies found' : 'No matching policies'}</h4>
+                <p>{claimedSection
+                  ? 'Policies with claims will appear here. Try clearing your search.'
+                  : 'Try another search or status filter.'}</p>
+              </div>
+            ) : claimedSection ? (
+              <div className="ix-claimed-list" aria-label="Claimed policy history">
+                {rows.map((policy) => (
+                  <article className="ix-claimed-card" key={String(policy.policyNumber)}>
+                    <div className="ix-claimed-top">
+                      <div>
+                        <div className="muted">Insurance policy</div>
+                        <strong>#{policy.policyNumber}</strong>
+                      </div>
+                      <PolicyStatusBadge policy={policy} />
+                    </div>
+                    <div className="ix-claimed-meta">
+                      <div><small>Cover type</small><b>{policy.coveredTypes || '—'}</b></div>
+                      <div><small>Claims recorded</small><b>{policy.claimCount || (policy.hasClaimHistory ? 'Recorded' : '0')}</b></div>
+                      <div><small>Started</small><b>{date(policy.startDate)}</b></div>
+                      <div><small>Expires</small><b>{date(policy.expiryDate)}</b></div>
+                    </div>
+                    <div className="ix-claimed-footer">
+                      <span className="muted">{policy.alreadyRenewed ? 'Renewal completed' : 'Claim history available'}</span>
+                      <Link className="btn primary ix-policy-action-btn" to="/app/claims">View claims</Link>
+                    </div>
+                  </article>
+                ))}
               </div>
             ) : (
               <div
                 className="ix-policy-table-scroll"
                 role="region"
-                aria-label="My policies table"
+                aria-label={claimedSection ? 'Claimed policies table' : 'My policies table'}
                 tabIndex={0}
               >
                 <Table
@@ -1285,6 +1364,11 @@ export default function MyPolicies() {
                       render: (policy) =>
                         policy.coveredTypes || '—',
                     },
+                    ...(claimedSection ? [{
+                      key: 'claimCount',
+                      header: 'Claims',
+                      render: (policy) => policy.claimCount || (policy.hasClaimHistory ? 'Recorded' : '—'),
+                    }] : []),
                     {
                       key: 'startDate',
                       header: 'Starts',
@@ -1318,7 +1402,11 @@ export default function MyPolicies() {
                       key: 'action',
                       header: 'Action',
                       align: 'right',
-                      render: (policy) => (
+                      render: (policy) => claimedSection ? (
+                        <Link className="btn ix-policy-action-btn" to="/app/claims">
+                          View claims
+                        </Link>
+                      ) : (
                         <PolicyAction
                           policy={policy}
                           onClaim={setClaimFor}
