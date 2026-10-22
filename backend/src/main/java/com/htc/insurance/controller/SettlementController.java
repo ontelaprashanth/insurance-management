@@ -7,51 +7,54 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.SettlementDto;
 import com.htc.insurance.service.SettlementService;
 
 @RestController
 @RequestMapping("/settlement")
+@PreAuthorize("hasRole('ADMIN')")
 public class SettlementController {
 
     @Autowired
     private SettlementService settlementService;
 
+    // ==========================================
+    // CREATE SETTLEMENT
+    // ==========================================
+
     @PostMapping("/save")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SettlementDto> saveSettlement(
-            @RequestBody SettlementDto settlementDto) {
+            @RequestBody SettlementDto dto) {
 
         return ResponseEntity.ok(
-                settlementService.saveSettlement(settlementDto)
-        );
+                settlementService.saveSettlement(dto));
     }
 
+    // ==========================================
+    // GET ALL SETTLEMENTS
+    // ==========================================
+
     @GetMapping("/getAll")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<SettlementDto>> getAllSettlements() {
 
         return ResponseEntity.ok(
-                settlementService.getAllSettlements()
-        );
+                settlementService.getAllSettlements());
     }
 
+    // ==========================================
+    // GET SETTLEMENT BY ID
+    // ==========================================
+
     @GetMapping("/get/{settlementNumber}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SettlementDto> getSettlementById(
             @PathVariable Long settlementNumber) {
 
         SettlementDto settlement =
-                settlementService.getSettlementById(settlementNumber);
+                settlementService.getSettlementById(
+                        settlementNumber);
 
         if (settlement == null) {
             return ResponseEntity.notFound().build();
@@ -60,27 +63,31 @@ public class SettlementController {
         return ResponseEntity.ok(settlement);
     }
 
+    // ==========================================
+    // GET SETTLEMENTS BY CLAIM
+    // ==========================================
+
     @GetMapping("/claim/{claimNumber}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<SettlementDto>> getSettlementsByClaim(
             @PathVariable Long claimNumber) {
 
         return ResponseEntity.ok(
-                settlementService.getSettlementsByClaimNumber(claimNumber)
-        );
+                settlementService
+                        .getSettlementsByClaimNumber(claimNumber));
     }
 
+    // ==========================================
+    // UPDATE PENDING SETTLEMENT
+    // ==========================================
+
     @PutMapping("/update/{settlementNumber}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SettlementDto> updateSettlement(
             @PathVariable Long settlementNumber,
-            @RequestBody SettlementDto settlementDto) {
+            @RequestBody SettlementDto dto) {
 
         SettlementDto updated =
                 settlementService.updateSettlement(
-                        settlementNumber,
-                        settlementDto
-                );
+                        settlementNumber, dto);
 
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -89,18 +96,83 @@ public class SettlementController {
         return ResponseEntity.ok(updated);
     }
 
+    // ==========================================
+    // RECORD BANK TRANSFER
+    // ==========================================
+
+    @PutMapping("/transfer/{settlementNumber}")
+    public ResponseEntity<SettlementDto> recordTransfer(
+            @PathVariable Long settlementNumber,
+            @RequestBody SettlementDto dto,
+            Authentication authentication) {
+
+        return ResponseEntity.ok(
+                settlementService.recordTransfer(
+                        settlementNumber,
+                        dto,
+                        authentication.getName()));
+    }
+
+    // ==========================================
+    // LEGACY PROCESS ENDPOINT
+    // ==========================================
+    // Preserve existing route.
+    // Must only transition PENDING -> PROCESSING.
+    // It must NEVER mark a claim as SETTLED.
+
     @PutMapping("/process/{settlementNumber}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SettlementDto> processSettlement(
             @PathVariable Long settlementNumber) {
 
         return ResponseEntity.ok(
-                settlementService.processSettlement(settlementNumber)
-        );
+                settlementService.processSettlement(
+                        settlementNumber));
     }
 
+    // ==========================================
+    // CONFIRM SUCCESSFUL BANK PAYMENT
+    // ==========================================
+
+    @PutMapping("/confirm/{settlementNumber}")
+    public ResponseEntity<SettlementDto> confirmSettlement(
+            @PathVariable Long settlementNumber,
+            @RequestBody Map<String, String> request,
+            Authentication authentication) {
+
+        String remarks = request == null
+                ? null
+                : request.get("confirmationRemarks");
+
+        return ResponseEntity.ok(
+                settlementService.confirmSettlement(
+                        settlementNumber,
+                        remarks,
+                        authentication.getName()));
+    }
+
+    // ==========================================
+    // RECORD FAILED BANK TRANSFER
+    // ==========================================
+
+    @PutMapping("/fail/{settlementNumber}")
+    public ResponseEntity<SettlementDto> failSettlement(
+            @PathVariable Long settlementNumber,
+            @RequestBody Map<String, String> request) {
+
+        String reason = request == null
+                ? null
+                : request.get("reason");
+
+        return ResponseEntity.ok(
+                settlementService.failSettlement(
+                        settlementNumber, reason));
+    }
+
+    // ==========================================
+    // REJECT PENDING SETTLEMENT
+    // ==========================================
+
     @PutMapping("/reject/{settlementNumber}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<SettlementDto> rejectSettlement(
             @PathVariable Long settlementNumber,
             @RequestBody Map<String, String> request) {
@@ -111,21 +183,20 @@ public class SettlementController {
 
         return ResponseEntity.ok(
                 settlementService.rejectSettlement(
-                        settlementNumber,
-                        reason
-                )
-        );
+                        settlementNumber, reason));
     }
 
+    // ==========================================
+    // DELETE PENDING SETTLEMENT
+    // ==========================================
+
     @DeleteMapping("/delete/{settlementNumber}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<String> deleteSettlement(
             @PathVariable Long settlementNumber) {
 
         settlementService.deleteSettlement(settlementNumber);
 
         return ResponseEntity.ok(
-                "Settlement deleted successfully."
-        );
+                "Settlement deleted successfully.");
     }
 }
