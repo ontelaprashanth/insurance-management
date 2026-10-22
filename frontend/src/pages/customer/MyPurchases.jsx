@@ -1787,6 +1787,23 @@ export default function MyPurchases() {
             grid-template-columns: 1fr;
           }
         }
+        /* Unified premium controls and responsive polish */
+        .ix-purchase-card-grid { align-items:stretch; }
+        .ix-purchase-card { contain:layout style; }
+        .ix-purchase-card-title h3 { letter-spacing:-.025em; }
+        .ix-purchase-card-facts .muted, .ix-purchase-card-statuses .muted { font-size:12px; font-weight:600; }
+        .ix-purchase-card-actions { align-items:stretch; }
+        .ix-purchase-card-actions > * { min-height:38px; }
+        .ix-purchase-card-actions button:focus-visible { outline:3px solid #52b788; outline-offset:3px; }
+        .ix-payment-summary-grid .payment-summary svg { flex-shrink:0; filter:drop-shadow(0 3px 5px rgba(17,112,68,.12)); }
+        .ix-payment-summary-grid > * { min-width:0; }
+        .ix-payment-modal-actions button:focus-visible { outline:3px solid #52b788; outline-offset:2px; }
+        @media(max-width:640px) {
+          .ix-purchase-card-statuses { gap:8px; }
+          .ix-purchase-card-facts { padding:12px; gap:12px; }
+          .ix-purchase-card-title h3 { font-size:16px; }
+          .ix-purchase-card-actions button { width:100%; }
+        }
         /* Enhanced green motion system: decorative only, no API/state changes */
         @keyframes ixGreenGlow { 0%,100% { box-shadow:0 8px 25px rgba(14,96,61,.08); } 50% { box-shadow:0 12px 35px rgba(14,126,75,.19); } }
         @keyframes ixGreenShimmer { 0% { transform:translateX(-150%) skewX(-18deg); } 100% { transform:translateX(350%) skewX(-18deg); } }
@@ -1881,12 +1898,12 @@ export default function MyPurchases() {
               </div>
             ) : (
               <div className="ix-purchase-card-grid" aria-label="Payment and purchase history">
-                {rows.map((p) => {
+                {rows.map((p, index) => {
                   const policyNumber = getPolicyNumber(p)
                   const uncertain = uncertainRefundIds.has(String(p.purchaseId))
                   const showRefundAction = isPaid(p) && isRefundNotRequested(p)
                   return (
-                    <article className="ix-purchase-card" key={String(p.purchaseId)} style={{ '--ix-card-index': rows.indexOf(p) }}>
+                    <article className="ix-purchase-card" key={String(p.purchaseId)} style={{ '--ix-card-index': index }}>
                       <div className="ix-purchase-card-head">
                         <div className="ix-purchase-card-heading">
                           <div className="ix-purchase-card-icon"><ShieldCheck size={22} /></div>
