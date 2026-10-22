@@ -69,12 +69,12 @@ public class Policy {
         this.isActive = isActive;
     }
 
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
     public void setStartDate(LocalDate startDate) {
         this.startDate = startDate;
+    }
+
+    public LocalDate getStartDate() {
+        return startDate;
     }
 
     public Integer getDurationYears() {
