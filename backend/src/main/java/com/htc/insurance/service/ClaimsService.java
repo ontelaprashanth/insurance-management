@@ -197,6 +197,11 @@ public class ClaimsService {
                     + "processed for this policy.");
         }
 
+        // A policy can have multiple historical rejected claims,
+        // but only one unresolved or successful claim.
+        // Policy row is locked, serializing claim submissions.
+        ensureClaimSlotAvailable(policy.getPolicyNumber());
+
         // =====================================================
         // CONVERT CLAIM DTO TO ENTITY
         // =====================================================
@@ -273,6 +278,31 @@ public class ClaimsService {
         // Only NOT_REFUNDED allows claim submission.
         return !"NOT_REFUNDED".equalsIgnoreCase(
                 refundStatus.trim());
+    }
+
+    // =========================================================
+    // ONE SUCCESSFUL CLAIM PER POLICY
+    // =========================================================
+
+    private void ensureClaimSlotAvailable(Long policyNumber) {
+        for (Claims existing : claimsDao.getAllClaims()) {
+            if (existing == null || existing.getPolicy() == null
+                    || !policyNumber.equals(
+                            existing.getPolicy().getPolicyNumber())) {
+                continue;
+            }
+
+            ClaimStatus status = existing.getStatus();
+            if (status == ClaimStatus.REJECTED) {
+                continue;
+            }
+            // Includes PENDING, APPROVED, SETTLED and any
+            // unrecognized or null status (fail closed).
+            throw new IllegalStateException(
+                    "This policy already has a claim that is pending "
+                    + "or has been approved. A new claim is allowed "
+                    + "only after all earlier claims are rejected.");
+        }
     }
 
     // =========================================================
@@ -522,6 +552,7 @@ public class ClaimsService {
     // ADMIN - APPROVE CLAIM
     // =========================================================
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ClaimsDto approveClaim(
             Long claimNumber,
             ClaimDecisionDto decisionDto) {
@@ -541,6 +572,24 @@ public class ClaimsService {
 
         if (claim == null) {
             return null;
+        }
+
+        Policy lockedPolicy = lockClaimPolicy(claim);
+        claim = claimsDao.getClaimsById(claimNumber);
+        if (claim == null || claim.getPolicy() == null
+                || !lockedPolicy.getPolicyNumber().equals(
+                        claim.getPolicy().getPolicyNumber())) {
+            throw new IllegalStateException(
+                    "Claim policy changed during review.");
+        }
+
+        Policy lockedPolicy = lockClaimPolicy(claim);
+        claim = claimsDao.getClaimsById(claimNumber);
+        if (claim == null || claim.getPolicy() == null
+                || !lockedPolicy.getPolicyNumber().equals(
+                        claim.getPolicy().getPolicyNumber())) {
+            throw new IllegalStateException(
+                    "Claim policy changed during review.");
         }
 
         if (claim.getStatus() != ClaimStatus.PENDING) {
@@ -595,6 +644,11 @@ public class ClaimsService {
         claim.setRejectionReason(null);
         claim.setReviewedDate(LocalDate.now());
 
+        // Successful claim consumes this policy's single
+        // claim allowance. Keep the record for history/renewal.
+        lockedPolicy.setIsActive(false);
+        policyDao.savePolicy(lockedPolicy);
+
         Claims updatedClaim =
                 claimsDao.updateClaims(claim);
 
@@ -616,6 +670,7 @@ public class ClaimsService {
     // ADMIN - REJECT CLAIM
     // =========================================================
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ClaimsDto rejectClaim(
             Long claimNumber,
             ClaimDecisionDto decisionDto) {
@@ -683,6 +738,23 @@ public class ClaimsService {
 
         return claimsMapper.convertClaimsEntityToDto(
                 updatedClaim);
+    }
+
+    // Lock policy before applying admin claim decisions,
+    // matching the claim/refund lock order.
+    private Policy lockClaimPolicy(Claims claim) {
+        if (claim.getPolicy() == null
+                || claim.getPolicy().getPolicyNumber() == null) {
+            throw new IllegalStateException(
+                    "Claim policy information is unavailable.");
+        }
+        Policy locked = policyDao.getPolicyByIdForUpdate(
+                claim.getPolicy().getPolicyNumber());
+        if (locked == null) {
+            throw new IllegalStateException(
+                    "Claim policy no longer exists.");
+        }
+        return locked;
     }
 
     // =========================================================
