@@ -18,7 +18,7 @@ public interface PolicyRepository
         extends JpaRepository<Policy, Long> {
 
     // =========================================================
-    // LOCK POLICY ROW FOR CLAIM / REFUND OPERATIONS
+    // LOCK POLICY ROW FOR CLAIM / REFUND / RENEWAL
     // =========================================================
 
     /**
@@ -26,8 +26,11 @@ public interface PolicyRepository
      *
      * Must be called inside an active transaction.
      *
-     * Both claim submission and refund preparation must
-     * acquire this lock before checking eligibility.
+     * Claim submission, refund preparation and renewal
+     * confirmation must acquire this lock before checking
+     * whether the operation is permitted.
+     *
+     * The lock remains held until the transaction ends.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
