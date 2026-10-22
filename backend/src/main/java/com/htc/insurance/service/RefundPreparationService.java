@@ -16,6 +16,7 @@ import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dto.RefundRequestDto;
 
 import com.htc.insurance.entity.Policy;
+import com.htc.insurance.entity.PolicyLifecycleStatus;
 import com.htc.insurance.entity.PolicyPurchase;
 
 import com.htc.insurance.repository.RefundAttemptRepository;
@@ -55,20 +56,19 @@ public class RefundPreparationService {
     /**
      * Validates refund eligibility and prepares a refund.
      *
-     * Database locking order:
+     * Locking order:
      *
      * 1. Read purchase to identify policy.
      * 2. Lock policy row.
      * 3. Lock purchase row.
-     * 4. Revalidate purchase and refund eligibility.
-     * 5. Check for an existing refund attempt.
-     * 6. Check whether claims exist.
-     * 7. Mark refund pending and deactivate policy.
+     * 4. Revalidate purchase and ownership.
+     * 5. Validate refund eligibility.
+     * 6. Check existing refund attempts.
+     * 7. Check existing claims.
+     * 8. Set purchase REFUND_PENDING.
+     * 9. Set policy REFUND_PENDING and inactive.
      *
-     * All database changes commit atomically.
-     *
-     * Razorpay refund creation must happen only after
-     * this transaction successfully commits.
+     * Changes commit atomically before Razorpay is called.
      */
     @Transactional(isolation = Isolation.READ_COMMITTED)
     public PolicyPurchase prepareRefund(
@@ -139,7 +139,7 @@ public class RefundPreparationService {
                 .getPolicyNumber();
 
         // =====================================================
-        // STEP 2 - LOCK POLICY ROW FIRST
+        // STEP 2 - LOCK POLICY FIRST
         // =====================================================
 
         Policy policy = policyDao.getPolicyByIdForUpdate(
@@ -151,7 +151,7 @@ public class RefundPreparationService {
         }
 
         // =====================================================
-        // STEP 3 - LOCK PURCHASE ROW SECOND
+        // STEP 3 - LOCK PURCHASE SECOND
         // =====================================================
 
         PolicyPurchase purchase = policyPurchaseDao
@@ -161,7 +161,7 @@ public class RefundPreparationService {
                                 "Purchase not found."));
 
         // =====================================================
-        // REVALIDATE PURCHASE-POLICY ASSOCIATION
+        // VERIFY PURCHASE-POLICY ASSOCIATION
         // =====================================================
 
         if (purchase.getPolicy() == null
@@ -173,7 +173,7 @@ public class RefundPreparationService {
 
             throw new IllegalStateException(
                     "Purchase policy information changed. "
-                    + "Please retry your refund request.");
+                            + "Please retry your refund request.");
         }
 
         // =====================================================
@@ -236,26 +236,17 @@ public class RefundPreparationService {
 
             throw new IllegalStateException(
                     "This purchase already has a refund "
-                    + "in progress or has been refunded. "
-                    + "Current status: " + refundStatus);
+                            + "in progress or has been refunded. "
+                            + "Current status: " + refundStatus);
         }
 
-        /*
-         * Additional protection:
-         *
-         * A refund attempt must not be recreated if
-         * an earlier Razorpay request was submitted.
-         *
-         * This also protects against inconsistent
-         * legacy purchase refund statuses.
-         */
         if (refundAttemptRepository.existsByPurchaseId(
                 purchaseId)) {
 
             throw new IllegalStateException(
                     "A refund attempt already exists for "
-                    + "this purchase. Its status must be "
-                    + "reconciled before further action.");
+                            + "this purchase. Its status must be "
+                            + "reconciled before further action.");
         }
 
         // =====================================================
@@ -281,7 +272,7 @@ public class RefundPreparationService {
         if (paymentDateTime == null) {
             throw new IllegalStateException(
                     "Payment timestamp is unavailable. "
-                    + "Refund eligibility cannot be verified.");
+                            + "Refund eligibility cannot be verified.");
         }
 
         LocalDateTime now = LocalDateTime.now();
@@ -307,13 +298,32 @@ public class RefundPreparationService {
 
             throw new IllegalStateException(
                     "Refund cannot be requested because "
-                    + "a claim has already been submitted "
-                    + "against this policy. "
-                    + "Please contact support for review.");
+                            + "a claim has already been submitted "
+                            + "against this policy. "
+                            + "Please contact support for review.");
         }
 
         // =====================================================
-        // MARK REFUND PENDING
+        // VALIDATE POLICY LIFECYCLE
+        // =====================================================
+
+        PolicyLifecycleStatus lifecycle =
+                policy.getLifecycleStatus();
+
+        // An approved claim lock or an existing refund
+        // must never be bypassed by refund preparation.
+        if (lifecycle == PolicyLifecycleStatus.CLAIM_LOCKED
+                || lifecycle == PolicyLifecycleStatus.REFUND_PENDING
+                || lifecycle == PolicyLifecycleStatus.REFUNDED) {
+
+            throw new IllegalStateException(
+                    "Policy lifecycle does not permit "
+                            + "a new refund request. "
+                            + "Current lifecycle: " + lifecycle);
+        }
+
+        // =====================================================
+        // MARK PURCHASE REFUND PENDING
         // =====================================================
 
         purchase.setRefundStatus(REFUND_PENDING);
@@ -324,13 +334,16 @@ public class RefundPreparationService {
         purchase.setRefundDateTime(null);
 
         // =====================================================
-        // DEACTIVATE POLICY
+        // DEACTIVATE POLICY AND MARK REFUND PENDING
         // =====================================================
 
-        policy.setIsActive(false);
+        policy.setIsActive(Boolean.FALSE);
+
+        policy.setLifecycleStatus(
+                PolicyLifecycleStatus.REFUND_PENDING);
 
         // =====================================================
-        // SAVE BOTH RECORDS IN ONE TRANSACTION
+        // SAVE BOTH RECORDS ATOMICALLY
         // =====================================================
 
         policyDao.savePolicy(policy);
