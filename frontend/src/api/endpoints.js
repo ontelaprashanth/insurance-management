@@ -1,23 +1,26 @@
+// =========================================================
+// INSUREX — CENTRAL API ENDPOINTS
+// File: src/api/endpoints.js
+//
+// Authentication
+// Users
+// Insurance Plans
+// Policies
+// Purchases & Refunds
+// Razorpay Payments
+// Policy Renewals
+// Policy Holders
+// Claims
+// Settlements
+// Reviews
+// Notifications
+// Admin Broadcast
+//
+// Existing backend routes preserved.
+// Added input validation and payment safety checks.
+// =========================================================
 
 import { api } from './client'
-
-/* =========================================================
-   INSUREX — CENTRAL API ENDPOINTS
-
-   Authentication
-   Users
-   Insurance Plans
-   Policies
-   Purchases & Refunds
-   Payments
-   Policy Renewals
-   Policy Holders
-   Claims
-   Settlements
-   Reviews
-   Notifications
-   Admin Broadcast
-========================================================= */
 
 /* =========================================================
    COMMON HELPERS
@@ -28,6 +31,54 @@ const d = (promise) =>
 
 const id = (value) =>
   encodeURIComponent(String(value))
+
+function positiveId(value, label = 'ID') {
+  const number = Number(value)
+
+  if (
+    !Number.isSafeInteger(number) ||
+    number <= 0
+  ) {
+    throw new Error(`A valid ${label} is required.`)
+  }
+
+  return number
+}
+
+function requiredText(value, label) {
+  const text = String(value ?? '').trim()
+
+  if (!text) {
+    throw new Error(`${label} is required.`)
+  }
+
+  return text
+}
+
+function paymentConfirmation(body) {
+  if (!body || typeof body !== 'object') {
+    throw new Error(
+      'Payment confirmation details are required.',
+    )
+  }
+
+  return {
+    razorpayOrderId: requiredText(
+      body.razorpayOrderId,
+      'Razorpay order ID',
+    ),
+
+    razorpayPaymentId: requiredText(
+      body.razorpayPaymentId,
+      'Razorpay payment ID',
+    ),
+
+    razorpaySignature: requiredText(
+      body.razorpaySignature,
+      'Razorpay signature',
+    ),
+  }
+}
 
 /* =========================================================
    AUTHENTICATION
@@ -130,16 +181,33 @@ export const policies = {
     d(api.post('/policy/save', body)),
 
   update: (policyNumber, body) =>
-    d(api.put(`/policy/update/${id(policyNumber)}`, body)),
+    d(
+      api.put(
+        `/policy/update/${id(policyNumber)}`,
+        body,
+      ),
+    ),
 
   remove: (policyNumber) =>
-    d(api.delete(`/policy/delete/${id(policyNumber)}`)),
+    d(
+      api.delete(
+        `/policy/delete/${id(policyNumber)}`,
+      ),
+    ),
 
   activate: (policyNumber) =>
-    d(api.put(`/policy/activate/${id(policyNumber)}`)),
+    d(
+      api.put(
+        `/policy/activate/${id(policyNumber)}`,
+      ),
+    ),
 
   deactivate: (policyNumber) =>
-    d(api.put(`/policy/deactivate/${id(policyNumber)}`)),
+    d(
+      api.put(
+        `/policy/deactivate/${id(policyNumber)}`,
+      ),
+    ),
 }
 
 /* =========================================================
@@ -147,6 +215,8 @@ export const policies = {
 ========================================================= */
 
 export const purchases = {
+  // Backend verifies Razorpay payment details
+  // before creating the insurance purchase.
   purchase: (body) =>
     d(api.post('/policy/purchase', body)),
 
@@ -156,42 +226,39 @@ export const purchases = {
   getAll: () =>
     d(api.get('/policy/purchases')),
 
+  // Refund request:
+  // - Validates purchase ID
+  // - Validates refund reason
+  // - Backend determines refund eligibility
+  // - Backend performs Razorpay refund processing
+  // - Backend reconciliation determines final status
   refund: (purchaseId, body) => {
-    const parsedPurchaseId = Number(purchaseId)
-
-    const refundReason = String(
-      body?.refundReason ?? '',
-    ).trim()
-
-    if (
-      !Number.isSafeInteger(parsedPurchaseId) ||
-      parsedPurchaseId <= 0
-    ) {
-      return Promise.reject(
-        new Error('A valid purchase ID is required.'),
+    try {
+      const parsedPurchaseId = positiveId(
+        purchaseId,
+        'purchase ID',
       )
-    }
 
-    if (!refundReason) {
-      return Promise.reject(
-        new Error('Refund reason is required.'),
+      const refundReason = requiredText(
+        body?.refundReason,
+        'Refund reason',
       )
-    }
 
-    if (refundReason.length > 500) {
-      return Promise.reject(
-        new Error(
+      if (refundReason.length > 500) {
+        throw new Error(
           'Refund reason must not exceed 500 characters.',
-        ),
-      )
-    }
+        )
+      }
 
-    return d(
-      api.post('/refund/request', {
-        purchaseId: parsedPurchaseId,
-        refundReason,
-      }),
-    )
+      return d(
+        api.post('/refund/request', {
+          purchaseId: parsedPurchaseId,
+          refundReason,
+        }),
+      )
+    } catch (error) {
+      return Promise.reject(error)
+    }
   },
 }
 
@@ -200,50 +267,130 @@ export const purchases = {
 ========================================================= */
 
 export const payment = {
-  createOrder: (body) =>
-    d(api.post('/payment/create-order', body)),
+  // Creates a Razorpay order on the backend.
+  // The backend determines the payable amount.
+  createOrder: (body) => {
+    try {
+      if (!body || typeof body !== 'object') {
+        throw new Error(
+          'Payment order details are required.',
+        )
+      }
 
-  verify: (body) =>
-    d(api.post('/payment/verify', body)),
+      const planId = positiveId(
+        body.planId,
+        'plan ID',
+      )
+
+      const coverageAmount = Number(
+        body.coverageAmount,
+      )
+
+      const durationYears = Number(
+        body.durationYears,
+      )
+
+      if (
+        !Number.isFinite(coverageAmount) ||
+        coverageAmount <= 0
+      ) {
+        throw new Error(
+          'A valid coverage amount is required.',
+        )
+      }
+
+      if (
+        !Number.isInteger(durationYears) ||
+        durationYears < 1 ||
+        durationYears > 5
+      ) {
+        throw new Error(
+          'Duration must be between 1 and 5 years.',
+        )
+      }
+
+      return d(
+        api.post('/payment/create-order', {
+          planId,
+          coverageAmount,
+          durationYears,
+          currency: 'INR',
+        }),
+      )
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  },
+
+  // Existing verification endpoint preserved.
+  // Backend must validate the Razorpay signature.
+  verify: (body) => {
+    try {
+      return d(
+        api.post(
+          '/payment/verify',
+          paymentConfirmation(body),
+        ),
+      )
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  },
 }
 
 /* =========================================================
    POLICY RENEWALS — RAZORPAY
 
    POST /api/policy-renewals/{policyNumber}/order
-
    POST /api/policy-renewals/{policyNumber}/confirm
 
    The backend determines:
-   - Original insurance plan
-   - Original paid premium
-   - Coverage amount
-   - Policy duration
+   - Original policy and purchase
    - Renewal eligibility
+   - Coverage amount
+   - Duration
+   - Payable premium
+   - Payment confirmation
+   - New policy creation
 
-   Never send or calculate the renewal price
-   from the frontend.
+   Frontend never supplies renewal pricing.
 ========================================================= */
 
 export const renewals = {
-  createOrder: (originalPolicyNumber) =>
-    d(
-      api.post(
-        `/api/policy-renewals/${id(originalPolicyNumber)}/order`,
-      ),
-    ),
+  createOrder: (originalPolicyNumber) => {
+    try {
+      const policyNumber = positiveId(
+        originalPolicyNumber,
+        'original policy number',
+      )
 
-  confirm: (originalPolicyNumber, body) =>
-    d(
-      api.post(
-        `/api/policy-renewals/${id(originalPolicyNumber)}/confirm`,
-        {
-          razorpayOrderId: body.razorpayOrderId,
-          razorpayPaymentId: body.razorpayPaymentId,
-          razorpaySignature: body.razorpaySignature,
-        },
-      ),
-    ),
+      return d(
+        api.post(
+          `/api/policy-renewals/${id(policyNumber)}/order`,
+        ),
+      )
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  },
+
+  confirm: (originalPolicyNumber, body) => {
+    try {
+      const policyNumber = positiveId(
+        originalPolicyNumber,
+        'original policy number',
+      )
+
+      return d(
+        api.post(
+          `/api/policy-renewals/${id(policyNumber)}/confirm`,
+          paymentConfirmation(body),
+        ),
+      )
+    } catch (error) {
+      return Promise.reject(error)
+    }
+  },
 }
 
 /* =========================================================
@@ -255,7 +402,11 @@ export const policyHolders = {
     d(api.get('/policyholder/getAll')),
 
   get: (policyHolderId) =>
-    d(api.get(`/policyholder/get/${id(policyHolderId)}`)),
+    d(
+      api.get(
+        `/policyholder/get/${id(policyHolderId)}`,
+      ),
+    ),
 
   save: (body) =>
     d(api.post('/policyholder/save', body)),
@@ -269,7 +420,11 @@ export const policyHolders = {
     ),
 
   remove: (policyHolderId) =>
-    d(api.delete(`/policyholder/delete/${id(policyHolderId)}`)),
+    d(
+      api.delete(
+        `/policyholder/delete/${id(policyHolderId)}`,
+      ),
+    ),
 }
 
 /* =========================================================
@@ -287,19 +442,42 @@ export const claims = {
     d(api.get('/claims/getAll')),
 
   get: (claimNumber) =>
-    d(api.get(`/claims/get/${id(claimNumber)}`)),
+    d(
+      api.get(
+        `/claims/get/${id(claimNumber)}`,
+      ),
+    ),
 
   update: (claimNumber, body) =>
-    d(api.put(`/claims/update/${id(claimNumber)}`, body)),
+    d(
+      api.put(
+        `/claims/update/${id(claimNumber)}`,
+        body,
+      ),
+    ),
 
   approve: (claimNumber, body) =>
-    d(api.put(`/claims/approve/${id(claimNumber)}`, body)),
+    d(
+      api.put(
+        `/claims/approve/${id(claimNumber)}`,
+        body,
+      ),
+    ),
 
   reject: (claimNumber, body) =>
-    d(api.put(`/claims/reject/${id(claimNumber)}`, body)),
+    d(
+      api.put(
+        `/claims/reject/${id(claimNumber)}`,
+        body,
+      ),
+    ),
 
   remove: (claimNumber) =>
-    d(api.delete(`/claims/delete/${id(claimNumber)}`)),
+    d(
+      api.delete(
+        `/claims/delete/${id(claimNumber)}`,
+      ),
+    ),
 }
 
 /* =========================================================
@@ -311,10 +489,18 @@ export const settlements = {
     d(api.get('/settlement/getAll')),
 
   get: (settlementNumber) =>
-    d(api.get(`/settlement/get/${id(settlementNumber)}`)),
+    d(
+      api.get(
+        `/settlement/get/${id(settlementNumber)}`,
+      ),
+    ),
 
   byClaim: (claimNumber) =>
-    d(api.get(`/settlement/claim/${id(claimNumber)}`)),
+    d(
+      api.get(
+        `/settlement/claim/${id(claimNumber)}`,
+      ),
+    ),
 
   save: (body) =>
     d(api.post('/settlement/save', body)),
@@ -338,7 +524,9 @@ export const settlements = {
     d(
       api.put(
         `/settlement/reject/${id(settlementNumber)}`,
-        { rejectionReason },
+        {
+          rejectionReason,
+        },
       ),
     ),
 
@@ -365,7 +553,11 @@ export const reviews = {
     d(api.get('/reviewer/getAll')),
 
   get: (reviewId) =>
-    d(api.get(`/reviewer/get/${id(reviewId)}`)),
+    d(
+      api.get(
+        `/reviewer/get/${id(reviewId)}`,
+      ),
+    ),
 
   update: (reviewId, body) =>
     d(
@@ -384,7 +576,11 @@ export const reviews = {
     ),
 
   remove: (reviewId) =>
-    d(api.delete(`/reviewer/delete/${id(reviewId)}`)),
+    d(
+      api.delete(
+        `/reviewer/delete/${id(reviewId)}`,
+      ),
+    ),
 }
 
 /* =========================================================
@@ -396,7 +592,11 @@ export const notifications = {
     d(api.get('/api/notifications/my')),
 
   unread: () =>
-    d(api.get('/api/notifications/unread-count')),
+    d(
+      api.get(
+        '/api/notifications/unread-count',
+      ),
+    ),
 
   read: (notificationId) =>
     d(
@@ -406,7 +606,11 @@ export const notifications = {
     ),
 
   readAll: () =>
-    d(api.put('/api/notifications/read-all')),
+    d(
+      api.put(
+        '/api/notifications/read-all',
+      ),
+    ),
 
   remove: (notificationId) =>
     d(
@@ -422,13 +626,26 @@ export const notifications = {
 
 export const broadcast = {
   send: (body) =>
-    d(api.post('/api/admin/notifications', body)),
+    d(
+      api.post(
+        '/api/admin/notifications',
+        body,
+      ),
+    ),
 
   customers: () =>
-    d(api.get('/api/admin/notifications/customers')),
+    d(
+      api.get(
+        '/api/admin/notifications/customers',
+      ),
+    ),
 
   list: () =>
-    d(api.get('/api/admin/notifications')),
+    d(
+      api.get(
+        '/api/admin/notifications',
+      ),
+    ),
 
   remove: (notificationId) =>
     d(
