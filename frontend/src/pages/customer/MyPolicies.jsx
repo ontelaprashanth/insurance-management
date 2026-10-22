@@ -1195,6 +1195,49 @@ export default function MyPolicies() {
             align-items: stretch;
           }
         }
+
+        /* INSUREX EMERALD MOTION SYSTEM — visual changes only */
+        @keyframes ixPolicyEnter { from { opacity:0; transform:translate3d(0,20px,0) scale(.975); filter:blur(3px); } to { opacity:1; transform:translate3d(0,0,0) scale(1); filter:blur(0); } }
+        @keyframes ixPolicyIconFloat { 0%,100% { transform:translateY(0) rotate(0deg); } 50% { transform:translateY(-4px) rotate(-5deg); } }
+        @keyframes ixPolicyGlow { 0%,100% { box-shadow:0 6px 22px rgba(14,94,59,.07); } 50% { box-shadow:0 10px 30px rgba(14,94,59,.15); } }
+        .ix-policy-summary-grid { gap:14px; }
+        .ix-policy-summary-grid > * { min-width:0; border:1px solid #cbe8d8; border-radius:18px; background:linear-gradient(145deg,#ffffff 0%,#f0faf4 100%); box-shadow:0 5px 22px rgba(16,85,52,.06); animation:ixPolicyEnter .55s cubic-bezier(.2,.8,.2,1) both; transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease; }
+        .ix-policy-summary-grid > :nth-child(2) { animation-delay:75ms; }
+        .ix-policy-summary-grid > :nth-child(3) { animation-delay:150ms; }
+        .ix-policy-summary-grid > :nth-child(4) { animation-delay:225ms; }
+        .ix-policy-summary-grid > *:hover { transform:translateY(-5px); border-color:#6cbe90; box-shadow:0 15px 34px rgba(15,105,63,.13); }
+        .ix-policy-summary-card { color:#123f2e; }
+        .ix-policy-summary-card svg { color:#17814f; animation:ixPolicyIconFloat 3.2s ease-in-out infinite; }
+        .ix-policy-summary-card .muted { color:#476c5a !important; font-size:13px; font-weight:650; }
+        .ix-policy-summary-card strong { color:#103e2d; font-size:clamp(24px,2.4vw,32px); letter-spacing:-.04em; }
+        .ix-policy-card-grid,.ix-claimed-list { gap:15px; }
+        .ix-policy-card,.ix-claimed-card { position:relative; isolation:isolate; overflow:hidden; border:1px solid #cfe6d9; border-radius:20px; background:linear-gradient(155deg,#fff 0%,#f5fbf7 100%); color:#183b2c; box-shadow:0 6px 22px rgba(15,85,53,.07); animation:ixPolicyEnter .55s cubic-bezier(.2,.8,.2,1) both; transition:transform .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s ease,border-color .32s ease; }
+        .ix-policy-card:nth-child(6n + 2),.ix-claimed-card:nth-child(6n + 2) { animation-delay:70ms; }
+        .ix-policy-card:nth-child(6n + 3),.ix-claimed-card:nth-child(6n + 3) { animation-delay:140ms; }
+        .ix-policy-card:nth-child(6n + 4),.ix-claimed-card:nth-child(6n + 4) { animation-delay:210ms; }
+        .ix-policy-card:nth-child(6n + 5),.ix-claimed-card:nth-child(6n + 5) { animation-delay:280ms; }
+        .ix-policy-card:nth-child(6n + 6),.ix-claimed-card:nth-child(6n + 6) { animation-delay:350ms; }
+        .ix-policy-card::before,.ix-claimed-card::before { content:''; position:absolute; z-index:-1; top:-100%; left:-95%; width:85%; height:300%; background:linear-gradient(90deg,transparent,rgba(105,210,148,.15),transparent); transform:rotate(20deg); transition:left .8s ease; pointer-events:none; }
+        .ix-policy-card:hover::before,.ix-claimed-card:hover::before { left:140%; }
+        .ix-policy-card:hover,.ix-claimed-card:hover { transform:translateY(-7px) scale(1.012); border-color:#69b98b; box-shadow:0 18px 42px rgba(14,94,59,.16); }
+        .ix-policy-card:focus-within,.ix-claimed-card:focus-within { outline:2px solid #17814f; outline-offset:2px; }
+        .ix-policy-card-identity h3,.ix-claimed-top strong { color:#103e2d; letter-spacing:-.035em; }
+        .ix-policy-eyebrow,.ix-claimed-top .muted { color:#3d7254 !important; font-weight:700; }
+        .ix-policy-cover { color:#345a48; font-weight:600; }
+        .ix-policy-card-details,.ix-claimed-meta { border:1px solid #e0eee5; border-radius:14px; background:rgba(232,248,238,.62); padding:14px; }
+        .ix-policy-card-details span,.ix-claimed-meta small { color:#476b58; font-weight:600; }
+        .ix-policy-card-details strong,.ix-claimed-meta b { color:#163f2c; font-weight:750; }
+        .ix-policy-card-footer,.ix-claimed-footer { border-top-color:#d6e9de; }
+        .ix-policy-card-hint,.ix-policy-action-label,.ix-claimed-footer .muted { color:#476b58 !important; font-weight:600; }
+        .ix-policy-action-btn,.ix-policy-card-footer .btn,.ix-claimed-footer .btn { transition:transform .2s ease,box-shadow .2s ease,background-color .2s ease; }
+        .ix-policy-action-btn:hover,.ix-policy-card-footer .btn:hover:not(:disabled),.ix-claimed-footer .btn:hover { transform:translateY(-2px); box-shadow:0 8px 18px rgba(21,111,68,.18); }
+        .ix-policy-card .btn.primary,.ix-claimed-card .btn.primary { background:#17814f; border-color:#17814f; color:#fff; }
+        .ix-policy-card .btn.primary:hover,.ix-claimed-card .btn.primary:hover { background:#10693e; border-color:#10693e; }
+        .ix-policy-toolbar { padding:16px; border-bottom:1px solid #dcece2; background:linear-gradient(110deg,#f5fbf7,#fff); border-radius:16px 16px 0 0; }
+        .ix-policy-toolbar .btn { transition:transform .2s ease; }
+        .ix-policy-toolbar .btn:hover:not(:disabled) { transform:translateY(-2px); }
+        @media(max-width:640px) { .ix-policy-card:hover,.ix-claimed-card:hover { transform:translateY(-3px); } .ix-policy-card-details,.ix-claimed-meta { padding:11px; gap:12px; } .ix-policy-card-footer { align-items:stretch; } .ix-policy-card-footer .btn { width:100%; } }
+        @media(prefers-reduced-motion:reduce) { .ix-policy-summary-grid > *,.ix-policy-card,.ix-claimed-card,.ix-policy-summary-card svg { animation:none !important; } .ix-policy-summary-grid > *,.ix-policy-card,.ix-claimed-card,.ix-policy-action-btn,.ix-policy-card-footer .btn,.ix-claimed-footer .btn { transition:none !important; } .ix-policy-card:hover,.ix-claimed-card:hover,.ix-policy-summary-grid > *:hover { transform:none !important; } }
       `}</style>
 
       {/* The Claimed Policies sidebar destination has its own focused summary. */}
