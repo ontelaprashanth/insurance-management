@@ -32,7 +32,11 @@ public class RefundReconciliationService {
                     RefundReconciliationService.class);
 
     private final RefundAttemptRepository attemptRepository;
+
     private final RefundAttemptPersistenceService persistenceService;
+
+    private final RefundPersistenceService refundPersistenceService;
+
     private final PolicyPurchaseDao policyPurchaseDao;
 
     private final String keyId;
@@ -45,12 +49,14 @@ public class RefundReconciliationService {
     public RefundReconciliationService(
             RefundAttemptRepository attemptRepository,
             RefundAttemptPersistenceService persistenceService,
+            RefundPersistenceService refundPersistenceService,
             PolicyPurchaseDao policyPurchaseDao,
             @Value("${razorpay.key.id}") String keyId,
             @Value("${razorpay.key.secret}") String keySecret) {
 
         this.attemptRepository = attemptRepository;
         this.persistenceService = persistenceService;
+        this.refundPersistenceService = refundPersistenceService;
         this.policyPurchaseDao = policyPurchaseDao;
         this.keyId = keyId;
         this.keySecret = keySecret;
@@ -61,9 +67,14 @@ public class RefundReconciliationService {
     // =========================================================
 
     /**
-     * Synchronizes existing refund records with Razorpay.
+     * Synchronizes existing refunds with Razorpay.
      *
-     * Never creates a new refund.
+     * Supports:
+     * 1. Unfinished refund attempts.
+     * 2. Purchases with unfinished refund statuses.
+     * 3. Purchases with missing RefundAttempt records.
+     *
+     * Never creates a new Razorpay refund.
      */
     @Scheduled(
         fixedDelayString =
@@ -77,6 +88,10 @@ public class RefundReconciliationService {
 
         List<RefundAttempt> attempts;
         List<PolicyPurchase> unfinishedPurchases;
+
+        // =====================================================
+        // LOAD REFUND RECORDS
+        // =====================================================
 
         try {
 
@@ -122,6 +137,10 @@ public class RefundReconciliationService {
             return;
         }
 
+        // =====================================================
+        // INITIALIZE RAZORPAY CLIENT
+        // =====================================================
+
         RazorpayClient client;
 
         try {
@@ -141,23 +160,22 @@ public class RefundReconciliationService {
         Set<Long> checkedAttemptIds = new HashSet<>();
 
         // =====================================================
-        // RECONCILE UNFINISHED ATTEMPTS
+        // RECONCILE UNFINISHED REFUND ATTEMPTS
         // =====================================================
 
         for (RefundAttempt attempt : attempts) {
 
-            if (attempt.getRefundAttemptId() != null) {
+            Long attemptId = attempt.getRefundAttemptId();
 
-                checkedAttemptIds.add(
-                    attempt.getRefundAttemptId()
-                );
+            if (attemptId != null) {
+                checkedAttemptIds.add(attemptId);
             }
 
             reconcileAttempt(client, attempt);
         }
 
         // =====================================================
-        // INVESTIGATE UNFINISHED PURCHASES
+        // RECONCILE PURCHASES STILL SHOWING PROCESSING
         // =====================================================
 
         for (PolicyPurchase purchase : unfinishedPurchases) {
@@ -171,21 +189,23 @@ public class RefundReconciliationService {
                             purchaseId
                         );
 
+                // =============================================
+                // CASE 1: REFUND ATTEMPT RECORD IS MISSING
+                // =============================================
+
                 if (optionalAttempt.isEmpty()) {
 
-                    log.warn(
-                        "Purchase {} is still {}, but no "
-                            + "RefundAttempt record exists. "
-                            + "Stored refund ID present: {}. "
-                            + "Manual investigation required.",
-                        purchaseId,
-                        purchase.getRefundStatus(),
-                        purchase.getRefundId() != null
-                            && !purchase.getRefundId().isBlank()
+                    reconcilePurchaseWithoutAttempt(
+                        client,
+                        purchase
                     );
 
                     continue;
                 }
+
+                // =============================================
+                // CASE 2: REFUND ATTEMPT RECORD EXISTS
+                // =============================================
 
                 RefundAttempt attempt = optionalAttempt.get();
 
@@ -198,6 +218,7 @@ public class RefundReconciliationService {
 
                 Long attemptId = attempt.getRefundAttemptId();
 
+                // Avoid checking the same attempt twice.
                 if (attemptId != null
                         && checkedAttemptIds.contains(attemptId)) {
 
@@ -205,7 +226,6 @@ public class RefundReconciliationService {
                 }
 
                 if (attemptId != null) {
-
                     checkedAttemptIds.add(attemptId);
                 }
 
@@ -225,7 +245,238 @@ public class RefundReconciliationService {
     }
 
     // =========================================================
-    // VERIFY AN EXISTING RAZORPAY REFUND
+    // RECOVER PURCHASE WITHOUT REFUND ATTEMPT
+    // =========================================================
+
+    /**
+     * Recovery for a purchase containing a Razorpay
+     * refund ID but no corresponding RefundAttempt.
+     *
+     * This method only fetches an existing Razorpay refund.
+     * It never initiates a new refund.
+     */
+    private void reconcilePurchaseWithoutAttempt(
+            RazorpayClient client,
+            PolicyPurchase purchase) {
+
+        Long purchaseId = purchase.getPurchaseId();
+
+        String refundId = purchase.getRefundId();
+
+        log.info(
+            "Checking purchase {} without RefundAttempt",
+            purchaseId
+        );
+
+        // =====================================================
+        // VALIDATE STORED REFUND ID
+        // =====================================================
+
+        if (refundId == null || refundId.isBlank()) {
+
+            log.warn(
+                "Purchase {} has no RefundAttempt and "
+                    + "no Razorpay refund ID. "
+                    + "Manual investigation required.",
+                purchaseId
+            );
+
+            return;
+        }
+
+        try {
+
+            // =================================================
+            // FETCH EXISTING REFUND FROM RAZORPAY
+            // =================================================
+
+            Refund razorpayRefund =
+                    client.refunds.fetch(refundId);
+
+            String returnedRefundId =
+                    razorpayRefund.get("id");
+
+            String returnedPaymentId =
+                    razorpayRefund.get("payment_id");
+
+            String razorpayStatus =
+                    razorpayRefund.get("status");
+
+            Number amountInPaise =
+                    razorpayRefund.get("amount");
+
+            // =================================================
+            // VERIFY REFUND ID
+            // =================================================
+
+            if (!refundId.equals(returnedRefundId)) {
+
+                log.error(
+                    "Refund ID mismatch for purchase {}",
+                    purchaseId
+                );
+
+                return;
+            }
+
+            // =================================================
+            // VERIFY ORIGINAL PAYMENT ID
+            // =================================================
+
+            if (purchase.getRazorpayPaymentId() == null
+                    || !purchase.getRazorpayPaymentId()
+                        .equals(returnedPaymentId)) {
+
+                log.error(
+                    "Razorpay payment ID mismatch "
+                        + "for purchase {}",
+                    purchaseId
+                );
+
+                return;
+            }
+
+            // =================================================
+            // VERIFY REFUND AMOUNT
+            // =================================================
+
+            BigDecimal expectedAmount =
+                    purchase.getRefundAmount();
+
+            if (expectedAmount == null
+                    || amountInPaise == null) {
+
+                log.error(
+                    "Missing refund amount for purchase {}",
+                    purchaseId
+                );
+
+                return;
+            }
+
+            long expectedPaise =
+                    expectedAmount
+                        .movePointRight(2)
+                        .longValueExact();
+
+            if (expectedPaise != amountInPaise.longValue()) {
+
+                log.error(
+                    "Refund amount mismatch for purchase {}",
+                    purchaseId
+                );
+
+                return;
+            }
+
+            // =================================================
+            // NORMALIZE RAZORPAY STATUS
+            // =================================================
+
+            if (razorpayStatus == null
+                    || razorpayStatus.isBlank()) {
+
+                log.warn(
+                    "Empty Razorpay refund status "
+                        + "for purchase {}",
+                    purchaseId
+                );
+
+                return;
+            }
+
+            String status =
+                    razorpayStatus
+                        .trim()
+                        .toLowerCase(Locale.ROOT);
+
+            log.info(
+                "Purchase {} has no attempt; "
+                    + "verified Razorpay status={}",
+                purchaseId,
+                status
+            );
+
+            // =================================================
+            // RAZORPAY CONFIRMS REFUND COMPLETED
+            // =================================================
+
+            if ("processed".equals(status)) {
+
+                refundPersistenceService
+                    .recoverProcessedRefundWithoutAttempt(
+                        purchaseId,
+                        refundId,
+                        returnedPaymentId,
+                        amountInPaise.longValue()
+                    );
+
+                log.info(
+                    "Purchase {} recovered as REFUNDED",
+                    purchaseId
+                );
+
+                return;
+            }
+
+            // =================================================
+            // REFUND STILL PROCESSING
+            // =================================================
+
+            if ("created".equals(status)
+                    || "pending".equals(status)
+                    || "queued".equals(status)) {
+
+                log.info(
+                    "Purchase {} remains Processing; "
+                        + "Razorpay status={}",
+                    purchaseId,
+                    status
+                );
+
+                return;
+            }
+
+            // =================================================
+            // REFUND FAILED
+            // =================================================
+
+            if ("failed".equals(status)) {
+
+                log.warn(
+                    "Purchase {} refund failed in Razorpay. "
+                        + "No RefundAttempt record exists. "
+                        + "Manual investigation required.",
+                    purchaseId
+                );
+
+                return;
+            }
+
+            // =================================================
+            // UNKNOWN STATUS
+            // =================================================
+
+            log.warn(
+                "Unknown Razorpay refund status '{}' "
+                    + "for purchase {}",
+                status,
+                purchaseId
+            );
+
+        } catch (Exception ex) {
+
+            log.error(
+                "Missing-attempt refund recovery failed "
+                    + "for purchase {}",
+                purchaseId,
+                ex
+            );
+        }
+    }
+
+    // =========================================================
+    // VERIFY AN EXISTING RAZORPAY REFUND ATTEMPT
     // =========================================================
 
     private void reconcileAttempt(
@@ -245,6 +496,10 @@ public class RefundReconciliationService {
             attempt.getStatus()
         );
 
+        // =====================================================
+        // VALIDATE REFUND ID
+        // =====================================================
+
         if (refundId == null || refundId.isBlank()) {
 
             log.warn(
@@ -258,6 +513,10 @@ public class RefundReconciliationService {
         }
 
         try {
+
+            // =================================================
+            // FETCH EXISTING REFUND
+            // =================================================
 
             Refund razorpayRefund =
                     client.refunds.fetch(refundId);
@@ -305,7 +564,7 @@ public class RefundReconciliationService {
             }
 
             // =================================================
-            // VERIFY AMOUNT
+            // VERIFY REFUND AMOUNT
             // =================================================
 
             BigDecimal expectedAmount =
@@ -345,7 +604,8 @@ public class RefundReconciliationService {
                     || razorpayStatus.isBlank()) {
 
                 log.warn(
-                    "Empty Razorpay status for purchase {}",
+                    "Empty Razorpay refund status "
+                        + "for purchase {}",
                     purchaseId
                 );
 
@@ -386,7 +646,7 @@ public class RefundReconciliationService {
             );
 
             // =================================================
-            // AVOID UNNECESSARY UPDATES
+            // AVOID UNNECESSARY DATABASE UPDATES
             // =================================================
 
             boolean alreadyProcessing =
