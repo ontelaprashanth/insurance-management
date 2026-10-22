@@ -232,9 +232,10 @@ export default function BuyPolicy() {
     enabled: !isRenewal,
   })
 
+  // Customer-owned policies: do not use the admin-only policies.get endpoint.
   const originalPolicyQuery = useQuery({
-    queryKey: ['renewal-policy', originalPolicyNumber],
-    queryFn: () => policies.get(originalPolicyNumber),
+    queryKey: ['my-policies'],
+    queryFn: policies.mine,
     enabled: isRenewal && Boolean(originalPolicyNumber),
     retry: 1,
   })
@@ -259,7 +260,27 @@ export default function BuyPolicy() {
     [catalogue, routeId],
   )
 
-  const originalPolicy = originalPolicyQuery.data
+  const originalPolicy = useMemo(() => {
+    if (!isRenewal) return null
+
+    const data = originalPolicyQuery.data
+    const rows = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.content)
+        ? data.content
+        : Array.isArray(data?.data)
+          ? data.data
+          : Array.isArray(data?.data?.content)
+            ? data.data.content
+            : Array.isArray(data?.policies)
+              ? data.policies
+              : []
+
+    return rows.find((item) =>
+      String(item?.policyNumber ?? item?.policy?.policyNumber) ===
+      String(originalPolicyNumber),
+    ) ?? null
+  }, [isRenewal, originalPolicyQuery.data, originalPolicyNumber])
 
   const originalPurchase = useMemo(() => {
     if (!isRenewal) return null
@@ -301,7 +322,9 @@ export default function BuyPolicy() {
   )
 
   const renewalYears = Number(
-    originalPolicy?.durationYears ?? 0,
+    originalPolicy?.durationYears ??
+    originalPolicy?.policy?.durationYears ??
+    originalPurchase?.durationYears ?? 0,
   )
 
   const renewalPremium = Number(
@@ -319,6 +342,8 @@ export default function BuyPolicy() {
   const coveredType = isRenewal
     ? (
       originalPolicy?.coveredTypes ||
+      originalPolicy?.policy?.coveredTypes ||
+      originalPurchase?.coveredTypes ||
       'Insurance'
     )
     : (
@@ -716,11 +741,11 @@ export default function BuyPolicy() {
 
       <DataState query={currentQuery}>
         {() =>
-          (isRenewal && !originalPurchase) ||
+          (isRenewal && (!originalPurchase || !originalPolicy)) ||
           (!isRenewal && !policy) ? (
             <div className="alert error" role="alert">
               {isRenewal
-                ? 'The original policy purchase could not be found.'
+                ? 'The original policy or purchase could not be found in your account.'
                 : 'This insurance plan is not available.'}
             </div>
           ) : !est ? (
