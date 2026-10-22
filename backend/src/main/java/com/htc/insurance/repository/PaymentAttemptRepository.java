@@ -68,10 +68,12 @@ public interface PaymentAttemptRepository
     // =========================================================
 
     /**
-     * Returns payment attempts for an original policy.
+     * Returns all payment attempts for an original policy.
      *
-     * Includes pending, completed, and reconciliation
-     * attempts.
+     * Includes:
+     * - Pending renewal attempts
+     * - Completed renewal attempts
+     * - Attempts requiring reconciliation
      */
     List<PaymentAttempt>
             findByRenewalSourcePolicyNumberOrderByCreatedAtDesc(
@@ -84,9 +86,10 @@ public interface PaymentAttemptRepository
 
     /**
      * Supported purchase types:
-     *
      * NEW
      * RENEWAL
+     *
+     * Historical purchases may have a null purchase type.
      */
     List<PaymentAttempt> findByPurchaseType(
             String purchaseType
@@ -112,13 +115,8 @@ public interface PaymentAttemptRepository
     // =========================================================
 
     /**
-     * Locks the payment attempt row before updating
-     * its order/payment status.
-     *
-     * Used by:
-     *
-     * PaymentAttemptService.markOrderCreated()
-     * PaymentAttemptService.markReconciliationRequired()
+     * Locks the payment attempt before updating
+     * its Razorpay order or reconciliation status.
      *
      * Must execute inside an active transaction.
      */
@@ -137,16 +135,10 @@ public interface PaymentAttemptRepository
     // =========================================================
 
     /**
-     * Locks the payment attempt row before processing
-     * a captured Razorpay payment.
+     * Locks the payment attempt before updating
+     * a verified or completed payment.
      *
-     * Used by:
-     *
-     * PaymentAttemptService.markPaymentVerified()
-     * PaymentAttemptService.markPurchaseCompleted()
-     *
-     * Prevents concurrent requests from overwriting
-     * payment state.
+     * Prevents concurrent payment status changes.
      *
      * Must execute inside an active transaction.
      */
