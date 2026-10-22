@@ -6,13 +6,19 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
+
+import com.htc.insurance.entity.Policy;
+import com.htc.insurance.entity.PolicyLifecycleStatus;
 import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.RefundAttempt;
 import com.htc.insurance.entity.RefundAttemptStatus;
+
 import com.htc.insurance.repository.RefundAttemptRepository;
 
 @Service
@@ -39,20 +45,36 @@ public class RefundAttemptPersistenceService {
 
     private final RefundAttemptRepository refundRepository;
     private final PolicyPurchaseDao purchaseDao;
+    private final PolicyDao policyDao;
 
     public RefundAttemptPersistenceService(
             RefundAttemptRepository refundRepository,
-            PolicyPurchaseDao purchaseDao) {
+            PolicyPurchaseDao purchaseDao,
+            PolicyDao policyDao) {
 
         this.refundRepository = refundRepository;
         this.purchaseDao = purchaseDao;
+        this.policyDao = policyDao;
     }
 
     // =========================================================
-    // CREATE REFUND ATTEMPT BEFORE CONTACTING RAZORPAY
+    // CREATE REFUND ATTEMPT
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Creates one persistent refund attempt before
+     * contacting Razorpay.
+     *
+     * Database locking order:
+     * 1. Policy
+     * 2. Purchase
+     *
+     * The attempt is committed before the external
+     * Razorpay refund request begins.
+     */
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public RefundAttempt beginRefund(
             Long purchaseId,
             String paymentId,
@@ -72,6 +94,7 @@ public class RefundAttemptPersistenceService {
 
         if (amount == null
                 || amount.compareTo(BigDecimal.ZERO) <= 0) {
+
             throw new IllegalArgumentException(
                     "Refund amount must be positive.");
         }
@@ -86,9 +109,11 @@ public class RefundAttemptPersistenceService {
                     "Authenticated username is required.");
         }
 
-        // Lock purchase before checking and creating an attempt.
-        PolicyPurchase purchase =
-                getPurchaseForUpdate(purchaseId);
+        LockedRefundContext context =
+                lockPolicyAndPurchase(purchaseId);
+
+        PolicyPurchase purchase = context.purchase;
+        Policy policy = context.policy;
 
         if (!REFUND_PENDING.equalsIgnoreCase(
                 purchase.getRefundStatus())) {
@@ -97,7 +122,6 @@ public class RefundAttemptPersistenceService {
                     "Purchase is not awaiting a refund.");
         }
 
-        // Preserve original duplicate prevention.
         if (refundRepository.existsByPurchaseId(purchaseId)) {
 
             throw new IllegalStateException(
@@ -120,8 +144,15 @@ public class RefundAttemptPersistenceService {
                     "The refund amount does not match the purchase.");
         }
 
+        if (purchase.getRefundReason() != null
+                && !reason.equals(purchase.getRefundReason())) {
+
+            throw new IllegalStateException(
+                    "The refund reason does not match the purchase.");
+        }
+
         // =====================================================
-        // CREATE ATTEMPT
+        // CREATE REFUND ATTEMPT
         // =====================================================
 
         RefundAttempt attempt = new RefundAttempt();
@@ -133,14 +164,14 @@ public class RefundAttemptPersistenceService {
         attempt.setRequestedBy(username);
         attempt.setStatus(RefundAttemptStatus.PROCESSING);
 
-        // Save before contacting Razorpay to prevent duplicates.
         RefundAttempt saved =
                 refundRepository.saveAndFlush(attempt);
 
-        // Keep both records synchronized.
         purchase.setRefundStatus(REFUND_PROCESSING);
         purchase.setRefundReason(reason);
         purchase.setRefundAmount(amount);
+
+        markPolicyRefundPending(policy);
 
         purchaseDao.savePurchase(purchase);
 
@@ -151,7 +182,21 @@ public class RefundAttemptPersistenceService {
     // RECORD VERIFIED RAZORPAY REFUND RESULT
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    /**
+     * Called by the signature-verified Razorpay webhook.
+     *
+     * The controller must independently verify:
+     * - Refund attempt ID
+     * - Purchase ID, if provided
+     * - Original payment ID
+     * - Exact refund amount
+     * - Existing refund ID
+     *
+     * This method makes the status changes atomic.
+     */
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public void recordRefundResult(
             Long attemptId,
             String refundId,
@@ -171,36 +216,34 @@ public class RefundAttemptPersistenceService {
                     "A Razorpay refund status is required.");
         }
 
-        /*
-         * Read attempt to identify the purchase.
-         *
-         * The purchase is locked first, so both
-         * persistence services follow the same
-         * lock ordering.
-         */
+        // Read attempt only to identify the purchase.
         RefundAttempt initialAttempt = refundRepository
                 .findById(attemptId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Refund attempt was not found."));
 
-        PolicyPurchase purchase =
-                getPurchaseForUpdate(
+        LockedRefundContext context =
+                lockPolicyAndPurchase(
                         initialAttempt.getPurchaseId());
+
+        PolicyPurchase purchase = context.purchase;
+        Policy policy = context.policy;
 
         RefundAttempt attempt = refundRepository
                 .findById(attemptId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Refund attempt was not found."));
 
-        if (!attempt.getPurchaseId().equals(
-                purchase.getPurchaseId())) {
+        if (attempt.getPurchaseId() == null
+                || !attempt.getPurchaseId().equals(
+                        purchase.getPurchaseId())) {
 
             throw new IllegalStateException(
                     "Refund attempt purchase mismatch.");
         }
 
         // =====================================================
-        // VALIDATE EXISTING REFUND IDENTIFIERS
+        // VALIDATE REFUND IDENTIFIERS
         // =====================================================
 
         validateExistingRefundId(
@@ -216,7 +259,7 @@ public class RefundAttemptPersistenceService {
                 .toLowerCase(Locale.ROOT);
 
         // =====================================================
-        // NEVER DOWNGRADE A COMPLETED REFUND
+        // PREVENT COMPLETED REFUND DOWNGRADES
         // =====================================================
 
         boolean purchaseRefunded =
@@ -236,8 +279,6 @@ public class RefundAttemptPersistenceService {
                         + "Reconciliation is required.");
             }
 
-            // An already-completed refund must have the
-            // same refund ID in both records.
             if (!refundId.equals(purchase.getRefundId())
                     || !refundId.equals(
                             attempt.getRazorpayRefundId())) {
@@ -246,11 +287,15 @@ public class RefundAttemptPersistenceService {
                         "Completed refund ID mismatch.");
             }
 
+            // Repair legacy policy state if the purchase
+            // and attempt are already confirmed refunded.
+            markPolicyRefunded(policy);
+
             return;
         }
 
         // =====================================================
-        // VALIDATE TERMINAL FAILURE
+        // PRESERVE CONFIRMED FAILURE
         // =====================================================
 
         boolean failed =
@@ -259,13 +304,6 @@ public class RefundAttemptPersistenceService {
                 || REFUND_FAILED.equalsIgnoreCase(
                         purchase.getRefundStatus());
 
-        /*
-         * Ignore delayed created/pending/queued events
-         * after a confirmed failure.
-         *
-         * A later verified processed event is allowed
-         * to correct a previously recorded failure.
-         */
         if (failed
                 && ("created".equals(status)
                 || "pending".equals(status)
@@ -275,14 +313,14 @@ public class RefundAttemptPersistenceService {
         }
 
         // =====================================================
-        // RECORD RAZORPAY REFUND ID
+        // SAVE RAZORPAY REFUND ID
         // =====================================================
 
         attempt.setRazorpayRefundId(refundId);
         purchase.setRefundId(refundId);
 
         // =====================================================
-        // HANDLE RAZORPAY REFUND STATUS
+        // HANDLE RAZORPAY STATUS
         // =====================================================
 
         switch (status) {
@@ -290,11 +328,12 @@ public class RefundAttemptPersistenceService {
             case "processed":
 
                 /*
-                 * Razorpay confirmed the refund was processed.
+                 * Razorpay confirms refund processing.
                  *
-                 * Do not interpret this as independent proof
-                 * that the customer's bank has credited it.
+                 * Do not treat this as independent proof
+                 * of a bank account credit.
                  */
+
                 attempt.setStatus(
                         RefundAttemptStatus.REFUNDED);
 
@@ -306,6 +345,8 @@ public class RefundAttemptPersistenceService {
                     purchase.setRefundDateTime(
                             LocalDateTime.now());
                 }
+
+                markPolicyRefunded(policy);
 
                 break;
 
@@ -321,6 +362,8 @@ public class RefundAttemptPersistenceService {
                 purchase.setRefundStatus(
                         REFUND_PROCESSING);
 
+                markPolicyRefundPending(policy);
+
                 break;
 
             case "failed":
@@ -334,14 +377,14 @@ public class RefundAttemptPersistenceService {
                 purchase.setRefundStatus(
                         REFUND_FAILED);
 
+                // A failed refund does not automatically
+                // restore policy eligibility.
+                markPolicyRefundPending(policy);
+
                 break;
 
             default:
 
-                /*
-                 * Unknown statuses must not be treated
-                 * as successful or failed refunds.
-                 */
                 attempt.setStatus(
                         RefundAttemptStatus.REQUIRES_RECONCILIATION);
 
@@ -352,10 +395,12 @@ public class RefundAttemptPersistenceService {
                 purchase.setRefundStatus(
                         RECONCILIATION);
 
+                markPolicyRefundPending(policy);
+
                 break;
         }
 
-        // Both updates commit in the same transaction.
+        // Commit attempt, purchase and policy together.
         refundRepository.saveAndFlush(attempt);
         purchaseDao.savePurchase(purchase);
     }
@@ -364,7 +409,9 @@ public class RefundAttemptPersistenceService {
     // MARK UNCERTAIN REFUND FOR RECONCILIATION
     // =========================================================
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(
+            propagation = Propagation.REQUIRES_NEW,
+            isolation = Isolation.READ_COMMITTED)
     public void requireReconciliation(
             Long attemptId,
             String reason) {
@@ -379,25 +426,50 @@ public class RefundAttemptPersistenceService {
                 .orElseThrow(() -> new IllegalStateException(
                         "Refund attempt was not found."));
 
-        PolicyPurchase purchase =
-                getPurchaseForUpdate(
+        LockedRefundContext context =
+                lockPolicyAndPurchase(
                         initialAttempt.getPurchaseId());
+
+        PolicyPurchase purchase = context.purchase;
+        Policy policy = context.policy;
 
         RefundAttempt attempt = refundRepository
                 .findById(attemptId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Refund attempt was not found."));
 
-        // Never overwrite a confirmed completed refund.
+        if (attempt.getPurchaseId() == null
+                || !attempt.getPurchaseId().equals(
+                        purchase.getPurchaseId())) {
+
+            throw new IllegalStateException(
+                    "Refund attempt purchase mismatch.");
+        }
+
+        // =====================================================
+        // PRESERVE COMPLETED REFUNDS
+        // =====================================================
+
         if (attempt.getStatus()
                     == RefundAttemptStatus.REFUNDED
                 || REFUNDED.equalsIgnoreCase(
                         purchase.getRefundStatus())) {
 
+            if (attempt.getStatus()
+                    == RefundAttemptStatus.REFUNDED
+                    && REFUNDED.equalsIgnoreCase(
+                            purchase.getRefundStatus())) {
+
+                markPolicyRefunded(policy);
+            }
+
             return;
         }
 
-        // Preserve confirmed failure.
+        // =====================================================
+        // PRESERVE FAILED REFUNDS
+        // =====================================================
+
         if (attempt.getStatus()
                     == RefundAttemptStatus.FAILED
                 || REFUND_FAILED.equalsIgnoreCase(
@@ -406,13 +478,10 @@ public class RefundAttemptPersistenceService {
             return;
         }
 
-        /*
-         * If a refund ID is already known, preserve
-         * its processing state.
-         *
-         * It can be checked against Razorpay using
-         * that refund ID.
-         */
+        // =====================================================
+        // PRESERVE KNOWN REFUND IDS
+        // =====================================================
+
         boolean knownRefundId =
                 (attempt.getRazorpayRefundId() != null
                 && !attempt.getRazorpayRefundId().isBlank())
@@ -431,15 +500,63 @@ public class RefundAttemptPersistenceService {
 
         purchase.setRefundStatus(RECONCILIATION);
 
+        markPolicyRefundPending(policy);
+
         refundRepository.saveAndFlush(attempt);
         purchaseDao.savePurchase(purchase);
     }
 
     // =========================================================
-    // HELPERS
+    // MARK POLICY REFUND PENDING
     // =========================================================
 
-    private PolicyPurchase getPurchaseForUpdate(
+    private void markPolicyRefundPending(Policy policy) {
+
+        if (policy == null) {
+            throw new IllegalStateException(
+                    "Refund policy is unavailable.");
+        }
+
+        if (policy.getLifecycleStatus()
+                == PolicyLifecycleStatus.REFUNDED) {
+
+            throw new IllegalStateException(
+                    "A refunded policy cannot return "
+                    + "to refund pending.");
+        }
+
+        policy.setIsActive(Boolean.FALSE);
+
+        policy.setLifecycleStatus(
+                PolicyLifecycleStatus.REFUND_PENDING);
+
+        policyDao.savePolicy(policy);
+    }
+
+    // =========================================================
+    // MARK POLICY REFUNDED
+    // =========================================================
+
+    private void markPolicyRefunded(Policy policy) {
+
+        if (policy == null) {
+            throw new IllegalStateException(
+                    "Refund policy is unavailable.");
+        }
+
+        policy.setIsActive(Boolean.FALSE);
+
+        policy.setLifecycleStatus(
+                PolicyLifecycleStatus.REFUNDED);
+
+        policyDao.savePolicy(policy);
+    }
+
+    // =========================================================
+    // LOCK POLICY FIRST, PURCHASE SECOND
+    // =========================================================
+
+    private LockedRefundContext lockPolicyAndPurchase(
             Long purchaseId) {
 
         if (purchaseId == null || purchaseId <= 0) {
@@ -447,11 +564,52 @@ public class RefundAttemptPersistenceService {
                     "A valid purchase ID is required.");
         }
 
-        return purchaseDao
+        // Initial read identifies the linked policy.
+        PolicyPurchase initialPurchase =
+                purchaseDao.getPurchaseById(purchaseId);
+
+        if (initialPurchase == null
+                || initialPurchase.getPolicy() == null
+                || initialPurchase.getPolicy()
+                    .getPolicyNumber() == null) {
+
+            throw new IllegalStateException(
+                    "Purchase or linked policy was not found.");
+        }
+
+        Long policyNumber =
+                initialPurchase.getPolicy().getPolicyNumber();
+
+        Policy policy =
+                policyDao.getPolicyByIdForUpdate(policyNumber);
+
+        if (policy == null) {
+            throw new IllegalStateException(
+                    "Linked policy was not found.");
+        }
+
+        PolicyPurchase purchase = purchaseDao
                 .getPurchaseByIdForUpdate(purchaseId)
                 .orElseThrow(() -> new IllegalStateException(
                         "Purchase was not found."));
+
+        if (purchase.getPolicy() == null
+                || purchase.getPolicy()
+                    .getPolicyNumber() == null
+                || !policyNumber.equals(
+                        purchase.getPolicy()
+                            .getPolicyNumber())) {
+
+            throw new IllegalStateException(
+                    "Purchase policy changed during processing.");
+        }
+
+        return new LockedRefundContext(policy, purchase);
     }
+
+    // =========================================================
+    // VALIDATE REFUND ID
+    // =========================================================
 
     private void validateRefundId(String refundId) {
 
@@ -460,6 +618,10 @@ public class RefundAttemptPersistenceService {
                     "A valid Razorpay refund ID is required.");
         }
     }
+
+    // =========================================================
+    // VALIDATE EXISTING REFUND ID
+    // =========================================================
 
     private void validateExistingRefundId(
             String existingRefundId,
@@ -474,6 +636,10 @@ public class RefundAttemptPersistenceService {
                     + "the existing refund record.");
         }
     }
+
+    // =========================================================
+    // LIMIT ERROR TEXT
+    // =========================================================
 
     private String limit(
             String value,
@@ -490,5 +656,23 @@ public class RefundAttemptPersistenceService {
         return cleaned.length() <= maxLength
                 ? cleaned
                 : cleaned.substring(0, maxLength);
+    }
+
+    // =========================================================
+    // LOCKED REFUND CONTEXT
+    // =========================================================
+
+    private static final class LockedRefundContext {
+
+        private final Policy policy;
+        private final PolicyPurchase purchase;
+
+        private LockedRefundContext(
+                Policy policy,
+                PolicyPurchase purchase) {
+
+            this.policy = policy;
+            this.purchase = purchase;
+        }
     }
 }
