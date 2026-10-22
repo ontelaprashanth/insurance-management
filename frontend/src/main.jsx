@@ -1,4 +1,3 @@
-
 import React from 'react'
 import ReactDOM from 'react-dom/client'
 
@@ -21,46 +20,125 @@ import './styles.css'
 
    React 18
    React Router
-   React Query
+   TanStack React Query
    JWT Authentication
+   Secure Account Cache Isolation
    Toast Notifications
+   Render Free Backend Support
+   Payment / Refund Retry Protection
    Global Styles
 ========================================================= */
 
 /* =========================================================
-   REACT QUERY CONFIGURATION
+   QUERY RETRY POLICY
+
+   Only retry safe GET requests.
+
+   Never automatically retry:
+   - Login
+   - Policy purchases
+   - Razorpay payment creation / verification
+   - Policy renewals
+   - Refund requests
+   - Claims or settlement mutations
+
+   A failed network response does not necessarily mean
+   that the backend failed to process a transaction.
+========================================================= */
+
+function shouldRetryQuery(failureCount, error) {
+  const status = error?.response?.status
+
+  const method = String(
+    error?.config?.method ?? 'get',
+  ).toLowerCase()
+
+  // Never retry requests that can modify data.
+  if (method !== 'get') {
+    return false
+  }
+
+  // Authentication and authorization errors.
+  if (status === 401 || status === 403) {
+    return false
+  }
+
+  // Invalid requests and missing resources.
+  if (
+    status === 400 ||
+    status === 404 ||
+    status === 409 ||
+    status === 422
+  ) {
+    return false
+  }
+
+  // Do not retry cancelled requests.
+  if (error?.code === 'ERR_CANCELED') {
+    return false
+  }
+
+  // Retry safe reads once after temporary failures.
+  const temporaryFailure =
+    !status ||
+    status === 408 ||
+    status === 429 ||
+    status >= 500
+
+  return temporaryFailure && failureCount < 1
+}
+
+/* =========================================================
+   REACT QUERY CLIENT
+
+   Cache isolation:
+   AuthContext clears this QueryClient whenever the
+   authenticated account changes or logs out.
+
+   Financial safety:
+   Mutations are never automatically retried.
 ========================================================= */
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Do not retry unauthorized or forbidden requests.
-      retry: (failureCount, error) => {
-        const status = error?.response?.status
+      retry: shouldRetryQuery,
 
-        if (status === 401 || status === 403) {
-          return false
-        }
+      // A failed GET retry is delayed slightly.
+      retryDelay: (attemptIndex) =>
+        Math.min(
+          1500 * 2 ** attemptIndex,
+          5000,
+        ),
 
-        return failureCount < 1
-      },
-
-      // Avoid unnecessary API requests.
+      // Reduce unnecessary requests between pages.
       staleTime: 15_000,
 
-      // Pages can explicitly enable this when needed.
+      // Keep inactive query data for five minutes.
+      gcTime: 5 * 60 * 1000,
+
+      // Individual pages may enable focus polling.
       refetchOnWindowFocus: false,
 
-      // Refresh data when a component mounts if stale.
+      // Refresh stale data when reopening a page.
       refetchOnMount: true,
 
-      // Do not automatically refetch during a network outage.
+      // Revalidate after internet connectivity returns.
       refetchOnReconnect: true,
+
+      // Pause network-dependent queries while offline.
+      networkMode: 'online',
+
+      // Let pages explicitly configure polling
+      // for refund and payment status tracking.
+      refetchInterval: false,
     },
 
     mutations: {
-      // Avoid repeating financial transactions.
+      // Critical: no automatic repeat of transactions.
       retry: false,
+
+      networkMode: 'online',
     },
   },
 })
@@ -69,13 +147,27 @@ const queryClient = new QueryClient({
    APPLICATION ROOT
 ========================================================= */
 
-const rootElement = document.getElementById('root')
+const rootElement =
+  document.getElementById('root')
 
 if (!rootElement) {
   throw new Error(
     'InsureX root element was not found.',
   )
 }
+
+/* =========================================================
+   PROVIDER ORDER
+
+   QueryClientProvider
+     BrowserRouter
+       ToastProvider
+         AuthProvider
+           App
+
+   AuthProvider requires QueryClientProvider.
+   App requires AuthProvider and BrowserRouter.
+========================================================= */
 
 ReactDOM.createRoot(rootElement).render(
   <React.StrictMode>
