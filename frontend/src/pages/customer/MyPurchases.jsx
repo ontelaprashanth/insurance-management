@@ -97,12 +97,27 @@ function isRefunded(purchase) {
   )
 }
 
+function isRefundNotRequested(purchase) {
+  return !purchase?.refundId && [
+    '',
+    'NOT_REFUNDED',
+  ].includes(normalizeStatus(purchase?.refundStatus))
+}
+
+function refundEligibilityMessage(purchase) {
+  if (!isPaid(purchase)) return 'Only paid purchases can be refunded.'
+  if (!isRefundNotRequested(purchase)) return 'A refund has already been requested or recorded.'
+  if (purchase?.refundEligible !== true) {
+    return 'Refund unavailable: the server has not confirmed eligibility. Check the 24-hour window and purchase eligibility rules.'
+  }
+  return ''
+}
+
 function canRequestRefund(purchase) {
   return (
     purchase?.refundEligible === true &&
     isPaid(purchase) &&
-    normalizeStatus(purchase?.refundStatus) ===
-      'NOT_REFUNDED'
+    isRefundNotRequested(purchase)
   )
 }
 
@@ -427,9 +442,10 @@ export function PurchaseDetail({
             gap: 8,
           }}
         >
-          {eligible && onRequestRefund && (
+          {isPaid(p) && isRefundNotRequested(p) && onRequestRefund && (
             <Button
               variant="dark"
+              disabled={!eligible}
               onClick={() =>
                 onRequestRefund(p)
               }
@@ -642,6 +658,13 @@ export function PurchaseDetail({
               for a refund. Submit your request
               before the deadline.
             </span>
+          </div>
+        )}
+
+        {isPaid(p) && isRefundNotRequested(p) && !eligible && (
+          <div className="alert info" role="status">
+            <AlertCircle size={17} />
+            <span>{refundEligibilityMessage(p)}</span>
           </div>
         )}
 
@@ -1141,18 +1164,18 @@ export default function MyPurchases() {
                         Details
                       </Button>
 
-                      {canRequestRefund(p) && (
+                      {isPaid(p) && isRefundNotRequested(p) && (
                         <Button
                           size="sm"
                           variant="dark"
-                          disabled={submitting}
+                          disabled={submitting || !canRequestRefund(p)}
                           onClick={(event) => {
                             event?.stopPropagation?.()
                             setRefundError('')
                             setRefundPurchase(p)
                           }}
                         >
-                          Refund
+                          {canRequestRefund(p) ? 'Refund' : 'Refund unavailable'}
                         </Button>
                       )}
                     </div>
