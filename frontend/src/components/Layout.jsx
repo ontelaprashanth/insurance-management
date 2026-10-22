@@ -19,6 +19,7 @@ import {
   LayoutDashboard,
   ShieldPlus,
   ShieldCheck,
+  ShieldAlert,
   CreditCard,
   HandCoins,
   ClipboardList,
@@ -68,6 +69,13 @@ const USER_NAV = [
         to: '/app/policies',
         label: 'My policies',
         icon: ShieldCheck,
+        end: true,
+      },
+      {
+        to: '/app/policies?status=claimed',
+        label: 'Claimed policies',
+        icon: ShieldAlert,
+        end: true,
       },
       {
         to: '/app/purchases',
@@ -196,7 +204,8 @@ export default function Layout({ role }) {
 
   const [open, setOpen] = useState(false)
 
-  const { pathname } = useLocation()
+  const location = useLocation()
+  const { pathname, search } = location
   const navigate = useNavigate()
 
   const menuButtonRef = useRef(null)
@@ -212,7 +221,7 @@ export default function Layout({ role }) {
 
   useEffect(() => {
     setOpen(false)
-  }, [pathname])
+  }, [pathname, search])
 
   /* =======================================================
      LOCK BACKGROUND SCROLLING
@@ -297,13 +306,31 @@ export default function Layout({ role }) {
   const renderNavItem = (item) => {
     const NavIcon = item.icon
 
+    const isClaimedPoliciesLink =
+      item.to === '/app/policies?status=claimed'
+
+    const isPoliciesLink =
+      item.to === '/app/policies'
+
+    const isActive = isClaimedPoliciesLink
+      ? (
+        pathname === '/app/policies' &&
+        new URLSearchParams(search).get('status') === 'claimed'
+      )
+      : isPoliciesLink
+        ? (
+          pathname === '/app/policies' &&
+          new URLSearchParams(search).get('status') !== 'claimed'
+        )
+        : undefined
+
     return (
       <NavLink
         key={item.to}
         to={item.to}
         end={item.end ?? false}
-        className={({ isActive }) =>
-          isActive ? 'active' : ''
+        className={({ isActive: routeActive }) =>
+          (isActive ?? routeActive) ? 'active' : ''
         }
         onClick={() => setOpen(false)}
       >
