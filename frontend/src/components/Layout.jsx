@@ -1,4 +1,3 @@
-
 import {
   useEffect,
   useState,
@@ -42,7 +41,20 @@ import { Icon, Logo } from './ui'
 import { initials } from '../lib/format'
 
 /* =========================================================
-   INSUREX — CUSTOMER NAVIGATION
+   INSUREX — APPLICATION LAYOUT
+
+   Customer Navigation
+   Admin Navigation
+   Responsive Sidebar
+   Mobile Menu
+   Unread Notifications
+   Secure Logout
+   Keyboard Accessibility
+   Role-Based Navigation
+========================================================= */
+
+/* =========================================================
+   CUSTOMER NAVIGATION
 ========================================================= */
 
 const USER_NAV = [
@@ -118,7 +130,7 @@ const USER_NAV = [
 ]
 
 /* =========================================================
-   INSUREX — ADMIN NAVIGATION
+   ADMIN NAVIGATION
 ========================================================= */
 
 const ADMIN_NAV = [
@@ -196,27 +208,69 @@ const ADMIN_NAV = [
 ]
 
 /* =========================================================
+   HELPERS
+========================================================= */
+
+function getUnreadCount(data) {
+  const raw =
+    typeof data === 'number'
+      ? data
+      : data?.count ??
+        data?.unreadCount ??
+        data?.total ??
+        0
+
+  const count = Number(raw)
+
+  return Number.isFinite(count)
+    ? Math.max(0, Math.floor(count))
+    : 0
+}
+
+function isClaimedRoute(pathname, search) {
+  return (
+    pathname === '/app/policies' &&
+    new URLSearchParams(search).get('status') ===
+      'claimed'
+  )
+}
+
+function isPoliciesRoute(pathname, search) {
+  return (
+    pathname === '/app/policies' &&
+    !isClaimedRoute(pathname, search)
+  )
+}
+
+/* =========================================================
    MAIN APPLICATION LAYOUT
 ========================================================= */
 
 export default function Layout({ role }) {
   const { user, logout } = useAuth()
 
-  const [open, setOpen] = useState(false)
-
   const location = useLocation()
-  const { pathname, search } = location
   const navigate = useNavigate()
+
+  const { pathname, search } = location
+
+  const [open, setOpen] = useState(false)
 
   const menuButtonRef = useRef(null)
   const sidebarRef = useRef(null)
 
   const isAdmin = role === 'ADMIN'
-  const nav = isAdmin ? ADMIN_NAV : USER_NAV
-  const dashboardPath = isAdmin ? '/admin' : '/app'
+
+  const nav = isAdmin
+    ? ADMIN_NAV
+    : USER_NAV
+
+  const dashboardPath = isAdmin
+    ? '/admin'
+    : '/app'
 
   /* =======================================================
-     CLOSE MOBILE MENU ON NAVIGATION
+     CLOSE MOBILE MENU AFTER NAVIGATION
   ======================================================= */
 
   useEffect(() => {
@@ -224,7 +278,9 @@ export default function Layout({ role }) {
   }, [pathname, search])
 
   /* =======================================================
-     LOCK BACKGROUND SCROLLING
+     PREVENT BACKGROUND SCROLLING
+
+     Applies only when the mobile sidebar is open.
   ======================================================= */
 
   useEffect(() => {
@@ -242,13 +298,16 @@ export default function Layout({ role }) {
   }, [open])
 
   /* =======================================================
-     ESCAPE KEY SUPPORT
+     KEYBOARD ACCESSIBILITY
+
+     Escape closes the sidebar.
+     Focus returns to the menu button.
   ======================================================= */
 
   useEffect(() => {
     if (!open) return
 
-    const handleEscape = (event) => {
+    function handleKeyDown(event) {
       if (event.key === 'Escape') {
         setOpen(false)
         menuButtonRef.current?.focus()
@@ -257,82 +316,118 @@ export default function Layout({ role }) {
 
     document.addEventListener(
       'keydown',
-      handleEscape,
+      handleKeyDown,
     )
 
     return () => {
       document.removeEventListener(
         'keydown',
-        handleEscape,
+        handleKeyDown,
       )
     }
   }, [open])
 
   /* =======================================================
      CUSTOMER UNREAD NOTIFICATIONS
+
+     ADMIN does not call customer notification API.
+
+     Polls every 60 seconds while the page is active.
   ======================================================= */
 
   const unread = useQuery({
     queryKey: ['notifications', 'unread'],
+
     queryFn: notifications.unread,
-    enabled: !isAdmin,
+
+    enabled: !isAdmin && Boolean(user),
+
     staleTime: 15_000,
+
     refetchInterval: 60_000,
+
+    refetchIntervalInBackground: false,
+
     refetchOnWindowFocus: true,
+
+    refetchOnReconnect: true,
   })
 
-  const unreadCount = Math.max(
-    0,
-    Number(unread.data?.count || 0) || 0,
+  const unreadCount = getUnreadCount(
+    unread.data,
   )
 
   /* =======================================================
      LOGOUT
+
+     AuthContext clears:
+     - JWT token
+     - Current user
+     - React Query cache
   ======================================================= */
 
   const handleLogout = useCallback(() => {
     setOpen(false)
+
     logout()
 
     navigate('/login', {
       replace: true,
     })
-  }, [logout, navigate])
+  }, [
+    logout,
+    navigate,
+  ])
 
   /* =======================================================
-     NAVIGATION LINK
+     MOBILE MENU
+  ======================================================= */
+
+  const closeMenu = useCallback(() => {
+    setOpen(false)
+  }, [])
+
+  const toggleMenu = useCallback(() => {
+    setOpen((current) => !current)
+  }, [])
+
+  /* =======================================================
+     NAVIGATION ITEM
   ======================================================= */
 
   const renderNavItem = (item) => {
     const NavIcon = item.icon
 
-    const isClaimedPoliciesLink =
-      item.to === '/app/policies?status=claimed'
+    let customActive
 
-    const isPoliciesLink =
-      item.to === '/app/policies'
-
-    const isActive = isClaimedPoliciesLink
-      ? (
-        pathname === '/app/policies' &&
-        new URLSearchParams(search).get('status') === 'claimed'
+    if (
+      item.to ===
+      '/app/policies?status=claimed'
+    ) {
+      customActive = isClaimedRoute(
+        pathname,
+        search,
       )
-      : isPoliciesLink
-        ? (
-          pathname === '/app/policies' &&
-          new URLSearchParams(search).get('status') !== 'claimed'
-        )
-        : undefined
+    } else if (
+      item.to === '/app/policies'
+    ) {
+      customActive = isPoliciesRoute(
+        pathname,
+        search,
+      )
+    }
 
     return (
       <NavLink
         key={item.to}
         to={item.to}
         end={item.end ?? false}
-        className={({ isActive: routeActive }) =>
-          (isActive ?? routeActive) ? 'active' : ''
+        className={({ isActive }) =>
+          customActive ?? isActive
+            ? 'active'
+            : ''
         }
-        onClick={() => setOpen(false)}
+        onClick={closeMenu}
       >
         <NavIcon
           className="sidebar-nav-icon"
@@ -341,7 +436,9 @@ export default function Layout({ role }) {
           aria-hidden="true"
         />
 
-        <span>{item.label}</span>
+        <span>
+          {item.label}
+        </span>
 
         {item.badge && unreadCount > 0 && (
           <span
@@ -358,23 +455,37 @@ export default function Layout({ role }) {
   }
 
   /* =======================================================
+     DISPLAY NAME
+  ======================================================= */
+
+  const displayName =
+    user?.username ||
+    user?.name ||
+    user?.email ||
+    'InsureX user'
+
+  /* =======================================================
      RENDER
   ======================================================= */
 
   return (
     <div className="shell">
 
-      {/* MOBILE BACKDROP */}
+      {/* ===================================================
+          MOBILE BACKDROP
+      =================================================== */}
 
       {open && (
         <div
           className="scrim"
-          onClick={() => setOpen(false)}
+          onClick={closeMenu}
           aria-hidden="true"
         />
       )}
 
-      {/* SIDEBAR */}
+      {/* ===================================================
+          SIDEBAR
+      =================================================== */}
 
       <aside
         id="insurex-sidebar"
@@ -387,12 +498,14 @@ export default function Layout({ role }) {
         }
       >
 
-        {/* BRAND */}
+        {/* ===============================================
+            BRAND
+        =============================================== */}
 
         <NavLink
           to={dashboardPath}
           className="brand"
-          onClick={() => setOpen(false)}
+          onClick={closeMenu}
         >
           <Logo size={40} />
 
@@ -407,7 +520,9 @@ export default function Layout({ role }) {
           </span>
         </NavLink>
 
-        {/* NAVIGATION */}
+        {/* ===============================================
+            NAVIGATION
+        =============================================== */}
 
         <nav
           className="nav"
@@ -420,13 +535,17 @@ export default function Layout({ role }) {
                 {group.group}
               </div>
 
-              {group.items.map(renderNavItem)}
+              {group.items.map(
+                renderNavItem,
+              )}
 
             </div>
           ))}
         </nav>
 
-        {/* ACCOUNT FOOTER */}
+        {/* ===============================================
+            ACCOUNT FOOTER
+        =============================================== */}
 
         <div className="sidebar-foot">
 
@@ -434,18 +553,13 @@ export default function Layout({ role }) {
             className="avatar"
             aria-hidden="true"
           >
-            {initials(
-              user?.username ||
-              user?.name ||
-              'InsureX',
-            )}
+            {initials(displayName)}
           </div>
 
           <div className="who">
 
-            <b title={user?.username || ''}>
-              {user?.username ||
-                'InsureX user'}
+            <b title={displayName}>
+              {displayName}
             </b>
 
             <span>
@@ -474,20 +588,22 @@ export default function Layout({ role }) {
 
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* ===================================================
+          MAIN CONTENT
+      =================================================== */}
 
       <div className="main">
 
-        {/* MOBILE TOPBAR */}
+        {/* ===============================================
+            MOBILE TOPBAR
+        =============================================== */}
 
         <header className="topbar">
 
           <button
             ref={menuButtonRef}
             className="btn ghost icon-btn"
-            onClick={() =>
-              setOpen((current) => !current)
-            }
+            onClick={toggleMenu}
             aria-label={
               open
                 ? 'Close menu'
@@ -498,14 +614,18 @@ export default function Layout({ role }) {
             type="button"
           >
             <Icon
-              name={open ? 'x' : 'menu'}
+              name={
+                open
+                  ? 'x'
+                  : 'menu'
+              }
             />
           </button>
 
           <NavLink
             to={dashboardPath}
             className="brand"
-            onClick={() => setOpen(false)}
+            onClick={closeMenu}
           >
             <Logo size={34} />
 
@@ -516,7 +636,9 @@ export default function Layout({ role }) {
 
         </header>
 
-        {/* PAGE CONTENT */}
+        {/* ===============================================
+            PAGE CONTENT
+        =============================================== */}
 
         <main
           className="content"
