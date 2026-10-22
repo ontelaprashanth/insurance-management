@@ -468,6 +468,7 @@ public class ClaimsService {
     // ADMIN - UPDATE CLAIM
     // =========================================================
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public ClaimsDto updateClaims(
             Long claimNumber,
             ClaimsDto claimsDto) {
@@ -494,12 +495,38 @@ public class ClaimsService {
                     "Policy number is required.");
         }
 
-        Policy policy = policyDao.getPolicyById(
+        if (existingClaims.getPolicy() == null
+                || existingClaims.getPolicy().getPolicyNumber() == null) {
+            throw new IllegalStateException(
+                    "Existing claim policy is unavailable.");
+        }
+
+        // Claim history must never be moved to another policy.
+        if (!existingClaims.getPolicy().getPolicyNumber()
+                .equals(claimsDto.getPolicyNumber())) {
+            throw new IllegalStateException(
+                    "A claim cannot be transferred to another policy.");
+        }
+
+        Policy policy = policyDao.getPolicyByIdForUpdate(
                 claimsDto.getPolicyNumber());
 
         if (policy == null) {
             throw new RuntimeException(
                     "Policy not found.");
+        }
+
+        existingClaims = claimsDao.getClaimsById(claimNumber);
+        if (existingClaims == null || existingClaims.getPolicy() == null
+                || !policy.getPolicyNumber().equals(
+                        existingClaims.getPolicy().getPolicyNumber())) {
+            throw new IllegalStateException(
+                    "Claim changed during update.");
+        }
+
+        if (existingClaims.getStatus() != ClaimStatus.PENDING) {
+            throw new IllegalStateException(
+                    "Reviewed claims cannot be edited. Preserve claim history.");
         }
 
         Claims claims =
@@ -572,15 +599,6 @@ public class ClaimsService {
 
         if (claim == null) {
             return null;
-        }
-
-        Policy lockedPolicy = lockClaimPolicy(claim);
-        claim = claimsDao.getClaimsById(claimNumber);
-        if (claim == null || claim.getPolicy() == null
-                || !lockedPolicy.getPolicyNumber().equals(
-                        claim.getPolicy().getPolicyNumber())) {
-            throw new IllegalStateException(
-                    "Claim policy changed during review.");
         }
 
         Policy lockedPolicy = lockClaimPolicy(claim);
@@ -692,6 +710,16 @@ public class ClaimsService {
             return null;
         }
 
+        // Serialize admin decisions with claim submissions and approvals.
+        Policy lockedPolicy = lockClaimPolicy(claim);
+        claim = claimsDao.getClaimsById(claimNumber);
+        if (claim == null || claim.getPolicy() == null
+                || !lockedPolicy.getPolicyNumber().equals(
+                        claim.getPolicy().getPolicyNumber())) {
+            throw new IllegalStateException(
+                    "Claim policy changed during review.");
+        }
+
         if (claim.getStatus() != ClaimStatus.PENDING) {
 
             throw new RuntimeException(
@@ -761,6 +789,7 @@ public class ClaimsService {
     // ADMIN - DELETE CLAIM
     // =========================================================
 
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public void deleteClaims(Long claimNumber) {
 
         if (claimNumber == null) {
@@ -778,6 +807,31 @@ public class ClaimsService {
         }
 
         Policy policy = existingClaim.getPolicy();
+
+        if (policy != null && policy.getPolicyNumber() != null) {
+            Policy lockedPolicy = policyDao.getPolicyByIdForUpdate(
+                    policy.getPolicyNumber());
+            if (lockedPolicy == null) {
+                throw new IllegalStateException(
+                        "Claim policy no longer exists.");
+            }
+            existingClaim = claimsDao.getClaimsById(claimNumber);
+            if (existingClaim == null || existingClaim.getPolicy() == null
+                    || !lockedPolicy.getPolicyNumber().equals(
+                            existingClaim.getPolicy().getPolicyNumber())) {
+                throw new IllegalStateException(
+                        "Claim changed during deletion.");
+            }
+            policy = lockedPolicy;
+            // Any historical claim blocks a refund. Deleting it would
+            // incorrectly restore refund eligibility for this purchase.
+            if (policyPurchaseDao.getPurchaseByPolicyNumberForUpdate(
+                    policy.getPolicyNumber()).isPresent()) {
+                throw new IllegalStateException(
+                        "Purchased-policy claims cannot be deleted. "
+                        + "Preserve the claim and payment history.");
+            }
+        }
 
         User customer = null;
 
