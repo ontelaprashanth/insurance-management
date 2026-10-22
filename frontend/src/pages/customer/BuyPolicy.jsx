@@ -185,10 +185,9 @@ function calculatePremium(plan, coverage, years) {
       duration,
   )
 
-  const discount =
-    duration >= 2
-      ? roundMoney(base * 0.05)
-      : 0
+  // Straight multiplication: two years = twice the one-year premium.
+  // Confirm the backend order service uses the same pricing rule.
+  const discount = 0
 
   const taxable = roundMoney(base - discount)
   const gst = 0
@@ -329,6 +328,37 @@ function getPurchaseError(error) {
 
 /* InsureX green checkout — presentation only; payment logic unchanged */
 const BUY_GREEN_STYLES = `
+.ix-buy-page .ix-original-side{border:1px solid #dbe5f0;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 8px 26px rgba(15,23,42,.07);color:#15243c}
+.ix-buy-page .ix-side-top{padding:23px;background:linear-gradient(145deg,#f5faff,#eaf4ff)}
+.ix-buy-page .ix-side-topline{display:flex;align-items:start;justify-content:space-between;gap:12px}
+.ix-buy-page .ix-side-top h3{font-size:21px;margin:0 0 4px;color:#101c40}
+.ix-buy-page .ix-side-top p{margin:0;color:#52627c}
+.ix-buy-page .ix-side-top svg{color:#1464e9;flex:none}
+.ix-buy-page .ix-side-price{font-size:31px;font-weight:800;color:#0864ed;margin:19px 0 8px}
+.ix-buy-page .ix-side-price span{font-size:16px;font-weight:500;color:#344765}
+.ix-buy-page .ix-side-body{padding:20px 22px}
+.ix-buy-page .ix-side-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:14px}
+.ix-buy-page .ix-side-row span{color:#56677d}
+.ix-buy-page .ix-side-row strong{color:#111d3c;text-align:right}
+.ix-buy-page .ix-side-divider{border-top:1px solid #e3e9f1;margin:12px 0}
+.ix-buy-page .ix-side-total{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#eff6ff;border:1px solid #d4e6ff;padding:15px;border-radius:11px;margin-top:14px}
+.ix-buy-page .ix-side-total strong:last-child{color:#0964e9;font-size:25px}
+.ix-buy-page .ix-side-note{font-size:11px;color:#64748b;margin:12px 0 0}
+.ix-buy-page .ix-side-controls{padding:20px 22px;border-top:1px solid #e4ebf5}
+.ix-buy-page .ix-side-controls h4{margin:0 0 5px;font-size:15px;color:#121e42}
+.ix-buy-page .ix-side-controls p{font-size:12px;color:#64748b;margin:0 0 14px}
+.ix-buy-page .ix-slider-value{text-align:center;color:#0864ed;font-size:17px;font-weight:800;margin-bottom:6px}
+.ix-buy-page .ix-side-controls input[type=range]{width:100%;accent-color:#0864ed;cursor:pointer}
+.ix-buy-page .ix-slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#64748b}
+.ix-buy-page .ix-term-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.ix-buy-page .ix-term-choice{display:flex;align-items:center;gap:8px;border:1px solid #dbe4ef;border-radius:10px;padding:11px;cursor:pointer;background:white}
+.ix-buy-page .ix-term-choice.selected{border:2px solid #0864ed;background:#f1f7ff;padding:10px}
+.ix-buy-page .ix-term-choice input{accent-color:#0864ed}
+.ix-buy-page .ix-term-choice span{display:grid;gap:3px;min-width:0}
+.ix-buy-page .ix-term-choice strong{font-size:12px;color:#101c40}
+.ix-buy-page .ix-term-choice small{font-size:11px;color:#607089}
+@media(max-width:480px){.ix-buy-page .ix-side-top,.ix-buy-page .ix-side-body,.ix-buy-page .ix-side-controls{padding:16px}.ix-buy-page .ix-side-price{font-size:27px}}
+
 .ix-buy-page { --ix-green-950:#103e2d; --ix-green-800:#145c3e; --ix-green-700:#17814f; --ix-green-100:#d9f5e6; --ix-green-50:#f4fbf7; color:#163c2d; }
 .ix-buy-page :is(h1,h2,h3,h4,strong,b,dt) { color:#103e2d; }
 .ix-buy-page :is(.muted,p,dd,label) { color:#355a49; }
@@ -1797,69 +1827,68 @@ export default function BuyPolicy() {
                   </div>
                 </div>
 
-                {/* COVERAGE SELECTOR */}
-
+                {/* ORIGINAL SIDE-PANEL LAYOUT — SELECTED PLAN PRICING */}
                 {!isRenewal && (
-                  <Panel title="Customize your coverage">
-                    <p className="muted" style={{ marginBottom: 14 }}>
-                      {planName} · {coveredType}. Base cover: {inr(policy.baseCoverage)}.
-                      The backend confirms the final payable amount.
-                    </p>
-                    <div className="form-grid">
-                      <div className="full">
-                        <TextInput
-                          label="Coverage amount (₹)"
-                          type="number"
-                          min="1"
-                          step="1"
-                          value={selectedCoverage || ''}
-                          onChange={(event) => setVal((current) => ({
-                            ...current,
-                            coverage: event.target.value,
-                          }))}
-                        />
+                  <aside className="ix-original-side" aria-label="Plan and premium calculator">
+                    <div className="ix-side-top">
+                      <div className="ix-side-topline">
+                        <div>
+                          <h3>{planName}</h3>
+                          <p>{coveredType} insurance</p>
+                        </div>
+                        <ShieldCheck size={30} aria-hidden="true" />
                       </div>
-                      <div className="full">
-                        <label htmlFor="ix-duration-years" style={{ display: 'block', marginBottom: 8 }}>
-                          Duration (years)
-                        </label>
-                        <select
-                          id="ix-duration-years"
-                          value={selectedYears}
-                          onChange={(event) => setVal((current) => ({
-                            ...current,
-                            years: Number(event.target.value),
-                          }))}
-                          style={{ width: '100%', minHeight: 44, borderRadius: 10, padding: 10 }}
-                        >
-                          {[1, 2, 3, 4, 5].map((years) => (
-                            <option key={years} value={years}>
-                              {years} {years === 1 ? 'year' : 'years'}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="ix-side-price">
+                        {inr(Number(policy.basePremium) * (effectiveCoverage / Number(policy.baseCoverage)))}
+                        <span> / year</span>
+                      </div>
+                      <p>Covers you for {inrShort(effectiveCoverage)} over {effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</p>
+                    </div>
+
+                    <div className="ix-side-body">
+                      <div className="ix-side-row"><span>Coverage amount</span><strong>{inrShort(effectiveCoverage)}</strong></div>
+                      <div className="ix-side-row"><span>Policy term</span><strong>{effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</strong></div>
+                      <div className="ix-side-divider" />
+                      <div className="ix-side-row"><span>Base premium / year</span><strong>{inr(Number(policy.basePremium) * (effectiveCoverage / Number(policy.baseCoverage)))}</strong></div>
+                      <div className="ix-side-row"><span>Premium × {effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</span><strong>{est ? inr(est.base) : '—'}</strong></div>
+                      <div className="ix-side-row"><span>GST (0%)</span><strong>{inr(0)}</strong></div>
+                      <div className="ix-side-total"><strong>Total payable</strong><strong>{est ? inr(est.total) : '—'}</strong></div>
+                      <p className="ix-side-note">Estimate based on the selected plan. The backend determines the final Razorpay amount.</p>
+                    </div>
+
+                    <div className="ix-side-controls">
+                      <h4>Coverage amount</h4>
+                      <p>Choose the coverage you want</p>
+                      <div className="ix-slider-value">{inrShort(effectiveCoverage)}</div>
+                      <input
+                        aria-label="Coverage amount"
+                        type="range"
+                        min={Math.max(100000, Math.floor(Number(policy.baseCoverage) / 100000) * 100000)}
+                        max={Math.max(5000000, Number(policy.baseCoverage) * 2)}
+                        step={100000}
+                        value={effectiveCoverage}
+                        onChange={(event) => setVal((current) => ({ ...current, coverage: Number(event.target.value) }))}
+                        disabled={paying || paymentUncertain}
+                      />
+                      <div className="ix-slider-labels"><span>{inrShort(Math.max(100000, Math.floor(Number(policy.baseCoverage) / 100000) * 100000))}</span><span>{inrShort(Math.max(5000000, Number(policy.baseCoverage) * 2))}</span></div>
+                      <h4 style={{marginTop:18}}>Policy term</h4>
+                      <p>Choose the policy duration</p>
+                      <div className="ix-term-choices">
+                        {[1, 2, 3, 4, 5].map((years) => (
+                          <label key={years} className={`ix-term-choice ${effectiveYears === years ? 'selected' : ''}`}>
+                            <input
+                              type="radio"
+                              name="ix-policy-term"
+                              checked={effectiveYears === years}
+                              onChange={() => setVal((current) => ({ ...current, years }))}
+                              disabled={paying || paymentUncertain}
+                            />
+                            <span><strong>{years} {years === 1 ? 'year' : 'years'}</strong><small>{inr(Number(policy.basePremium) * (effectiveCoverage / Number(policy.baseCoverage)) * years)} total</small></span>
+                          </label>
+                        ))}
                       </div>
                     </div>
-                    <div className="ix-side-breakdown" aria-live="polite" style={{ marginTop: 16, padding: 16, border: '1px solid #cce9d9', borderRadius: 14, background: '#f4fbf7' }}>
-                      <strong style={{ display: 'block', marginBottom: 12 }}>{planName} — premium estimate</strong>
-                      <dl className="kv" style={{ margin: 0 }}>
-                        <dt>Selected plan</dt><dd>{planName}</dd>
-                        <dt>Category</dt><dd>{coveredType}</dd>
-                        <dt>Base coverage</dt><dd>{inr(policy.baseCoverage)}</dd>
-                        <dt>Base premium / year</dt><dd>{inr(policy.basePremium)}</dd>
-                        <dt>Selected coverage</dt><dd>{inr(effectiveCoverage)}</dd>
-                        <dt>Duration</dt><dd>{effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</dd>
-                        <dt>Calculated premium</dt><dd>{est ? inr(est.base) : '—'}</dd>
-                        <dt>GST (estimated)</dt><dd>{est ? inr(est.gst) : '—'}</dd>
-                        <dt>Multi-year discount</dt><dd>{est ? `− ${inr(est.discount)}` : '—'}</dd>
-                        <dt>Estimated total</dt><dd><strong>{est ? inr(est.total) : '—'}</strong></dd>
-                      </dl>
-                      <p className="muted" style={{ margin: '12px 0 0', fontSize: 12 }}>
-                        Estimate only. Your backend calculates the actual amount when the payment order is created.
-                        Custom coverage and terms must also be accepted by the backend.
-                      </p>
-                    </div>
-                  </Panel>
+                  </aside>
                 )}
               </div>
             </>
