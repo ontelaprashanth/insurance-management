@@ -328,36 +328,37 @@ function getPurchaseError(error) {
 
 /* InsureX green checkout — presentation only; payment logic unchanged */
 const BUY_GREEN_STYLES = `
-.ix-buy-page .ix-original-side{border:1px solid #dbe5f0;border-radius:16px;overflow:hidden;background:#fff;box-shadow:0 8px 26px rgba(15,23,42,.07);color:#15243c}
-.ix-buy-page .ix-side-top{padding:23px;background:linear-gradient(145deg,#f5faff,#eaf4ff)}
+.ix-buy-page .ix-original-side{border:1px solid #cce9d9;border-radius:20px;overflow:hidden;background:#fff;box-shadow:0 12px 32px rgba(16,62,45,.09);color:#163c2d;min-width:0;align-self:start}
+.ix-buy-page .ix-side-top{padding:24px;background:linear-gradient(145deg,#f4fbf7,#dff5e8)}
 .ix-buy-page .ix-side-topline{display:flex;align-items:start;justify-content:space-between;gap:12px}
-.ix-buy-page .ix-side-top h3{font-size:21px;margin:0 0 4px;color:#101c40}
-.ix-buy-page .ix-side-top p{margin:0;color:#52627c}
-.ix-buy-page .ix-side-top svg{color:#1464e9;flex:none}
-.ix-buy-page .ix-side-price{font-size:31px;font-weight:800;color:#0864ed;margin:19px 0 8px}
-.ix-buy-page .ix-side-price span{font-size:16px;font-weight:500;color:#344765}
+.ix-buy-page .ix-side-top h3{font-size:21px;margin:0 0 4px;color:#103e2d}
+.ix-buy-page .ix-side-top p{margin:0;color:#426654}
+.ix-buy-page .ix-side-top svg{color:#17814f;flex:none}
+.ix-buy-page .ix-side-price{font-size:31px;font-weight:800;color:#17814f;margin:19px 0 8px;font-variant-numeric:tabular-nums}
+.ix-buy-page .ix-side-price span{font-size:16px;font-weight:500;color:#355a49}
 .ix-buy-page .ix-side-body{padding:20px 22px}
 .ix-buy-page .ix-side-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:14px}
-.ix-buy-page .ix-side-row span{color:#56677d}
-.ix-buy-page .ix-side-row strong{color:#111d3c;text-align:right}
-.ix-buy-page .ix-side-divider{border-top:1px solid #e3e9f1;margin:12px 0}
-.ix-buy-page .ix-side-total{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#eff6ff;border:1px solid #d4e6ff;padding:15px;border-radius:11px;margin-top:14px}
-.ix-buy-page .ix-side-total strong:last-child{color:#0964e9;font-size:25px}
-.ix-buy-page .ix-side-note{font-size:11px;color:#64748b;margin:12px 0 0}
-.ix-buy-page .ix-side-controls{padding:20px 22px;border-top:1px solid #e4ebf5}
-.ix-buy-page .ix-side-controls h4{margin:0 0 5px;font-size:15px;color:#121e42}
-.ix-buy-page .ix-side-controls p{font-size:12px;color:#64748b;margin:0 0 14px}
-.ix-buy-page .ix-slider-value{text-align:center;color:#0864ed;font-size:17px;font-weight:800;margin-bottom:6px}
-.ix-buy-page .ix-side-controls input[type=range]{width:100%;accent-color:#0864ed;cursor:pointer}
-.ix-buy-page .ix-slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#64748b}
+.ix-buy-page .ix-side-row span{color:#426654}
+.ix-buy-page .ix-side-row strong{color:#103e2d;text-align:right;font-variant-numeric:tabular-nums}
+.ix-buy-page .ix-side-divider{border-top:1px solid #d6eadf;margin:12px 0}
+.ix-buy-page .ix-side-total{display:flex;justify-content:space-between;align-items:center;gap:8px;background:#eaf8ef;border:1px solid #b8dfc8;padding:15px;border-radius:12px;margin-top:14px}
+.ix-buy-page .ix-side-total strong:last-child{color:#17814f;font-size:25px;font-variant-numeric:tabular-nums}
+.ix-buy-page .ix-side-note{font-size:11px;color:#547563;margin:12px 0 0;line-height:1.5}
+.ix-buy-page .ix-side-controls{padding:20px 22px;border-top:1px solid #d6eadf;background:linear-gradient(180deg,#fff,#f7fcf9)}
+.ix-buy-page .ix-side-controls h4{margin:0 0 5px;font-size:15px;color:#103e2d}
+.ix-buy-page .ix-side-controls p{font-size:12px;color:#547563;margin:0 0 14px}
+.ix-buy-page .ix-slider-value{text-align:center;color:#17814f;font-size:17px;font-weight:800;margin-bottom:6px}
+.ix-buy-page .ix-side-controls input[type=range]{width:100%;accent-color:#17814f;cursor:pointer}
+.ix-buy-page .ix-slider-labels{display:flex;justify-content:space-between;font-size:11px;color:#547563}
 .ix-buy-page .ix-term-choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
-.ix-buy-page .ix-term-choice{display:flex;align-items:center;gap:8px;border:1px solid #dbe4ef;border-radius:10px;padding:11px;cursor:pointer;background:white}
-.ix-buy-page .ix-term-choice.selected{border:2px solid #0864ed;background:#f1f7ff;padding:10px}
-.ix-buy-page .ix-term-choice input{accent-color:#0864ed}
+.ix-buy-page .ix-term-choice{display:flex;align-items:center;gap:8px;border:1px solid #cce9d9;border-radius:11px;padding:11px;cursor:pointer;background:#fff;min-width:0}
+.ix-buy-page .ix-term-choice.selected{border:2px solid #17814f;background:#eaf8ef;padding:10px}
+.ix-buy-page .ix-term-choice input{accent-color:#17814f;flex:none}
 .ix-buy-page .ix-term-choice span{display:grid;gap:3px;min-width:0}
-.ix-buy-page .ix-term-choice strong{font-size:12px;color:#101c40}
-.ix-buy-page .ix-term-choice small{font-size:11px;color:#607089}
-@media(max-width:480px){.ix-buy-page .ix-side-top,.ix-buy-page .ix-side-body,.ix-buy-page .ix-side-controls{padding:16px}.ix-buy-page .ix-side-price{font-size:27px}}
+.ix-buy-page .ix-term-choice strong{font-size:12px;color:#103e2d}
+.ix-buy-page .ix-term-choice small{font-size:11px;color:#547563;overflow-wrap:anywhere}
+.ix-buy-page .ix-term-choice:focus-within{outline:2px solid #17814f;outline-offset:2px}
+@media(max-width:480px){.ix-buy-page .ix-side-top,.ix-buy-page .ix-side-body,.ix-buy-page .ix-side-controls{padding:16px}.ix-buy-page .ix-side-price{font-size:27px}.ix-buy-page .ix-term-choices{gap:7px}.ix-buy-page .ix-term-choice{padding:9px}.ix-buy-page .ix-term-choice.selected{padding:8px}}
 
 .ix-buy-page { --ix-green-950:#103e2d; --ix-green-800:#145c3e; --ix-green-700:#17814f; --ix-green-100:#d9f5e6; --ix-green-50:#f4fbf7; color:#163c2d; }
 .ix-buy-page :is(h1,h2,h3,h4,strong,b,dt) { color:#103e2d; }
