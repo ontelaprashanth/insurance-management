@@ -1,4 +1,3 @@
-
 package com.htc.insurance.entity;
 
 public enum PolicyLifecycleStatus {
@@ -10,6 +9,8 @@ public enum PolicyLifecycleStatus {
     ADMIN_DISABLED,
 
     EXPIRED,
+
+    REFUND_PENDING,
 
     REFUNDED
 }
