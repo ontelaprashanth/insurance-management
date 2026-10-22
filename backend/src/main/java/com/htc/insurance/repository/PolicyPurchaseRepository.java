@@ -91,4 +91,30 @@ public interface PolicyPurchaseRepository
            """)
     Optional<PolicyPurchase> findByPolicyNumberForUpdate(
             @Param("policyNumber") Long policyNumber);
+
+    // =========================================================
+    // FIND PURCHASES WITH UNFINISHED REFUNDS
+    // =========================================================
+
+    /**
+     * Finds purchases that still display an unfinished
+     * refund status.
+     *
+     * This is a read-only query.
+     *
+     * It allows reconciliation to identify a purchase
+     * even when the associated RefundAttempt is not
+     * currently PROCESSING.
+     */
+    @Query("""
+           SELECT p
+           FROM PolicyPurchase p
+           WHERE UPPER(p.refundStatus) IN (
+               'REFUND_PROCESSING',
+               'PROCESSING',
+               'REFUND_REQUIRES_RECONCILIATION'
+           )
+           ORDER BY p.purchaseId ASC
+           """)
+    List<PolicyPurchase> findPurchasesWithUnfinishedRefunds();
 }
