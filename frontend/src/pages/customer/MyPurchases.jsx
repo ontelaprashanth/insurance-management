@@ -35,7 +35,6 @@ import {
   Panel,
   SearchBox,
   StatusBadge,
-  Table,
   useFilter,
 } from '../../components/ui'
 
@@ -1582,6 +1581,24 @@ export default function MyPurchases() {
       {/* RESPONSIVE STYLES */}
 
       <style>{`
+
+        .ix-purchase-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr)); gap:16px; padding:18px; }
+        .ix-purchase-card { display:flex; flex-direction:column; gap:16px; min-width:0; padding:20px; background:var(--surface,#fff); border:1px solid var(--line,#e3e9e8); border-radius:18px; }
+        .ix-purchase-card-head, .ix-purchase-card-heading { display:flex; align-items:flex-start; gap:12px; min-width:0; }
+        .ix-purchase-card-head { justify-content:space-between; flex-wrap:wrap; }
+        .ix-purchase-card-icon { display:grid; place-items:center; width:42px; height:42px; flex-shrink:0; border-radius:12px; background:#eaf3f0; color:#21685b; }
+        .ix-purchase-card-title { min-width:0; }
+        .ix-purchase-card-title h3 { margin:3px 0; font-size:17px; line-height:1.35; overflow-wrap:anywhere; }
+        .ix-purchase-card-statuses { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .ix-purchase-card-statuses > div, .ix-purchase-card-facts > div { display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-width:0; }
+        .ix-purchase-card-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding:16px; border-radius:12px; background:var(--surface-2,#f6f9f8); }
+        .ix-purchase-card-facts strong { font-size:15px; overflow-wrap:anywhere; }
+        .ix-purchase-card-note { display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.5; color:var(--ink-2,#536b68); }
+        .ix-purchase-card-note svg { flex-shrink:0; margin-top:2px; }
+        .ix-purchase-card-actions { display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding-top:14px; margin-top:auto; border-top:1px solid var(--line,#e3e9e8); }
+        .ix-purchase-card-actions .btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
+        @media(max-width:640px) { .ix-purchase-card-grid { padding:12px; gap:12px; } .ix-purchase-card { padding:16px; } .ix-purchase-card-actions > * { flex:1 1 100%; } }
+
         .ix-payment-summary-grid {
           display: grid;
           grid-template-columns:
@@ -1785,170 +1802,68 @@ export default function MyPurchases() {
                 </Button>
               </div>
             ) : (
-              <div
-                className="ix-payments-table-scroll"
-                role="region"
-                aria-label="Payments history table"
-                tabIndex={0}
-              >
-                <Table
-                  rowKey="purchaseId"
-                  rows={rows}
-                  onRowClick={(p) =>
-                    setOpenId(p.purchaseId)
-                  }
-                  columns={[
-                    {
-                      key: 'purchaseId',
-                      header: 'Purchase',
-                      render: (p) => (
-                        <div className="purchase-ref">
-                          <b>
-                            #{p.purchaseId}
-                          </b>
-
-                          <span>
-                            {date(
-                              p.purchaseDate,
-                            )}
-                          </span>
+              <div className="ix-purchase-card-grid" aria-label="Payment and purchase history">
+                {rows.map((p) => {
+                  const policyNumber = getPolicyNumber(p)
+                  const uncertain = uncertainRefundIds.has(String(p.purchaseId))
+                  const showRefundAction = isPaid(p) && isRefundNotRequested(p)
+                  return (
+                    <article className="ix-purchase-card" key={String(p.purchaseId)}>
+                      <div className="ix-purchase-card-head">
+                        <div className="ix-purchase-card-heading">
+                          <div className="ix-purchase-card-icon"><ShieldCheck size={22} /></div>
+                          <div className="ix-purchase-card-title">
+                            <span className="muted">Purchase #{p.purchaseId}</span>
+                            <h3>{p.coveredTypes || 'Insurance policy'}</h3>
+                            <span className="muted">{policyNumber != null ? `Policy #${policyNumber}` : 'Policy pending'}</span>
+                          </div>
                         </div>
-                      ),
-                    },
+                        <PurchaseTypeBadge purchase={p} />
+                      </div>
 
-                    {
-                      key: 'coveredTypes',
-                      header: 'Insurance plan',
-                      render: (p) => (
-                        <div className="purchase-plan">
-                          <b>
-                            {p.coveredTypes ||
-                              'Insurance'}
-                          </b>
+                      <div className="ix-purchase-card-statuses">
+                        <div><span className="muted">Payment</span><StatusBadge value={p.paymentStatus || 'UNKNOWN'} /></div>
+                        <div><span className="muted">Refund</span><RefundStatus purchase={p} /></div>
+                      </div>
 
-                          <span>
-                            {getPolicyNumber(p) != null
-                              ? `Policy #${getPolicyNumber(p)}`
-                              : 'Policy pending'}
-                          </span>
+                      <div className="ix-purchase-card-facts">
+                        <div><span className="muted">Premium paid</span><strong>{money(p.totalPremium)}</strong></div>
+                        <div><span className="muted">Coverage</span><strong>{inrShort(p.coverageAmount)}</strong></div>
+                        <div><span className="muted">Purchased</span><strong>{date(p.purchaseDate)}</strong></div>
+                        <div><span className="muted">Payment date</span><strong>{dateTime(p.paymentDateTime)}</strong></div>
+                      </div>
+
+                      {isRenewalPurchase(p) && getRenewalSource(p) != null && (
+                        <div className="ix-purchase-card-note">
+                          <RefreshCw size={15} /> Renewed from policy #{getRenewalSource(p)}
                         </div>
-                      ),
-                    },
+                      )}
+                      {isRefundPending(p) && (
+                        <div className="ix-purchase-card-note"><Clock3 size={15} /> {refundStatusText(p.refundStatus)} — awaiting confirmation</div>
+                      )}
+                      {uncertain && (
+                        <div className="ix-purchase-card-note"><AlertCircle size={15} /> Refund outcome uncertain. Verify status before any further action.</div>
+                      )}
 
-                    {
-                      key: 'purchaseType',
-                      header: 'Type',
-                      render: (p) => (
-                        <PurchaseTypeBadge
-                          purchase={p}
-                        />
-                      ),
-                    },
-
-                    {
-                      key: 'coverageAmount',
-                      header: 'Coverage',
-                      render: (p) =>
-                        inrShort(
-                          p.coverageAmount,
-                        ),
-                    },
-
-                    {
-                      key: 'totalPremium',
-                      header: 'Paid',
-                      render: (p) => (
-                        <b>
-                          {money(
-                            p.totalPremium,
-                          )}
-                        </b>
-                      ),
-                    },
-
-                    {
-                      key: 'paymentDateTime',
-                      header: 'Payment date',
-                      render: (p) =>
-                        dateTime(
-                          p.paymentDateTime,
-                        ),
-                    },
-
-                    {
-                      key: 'paymentStatus',
-                      header: 'Payment',
-                      render: (p) => (
-                        <StatusBadge
-                          value={
-                            p.paymentStatus ||
-                            'UNKNOWN'
-                          }
-                        />
-                      ),
-                    },
-
-                    {
-                      key: 'refundStatus',
-                      header: 'Refund',
-                      render: (p) => (
-                        <RefundStatus
-                          purchase={p}
-                        />
-                      ),
-                    },
-
-                    {
-                      key: 'actions',
-                      header: '',
-                      align: 'right',
-                      render: (p) => (
-                        <div className="ix-payment-actions">
+                      <div className="ix-purchase-card-actions">
+                        <Button size="sm" onClick={() => setOpenId(p.purchaseId)}>
+                          <FileText size={15} /> View receipt & details
+                        </Button>
+                        {showRefundAction && (
                           <Button
                             size="sm"
-                            onClick={(event) => {
-                              event?.stopPropagation?.()
-
-                              setOpenId(
-                                p.purchaseId,
-                              )
-                            }}
+                            variant="dark"
+                            disabled={submitting || !canRequestRefund(p) || uncertain}
+                            onClick={() => openRefundModal(p)}
                           >
-                            Details
+                            <RotateCcw size={15} />
+                            {uncertain ? 'Verify status' : canRequestRefund(p) ? 'Request refund' : 'Refund unavailable'}
                           </Button>
-
-                          {isPaid(p) &&
-                            isRefundNotRequested(p) && (
-                              <Button
-                                size="sm"
-                                variant="dark"
-                                disabled={
-                                  submitting ||
-                                  !canRequestRefund(p) ||
-                                  uncertainRefundIds.has(
-                                    String(p.purchaseId),
-                                  )
-                                }
-                                onClick={(event) => {
-                                  event?.stopPropagation?.()
-
-                                  openRefundModal(p)
-                                }}
-                              >
-                                {uncertainRefundIds.has(
-                                  String(p.purchaseId),
-                                )
-                                  ? 'Verify status'
-                                  : canRequestRefund(p)
-                                    ? 'Refund'
-                                    : 'Refund unavailable'}
-                              </Button>
-                            )}
-                        </div>
-                      ),
-                    },
-                  ]}
-                />
+                        )}
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             )
           }
