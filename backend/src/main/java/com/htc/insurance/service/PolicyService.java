@@ -620,9 +620,16 @@ public class PolicyService {
     }
 
     // =========================================================
-    // GET CUSTOMER'S ACTIVE POLICIES
+    // GET CUSTOMER'S POLICIES — COMPLETE OWNED HISTORY
     // =========================================================
 
+    /**
+     * Returns every policy owned by the authenticated customer,
+     * including inactive, expired, refunded and claim-locked policies.
+     *
+     * This is a history/listing operation only. It does NOT grant
+     * coverage or change claim, refund, renewal or activation rules.
+     */
     public List<PolicyDto> getPoliciesByUsername(
             String username) {
 
@@ -634,58 +641,26 @@ public class PolicyService {
         }
 
         User user =
-                userDao.getUserByUsername(
-                        username.trim());
+                userDao.getUserByUsername(username.trim());
 
-        if (user == null) {
+        if (user == null || user.getUserId() == null) {
             throw new IllegalArgumentException(
                     "User not found.");
         }
 
-        LocalDate today = LocalDate.now();
+        Long authenticatedUserId = user.getUserId();
 
         return policyDao.getAllPolicies()
                 .stream()
-
-                .filter(policy -> policy != null)
-
                 .filter(policy ->
-                        policy.getPolicyHolder() != null
-                        && policy.getPolicyHolder()
-                                .getUser() != null
-                        && user.getUserId() != null
-                        && user.getUserId().equals(
+                        policy != null
+                        && policy.getPolicyHolder() != null
+                        && policy.getPolicyHolder().getUser() != null
+                        && authenticatedUserId.equals(
                                 policy.getPolicyHolder()
-                                        .getUser()
-                                        .getUserId()))
-
+                                        .getUser().getUserId()))
                 .map(this::expireIfNecessary)
-
-                .filter(policy ->
-                        Boolean.TRUE.equals(
-                                policy.getIsActive()))
-
-                .filter(policy ->
-                        policy.getLifecycleStatus() == null
-                        || policy.getLifecycleStatus()
-                                == PolicyLifecycleStatus.ACTIVE)
-
-                .filter(policy ->
-                        policy.getStartDate() != null
-                        && !policy.getStartDate()
-                                .isAfter(today))
-
-                .filter(policy ->
-                        policy.getExpiryDate() != null
-                        && policy.getExpiryDate()
-                                .isAfter(today))
-
-                .filter(policy ->
-                        !hasBlockingRefund(
-                                policy.getPolicyNumber()))
-
                 .map(policyMapper::convertPolicyEntityToDto)
-
                 .collect(Collectors.toList());
     }
 
