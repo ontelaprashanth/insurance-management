@@ -330,6 +330,63 @@ function getPurchaseError(error) {
   )
 }
 
+
+/* InsureX green checkout — presentation only; payment logic unchanged */
+const BUY_GREEN_STYLES = `
+.ix-buy-page { --ix-green-950:#103e2d; --ix-green-800:#145c3e; --ix-green-700:#17814f; --ix-green-100:#d9f5e6; --ix-green-50:#f4fbf7; color:#163c2d; }
+.ix-buy-page :is(h1,h2,h3,h4,strong,b,dt) { color:#103e2d; }
+.ix-buy-page :is(.muted,p,dd,label) { color:#355a49; }
+.ix-buy-page .wizard { display:grid; grid-template-columns:minmax(0,1fr) minmax(270px,360px); align-items:start; gap:20px; }
+.ix-buy-page .wizard > * { min-width:0; }
+.ix-buy-page .wizard > :first-child { display:grid; gap:16px; }
+.ix-buy-page .wizard > :first-child > * { min-width:0; }
+.ix-buy-page .wizard > :first-child > .panel,
+.ix-buy-page .wizard > :first-child > section,
+.ix-buy-page .wizard > :first-child > article { background:linear-gradient(150deg,#fff 0%,#f4fbf7 100%); }
+.ix-buy-page .wizard :is(.panel,.card),.ix-buy-page .ix-buy-cover-card,.ix-buy-page .ix-buy-step-card { border:1px solid #cce9d9; border-radius:20px; box-shadow:0 8px 28px rgba(16,62,45,.075); }
+.ix-buy-page .wizard :is(.panel,.card) { animation:ixBuyRise .55s cubic-bezier(.2,.8,.2,1) both; transition:transform .35s ease,box-shadow .35s ease,border-color .35s ease; }
+.ix-buy-page .wizard :is(.panel,.card):hover { transform:translateY(-4px); box-shadow:0 18px 38px rgba(16,62,45,.13); border-color:#7bcba2; }
+.ix-buy-page .wizard .kv { display:grid; grid-template-columns:minmax(110px,1fr) minmax(0,1fr); column-gap:16px; row-gap:13px; }
+.ix-buy-page .wizard .kv dt { font-weight:600; color:#426654; }
+.ix-buy-page .wizard .kv dd { text-align:right; font-weight:700; overflow-wrap:anywhere; color:#103e2d; }
+.ix-buy-page .steps { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin:0 0 22px; }
+.ix-buy-page .steps .step { display:flex; align-items:center; justify-content:center; gap:10px; padding:15px 12px; min-width:0; border-radius:16px; border:1px solid #d3e9dc; background:#fff; color:#315a45; font-weight:700; box-shadow:0 5px 18px rgba(16,62,45,.05); animation:ixBuyRise .5s ease both; transition:transform .25s ease,background .25s ease,box-shadow .25s ease; }
+.ix-buy-page .steps .step:nth-child(2){animation-delay:.09s}.ix-buy-page .steps .step:nth-child(3){animation-delay:.18s}
+.ix-buy-page .steps .step:hover {transform:translateY(-3px);box-shadow:0 12px 25px rgba(16,62,45,.12)}
+.ix-buy-page .steps .step.active { background:linear-gradient(120deg,#103e2d,#17814f);color:white;border-color:#17814f;box-shadow:0 10px 25px rgba(23,129,79,.22); }
+.ix-buy-page .steps .step.done {background:#d9f5e6;border-color:#9cd6b7;color:#145c3e}
+.ix-buy-page .steps .step .n {width:28px;height:28px;flex:none;display:grid;place-items:center;border-radius:50%;background:#e5f5ec;color:#145c3e;font-weight:800}
+.ix-buy-page .steps .step.active .n {background:#fff;color:#145c3e}
+.ix-buy-page .ix-checkout-actions {padding:14px;border:1px solid #d4e9dc;border-radius:16px;background:#f4fbf7;}
+.ix-buy-page :is(.btn,button) { transition:transform .22s ease,box-shadow .22s ease,filter .22s ease; }
+.ix-buy-page :is(.btn,button):not(:disabled):hover {transform:translateY(-2px);box-shadow:0 7px 17px rgba(16,62,45,.15)}
+.ix-buy-page :is(.btn.primary,.btn.dark,button.primary,button.dark) { background:#17814f;color:#fff;border-color:#17814f; }
+.ix-buy-page .alert {border-radius:14px;line-height:1.6;overflow-wrap:anywhere}
+.ix-buy-page .alert.info {background:#eaf8ef;color:#184d34;border:1px solid #b8dfc8}
+.ix-buy-page :is(input,select,textarea) { color:#103e2d; border-color:#bdd9c8; }
+.ix-buy-page :is(input,select,textarea):focus {outline-color:#17814f;border-color:#17814f}
+.ix-buy-page .form-grid {row-gap:16px}
+.ix-buy-page .ix-buy-step-card {background:linear-gradient(145deg,#fff,#f4fbf7);padding:16px;animation:ixBuyRise .5s ease both;}
+.ix-buy-page .ix-buy-step-card:nth-child(2){animation-delay:.12s}
+.ix-buy-page .ix-buy-step-card:nth-child(3){animation-delay:.24s}
+.ix-buy-page .ix-buy-hero {display:flex;align-items:center;gap:12px;margin-bottom:18px;padding:16px 18px;border-radius:18px;background:linear-gradient(115deg,#103e2d,#17814f);color:white;position:relative;overflow:hidden;animation:ixBuyRise .55s ease both}
+.ix-buy-page .ix-buy-hero strong,.ix-buy-page .ix-buy-hero p {color:#fff}
+.ix-buy-page .ix-buy-hero svg {flex:none;animation:ixBuyFloat 3s ease-in-out infinite}
+.ix-buy-page .ix-buy-hero::after {content:'';position:absolute;inset:0;transform:translateX(-120%) skewX(-20deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.13),transparent);animation:ixBuyShine 6s ease-in-out infinite;pointer-events:none}
+.ix-buy-success {max-width:780px;margin:16px auto;padding:26px;border:1px solid #bfe6d0;border-radius:24px;background:linear-gradient(155deg,#fff,#e9f9f0);box-shadow:0 20px 55px rgba(16,62,45,.12);animation:ixBuyRise .65s ease both;color:#103e2d}
+.ix-buy-success h4,.ix-buy-success strong,.ix-buy-success dd {color:#103e2d}
+.ix-buy-success .check-big {background:#17814f;color:white;border-radius:50%;animation:ixBuyPop .7s cubic-bezier(.2,1.4,.4,1) both}
+.ix-buy-success .btn,.ix-buy-success button {transition:transform .2s ease,box-shadow .2s ease}
+.ix-buy-success .btn:hover,.ix-buy-success button:hover {transform:translateY(-3px);box-shadow:0 8px 20px rgba(16,62,45,.16)}
+@keyframes ixBuyRise {from{opacity:0;transform:translateY(22px) scale(.985)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes ixBuyFloat {0%,100%{transform:translateY(0)}50%{transform:translateY(-5px)}}
+@keyframes ixBuyShine {0%,55%{transform:translateX(-120%) skewX(-20deg)}85%,100%{transform:translateX(130%) skewX(-20deg)}}
+@keyframes ixBuyPop {from{opacity:0;transform:scale(.55) rotate(-20deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@media(max-width:900px){.ix-buy-page .wizard{grid-template-columns:minmax(0,1fr)}}
+@media(max-width:640px){.ix-buy-page .steps{gap:6px}.ix-buy-page .steps .step{font-size:11px;gap:5px;padding:11px 5px;flex-direction:column;text-align:center}.ix-buy-page .steps .step .n{width:25px;height:25px}.ix-buy-page .wizard .kv{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ix-buy-page .ix-checkout-actions>*{flex:1 1 130px}.ix-buy-success{padding:16px;margin:8px}}
+@media(prefers-reduced-motion:reduce){.ix-buy-page *, .ix-buy-success *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+`
+
 /* =========================================================
    COMPONENT
 ========================================================= */
@@ -1061,7 +1118,9 @@ export default function BuyPolicy() {
 
   if (done) {
     return (
-      <Panel>
+      <div className="ix-buy-success">
+        <style>{BUY_GREEN_STYLES}</style>
+        <Panel>
         <div className="empty">
           <div className="check-big">
             <Icon
@@ -1158,7 +1217,8 @@ export default function BuyPolicy() {
             </Button>
           </div>
         </div>
-      </Panel>
+        </Panel>
+      </div>
     )
   }
 
@@ -1194,7 +1254,8 @@ export default function BuyPolicy() {
   ======================================================= */
 
   return (
-    <>
+    <div className="ix-buy-page">
+      <style>{BUY_GREEN_STYLES}</style>
       <PageHeader
         title={
           isRenewal
@@ -1225,6 +1286,16 @@ export default function BuyPolicy() {
             : 'Back to plans'}
         </Link>
       </PageHeader>
+
+      <div className="ix-buy-hero">
+        <ShieldCheck size={27} aria-hidden="true" />
+        <div>
+          <strong>{isRenewal ? 'Secure policy renewal' : 'Secure insurance checkout'}</strong>
+          <p style={{ margin: '3px 0 0', fontSize: 13 }}>
+            {isRenewal ? 'Keep your original policy benefits and review your renewal.' : 'Choose your cover, confirm nominee details, and pay securely.'}
+          </p>
+        </div>
+      </div>
 
       <style>{`
         .ix-checkout-alert {
@@ -1726,6 +1797,6 @@ export default function BuyPolicy() {
           )
         }
       </DataState>
-    </>
+    </div>
   )
 }
