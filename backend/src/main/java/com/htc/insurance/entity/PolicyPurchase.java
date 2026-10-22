@@ -7,15 +7,26 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToOne;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
-@Table(name = "policy_purchase")
+@Table(
+    name = "policy_purchase",
+    uniqueConstraints = {
+        @UniqueConstraint(
+            name = "uk_policy_purchase_renewed_from",
+            columnNames = "renewed_from_purchase_id"
+        )
+    }
+)
 public class PolicyPurchase {
 
     // =========================================================
@@ -37,6 +48,37 @@ public class PolicyPurchase {
             unique = true
     )
     private Policy policy;
+
+    // =========================================================
+    // POLICY RENEWAL
+    // =========================================================
+
+    /*
+     * Links a renewed purchase to its original purchase.
+     *
+     * NORMAL PURCHASE:
+     * renewedFromPurchase = null
+     *
+     * RENEWAL PURCHASE:
+     * renewedFromPurchase = original PolicyPurchase
+     *
+     * Each renewal creates a NEW Policy and PolicyPurchase.
+     * Original policy, claims, payments and settlements
+     * remain unchanged for historical records.
+     *
+     * The unique constraint prevents more than one
+     * completed renewal purchase referencing the same
+     * original purchase.
+     *
+     * Multiple abandoned payment attempts are allowed;
+     * uniqueness applies only to saved purchases.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+            name = "renewed_from_purchase_id",
+            referencedColumnName = "purchaseId"
+    )
+    private PolicyPurchase renewedFromPurchase;
 
     // =========================================================
     // COVERAGE
@@ -124,7 +166,6 @@ public class PolicyPurchase {
      *
      * Actual transitions are managed by refund services.
      */
-
     private String refundStatus;
 
     private String refundId;
@@ -166,6 +207,20 @@ public class PolicyPurchase {
 
     public void setPolicy(Policy policy) {
         this.policy = policy;
+    }
+
+    // =========================================================
+    // RENEWAL GETTERS AND SETTERS
+    // =========================================================
+
+    public PolicyPurchase getRenewedFromPurchase() {
+        return renewedFromPurchase;
+    }
+
+    public void setRenewedFromPurchase(
+            PolicyPurchase renewedFromPurchase) {
+
+        this.renewedFromPurchase = renewedFromPurchase;
     }
 
     // =========================================================
