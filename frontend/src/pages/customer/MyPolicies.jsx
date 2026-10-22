@@ -530,6 +530,7 @@ function PolicyAction({ policy, onClaim }) {
     )
   }
 
+  // An original policy that was replaced by a renewal cannot be claimed again.
   if (policy.alreadyRenewed) {
     return (
       <span className="muted ix-policy-action-label">
@@ -561,6 +562,8 @@ function PolicyAction({ policy, onClaim }) {
             ? 'A claim is already being processed'
             : policy.displayStatus === 'EXPIRED'
               ? 'Claims cannot be started for an expired policy'
+              : policy.isActive === false
+                ? 'This policy is not active'
               : 'Claims require an active policy'
       }
       onClick={() => {
@@ -851,8 +854,18 @@ export default function MyPolicies() {
           normalizedStatus(policy.lifecycleStatus) ===
             'REFUND_FAILED'
 
+        // A renewed coverage record can accept claims, but an original
+        // policy superseded by renewal cannot. Always use this policy's
+        // own policyNumber in ClaimForm; never redirect to the old number.
+        const coverageCurrentlyValid =
+          (!policy.startDate || String(policy.startDate).slice(0, 10) <= today()) &&
+          (!policy.expiryDate || String(policy.expiryDate).slice(0, 10) >= today())
+
         const canFileClaim =
-          displayStatus === 'ACTIVE' &&
+          ['ACTIVE', 'RENEWED'].includes(displayStatus) &&
+          !alreadyRenewed &&
+          policy.isActive !== false &&
+          coverageCurrentlyValid &&
           !pendingClaim &&
           !refundPending &&
           !refunded &&
