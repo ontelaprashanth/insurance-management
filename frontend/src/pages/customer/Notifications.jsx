@@ -390,6 +390,37 @@ export default function Notifications() {
           .ix-notification-actions { width:100%; justify-content:flex-end; padding-left:48px; }
         }
         @media(max-width:380px) { .ix-notification-summary { display:flex; } .ix-notification-stat:nth-child(3) { grid-column:auto; } }
+        /* Spacious inbox rows with restrained motion, not cards */
+        @keyframes ixInboxEnter { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
+        @keyframes ixInboxUnreadPulse { 0%,100% { box-shadow:0 0 0 3px rgba(10,157,88,.10); } 50% { box-shadow:0 0 0 6px rgba(10,157,88,.035); } }
+        .ix-notification-grid { padding:8px 0 12px; }
+        .ix-notification-item, .ix-notification-item.unread {
+          padding-top:25px; padding-bottom:25px; gap:18px;
+          animation:ixInboxEnter .48s cubic-bezier(.22,.8,.2,1) both;
+          animation-delay:calc(min(var(--ix-notification-index, 0), 8) * 55ms);
+          transition:background-color .24s ease, padding-left .24s ease;
+        }
+        .ix-notification-item.unread { padding-left:15px; }
+        .ix-notification-item:hover, .ix-notification-item.unread:hover { background:#f1faf5; }
+        .ix-notification-title { gap:10px; row-gap:6px; }
+        .ix-notification-message { margin:12px 0 10px; line-height:1.75; }
+        .ix-notification-item .dot-icon { transition:transform .28s ease,background-color .28s ease; }
+        .ix-notification-item:hover .dot-icon { transform:translateY(-2px) scale(1.06); background:#cef0dc; }
+        .ix-notification-unread { animation:ixInboxUnreadPulse 2.7s ease-in-out infinite; }
+        .ix-notification-actions { gap:10px; }
+        .ix-notification-actions button { transition:transform .2s ease,background-color .2s ease; }
+        .ix-notification-actions button:not(:disabled):hover { transform:translateY(-2px); box-shadow:none; }
+        @media(max-width:700px) {
+          .ix-notification-item, .ix-notification-item.unread { padding-top:21px; padding-bottom:21px; gap:12px; }
+          .ix-notification-item.unread { padding-left:9px; }
+          .ix-notification-actions { padding-top:6px; }
+        }
+        @media(prefers-reduced-motion:reduce) {
+          .ix-notification-item, .ix-notification-item.unread, .ix-notification-unread { animation:none !important; }
+          .ix-notification-item .dot-icon, .ix-notification-actions button { transition:none !important; }
+          .ix-notification-item:hover .dot-icon, .ix-notification-actions button:not(:disabled):hover { transform:none !important; }
+        }
+
       `}</style>
 
       {/* ===================================================
