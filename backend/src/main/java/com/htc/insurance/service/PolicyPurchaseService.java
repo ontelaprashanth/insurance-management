@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -67,10 +68,6 @@ public class PolicyPurchaseService {
     private final PaymentService paymentService;
     private final PaymentAttemptService paymentAttemptService;
     private final InsurancePlanRepository insurancePlanRepository;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
 
     public PolicyPurchaseService(
             PolicyDao policyDao,
@@ -168,16 +165,12 @@ public class PolicyPurchaseService {
                     "Payment attempt was not found.");
         }
 
-        // Renewal orders must be confirmed only through the
-        // dedicated renewal flow.
-        // Legacy null purchase types are normal purchases.
-
+        // Renewal orders must be confirmed only through the dedicated
+        // renewal flow. Legacy null purchase types are normal purchases.
         String purchaseType = attempt.getPurchaseType();
-
         if (purchaseType != null
                 && !purchaseType.isBlank()
                 && !"NEW".equalsIgnoreCase(purchaseType)) {
-
             throw new IllegalStateException(
                     "Renewal payment orders cannot be used for a normal "
                     + "policy purchase. Use renewal confirmation.");
@@ -356,16 +349,6 @@ public class PolicyPurchaseService {
 
         purchase.setPolicy(savedPolicy);
 
-        // =====================================================
-        // NEW: PRESERVE VERIFIED ORIGINAL PLAN ID
-        // =====================================================
-
-        purchase.setPlanId(attempt.getPlanId());
-
-        // =====================================================
-        // COVERAGE AND PREMIUM
-        // =====================================================
-
         purchase.setCoverageAmount(
                 attempt.getCoverageAmount());
 
@@ -387,10 +370,6 @@ public class PolicyPurchaseService {
         purchase.setTotalPremium(
                 premium.totalPremium);
 
-        // =====================================================
-        // NOMINEE
-        // =====================================================
-
         purchase.setNomineeName(
                 trimToNull(purchaseDto.getNomineeName()));
 
@@ -399,10 +378,6 @@ public class PolicyPurchaseService {
 
         purchase.setNomineeContact(
                 trimToNull(purchaseDto.getNomineeContact()));
-
-        // =====================================================
-        // PAYMENT DETAILS
-        // =====================================================
 
         purchase.setPaymentMethod("RAZORPAY");
         purchase.setPaymentStatus("PAID");
@@ -692,12 +667,6 @@ public class PolicyPurchaseService {
 
         dto.setPurchaseId(purchase.getPurchaseId());
 
-        // =====================================================
-        // NEW: RETURN ORIGINAL PLAN ID
-        // =====================================================
-
-        dto.setPlanId(purchase.getPlanId());
-
         Policy policy = purchase.getPolicy();
 
         if (policy != null) {
@@ -779,9 +748,7 @@ public class PolicyPurchaseService {
         dto.setCreatedAt(
                 purchase.getCreatedAt());
 
-        // =====================================================
-        // REFUND DETAILS
-        // =====================================================
+        // Refund details
 
         dto.setRefundStatus(
                 purchase.getRefundStatus());
@@ -801,9 +768,7 @@ public class PolicyPurchaseService {
         // Match the rules enforced by RefundPreparationService.
         // The refund deadline is informational even when
         // the purchase is no longer eligible.
-
         LocalDateTime paidAt = purchase.getPaymentDateTime();
-
         LocalDateTime deadline = paidAt == null
                 ? null
                 : paidAt.plusHours(REFUND_WINDOW_HOURS);
@@ -811,7 +776,6 @@ public class PolicyPurchaseService {
         dto.setRefundDeadline(deadline);
 
         boolean eligible = false;
-
         String refundStatus = purchase.getRefundStatus();
 
         if (policy != null
@@ -824,10 +788,8 @@ public class PolicyPurchaseService {
                 && !isBlank(purchase.getRazorpayPaymentId())
                 && purchase.getTotalPremium() != null
                 && purchase.getTotalPremium().compareTo(BigDecimal.ZERO) > 0
-                && !refundAttemptRepository.existsByPurchaseId(
-                        purchase.getPurchaseId())
-                && !claimsDao.existsClaimsByPolicyNumber(
-                        policy.getPolicyNumber())) {
+                && !refundAttemptRepository.existsByPurchaseId(purchase.getPurchaseId())
+                && !claimsDao.existsClaimsByPolicyNumber(policy.getPolicyNumber())) {
 
             eligible = true;
         }
