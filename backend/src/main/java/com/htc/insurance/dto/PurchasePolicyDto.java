@@ -29,6 +29,18 @@ public class PurchasePolicyDto {
     private Long planId;
 
     // =====================================================
+    // RENEWAL RELATIONSHIP
+    // =====================================================
+
+    // Purchase ID of the original policy.
+    // Null for a normal policy purchase.
+    private Long renewedFromPurchaseId;
+
+    // Policy number of the original policy.
+    // Null for a normal policy purchase.
+    private Long renewedFromPolicyNumber;
+
+    // =====================================================
     // NOMINEE DETAILS
     // =====================================================
 
@@ -78,7 +90,6 @@ public class PurchasePolicyDto {
      * Received from the frontend and verified by the backend.
      * Do not persist this value in the purchase entity.
      */
-
     private String razorpaySignature;
 
     private LocalDate paymentDate;
