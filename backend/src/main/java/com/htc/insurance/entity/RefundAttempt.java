@@ -1,3 +1,4 @@
+
 package com.htc.insurance.entity;
 
 import java.math.BigDecimal;
@@ -32,10 +33,18 @@ import jakarta.persistence.Version;
 )
 public class RefundAttempt {
 
+    // =========================================================
+    // PRIMARY KEY
+    // =========================================================
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "refund_attempt_id")
     private Long refundAttemptId;
+
+    // =========================================================
+    // PURCHASE AND RAZORPAY REFERENCES
+    // =========================================================
 
     @Column(name = "purchase_id", nullable = false)
     private Long purchaseId;
@@ -52,6 +61,10 @@ public class RefundAttempt {
         length = 100
     )
     private String razorpayRefundId;
+
+    // =========================================================
+    // REFUND DETAILS
+    // =========================================================
 
     @Column(
         name = "refund_amount",
@@ -89,6 +102,10 @@ public class RefundAttempt {
     )
     private String failureReason;
 
+    // =========================================================
+    // AUDIT FIELDS
+    // =========================================================
+
     @Column(
         name = "created_at",
         nullable = false
@@ -101,11 +118,20 @@ public class RefundAttempt {
     )
     private LocalDateTime updatedAt;
 
+    // =========================================================
+    // OPTIMISTIC LOCKING
+    // =========================================================
+
     @Version
     private Long version;
 
+    // =========================================================
+    // ENTITY LIFECYCLE
+    // =========================================================
+
     @PrePersist
     protected void onCreate() {
+
         LocalDateTime now = LocalDateTime.now();
 
         if (createdAt == null) {
@@ -123,6 +149,10 @@ public class RefundAttempt {
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    // =========================================================
+    // GETTERS AND SETTERS
+    // =========================================================
 
     public Long getRefundAttemptId() {
         return refundAttemptId;
