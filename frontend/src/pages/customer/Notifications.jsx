@@ -365,6 +365,31 @@ export default function Notifications() {
         @media(max-width:600px) { .ix-notification-summary { gap:9px; } .ix-notification-stat { padding:12px; gap:8px; flex-direction:column; align-items:flex-start; } .ix-notification-stat-icon { width:35px; height:35px; } .ix-notification-stat strong { font-size:21px; } .ix-notification-grid { padding:11px; gap:11px; } .ix-notification-item { padding:15px; } .ix-notifications-toolbar { align-items:stretch; padding:12px; } }
         @media(max-width:380px) { .ix-notification-summary { grid-template-columns:repeat(2,minmax(0,1fr)); } .ix-notification-stat:nth-child(3) { grid-column:1/-1; flex-direction:row; align-items:center; } }
         @media(prefers-reduced-motion:reduce) { .ix-notification-item,.ix-notification-stat,.ix-notification-stat-icon,.ix-notification-item .dot-icon,.ix-notification-item::before { animation:none !important; transition:none !important; } .ix-notification-item:hover,.ix-notification-actions button:hover { transform:none !important; } }
+
+        /* Clean notification inbox: flat list instead of cards */
+        .ix-notification-summary { display:flex; flex-wrap:wrap; align-items:center; gap:8px 22px; padding:12px 16px; margin:0 0 14px; border-bottom:1px solid #dcebe2; background:transparent; }
+        .ix-notification-stat, .ix-notification-stat:nth-child(2), .ix-notification-stat:nth-child(3) { display:flex; flex-direction:row; align-items:center; gap:9px; padding:3px 0; margin:0; border:0; border-radius:0; background:transparent; box-shadow:none; animation:none; min-width:0; }
+        .ix-notification-stat-icon { width:28px; height:28px; border-radius:8px; background:#e8f6ed; animation:none; }
+        .ix-notification-stat-label { font-size:12px; }
+        .ix-notification-stat strong { font-size:17px; margin-top:0; }
+        .ix-notification-grid { display:block; padding:0; }
+        .ix-notification-item, .ix-notification-item.unread { display:flex; align-items:flex-start; flex-wrap:nowrap; gap:13px; padding:17px 18px; margin:0; border:0; border-bottom:1px solid #e1ede5; border-radius:0; box-shadow:none; background:transparent; animation:none; transform:none; transition:background-color .2s ease; }
+        .ix-notification-item.unread { background:#f0faf4; border-left:3px solid #1c9556; padding-left:15px; }
+        .ix-notification-item:hover, .ix-notification-item.unread:hover { transform:none; box-shadow:none; border-color:#e1ede5; background:#f4faf6; }
+        .ix-notification-item::before, .ix-notification-item:hover::before { content:none; animation:none; }
+        .ix-notification-item .dot-icon { width:38px; height:38px; flex:0 0 38px; border-radius:10px; animation:none; }
+        .ix-notification-content { flex:1 1 auto; }
+        .ix-notification-actions { width:auto; flex:0 0 auto; align-self:center; border:0; padding:0; gap:7px; }
+        .ix-notification-actions button:not(:disabled):hover { transform:none; box-shadow:none; }
+        @media(max-width:700px) {
+          .ix-notification-summary { gap:8px 16px; padding:10px 12px; }
+          .ix-notification-stat, .ix-notification-stat:nth-child(3) { flex-direction:row; align-items:center; }
+          .ix-notification-item, .ix-notification-item.unread { flex-wrap:wrap; padding:14px 12px; gap:10px; }
+          .ix-notification-item.unread { padding-left:9px; }
+          .ix-notification-content { flex:1 1 calc(100% - 52px); }
+          .ix-notification-actions { width:100%; justify-content:flex-end; padding-left:48px; }
+        }
+        @media(max-width:380px) { .ix-notification-summary { display:flex; } .ix-notification-stat:nth-child(3) { grid-column:auto; } }
       `}</style>
 
       {/* ===================================================
