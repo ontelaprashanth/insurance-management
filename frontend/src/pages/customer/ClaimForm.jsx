@@ -5,18 +5,194 @@ import { errorMessage } from '../../api/client'
 import { Button, Modal, SelectInput, TextArea, TextInput, useToast } from '../../components/ui'
 import { today } from '../../lib/format'
 
-export const CLAIM_TYPES = ['Medical expense', 'Hospitalisation', 'Accident', 'Death', 'Disability', 'Vehicle damage', 'Theft', 'Fire or natural calamity', 'Trip cancellation', 'Other']
+export const CLAIM_TYPES = [
+  'Medical expense', 'Hospitalisation', 'Accident', 'Death', 'Disability',
+  'Vehicle damage', 'Theft', 'Fire or natural calamity', 'Trip cancellation', 'Other',
+]
+
+const claimFormStyles = `
+  @keyframes ixClaimEnter {
+    from { opacity: 0; transform: translateY(18px) scale(.985); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+  }
+  @keyframes ixClaimGlow {
+    0%, 100% { transform: translate(-15%, -30%) scale(1); opacity: .5; }
+    50% { transform: translate(8%, -15%) scale(1.1); opacity: .8; }
+  }
+  @keyframes ixClaimSweep {
+    from { transform: translateX(-130%) skewX(-20deg); }
+    to { transform: translateX(330%) skewX(-20deg); }
+  }
+  .ix-claim-form {
+    --ix-green-deep: #103e2d;
+    --ix-green: #17814f;
+    --ix-green-light: #e7f7ee;
+    color: #17392e;
+    width: 100%;
+  }
+  .ix-claim-hero {
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    background: linear-gradient(120deg, #103e2d 0%, #176a48 58%, #1e935b 100%);
+    color: #fff;
+    border-radius: 18px;
+    padding: 22px 24px;
+    margin-bottom: 18px;
+    box-shadow: 0 14px 30px rgba(16, 62, 45, .14);
+    animation: ixClaimEnter .5s cubic-bezier(.2,.8,.2,1) both;
+  }
+  .ix-claim-hero::before {
+    content: '';
+    position: absolute;
+    z-index: -1;
+    width: 230px;
+    height: 230px;
+    right: -70px;
+    top: -130px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(180,255,211,.28), transparent 70%);
+    animation: ixClaimGlow 7s ease-in-out infinite;
+  }
+  .ix-claim-hero::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    width: 36%;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
+    transform: translateX(-130%) skewX(-20deg);
+  }
+  .ix-claim-hero:hover::after { animation: ixClaimSweep 1.1s ease-out; }
+  .ix-claim-eyebrow {
+    color: #c8f5da;
+    font-size: 11px;
+    font-weight: 800;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .ix-claim-title {
+    margin: 0 0 6px;
+    color: #fff;
+    font-size: clamp(19px, 3vw, 24px);
+    line-height: 1.25;
+    font-weight: 800;
+  }
+  .ix-claim-subtitle {
+    color: #e1f7e9;
+    font-size: 13px;
+    line-height: 1.65;
+    margin: 0;
+    max-width: 590px;
+  }
+  .ix-claim-form .ix-claim-section {
+    background: #fff;
+    border: 1px solid #d9e9df;
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+    box-shadow: 0 4px 18px rgba(16, 62, 45, .045);
+    animation: ixClaimEnter .52s cubic-bezier(.2,.8,.2,1) both;
+    animation-delay: calc(var(--ix-claim-index, 0) * 90ms);
+    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+  }
+  .ix-claim-form .ix-claim-section:hover,
+  .ix-claim-form .ix-claim-section:focus-within {
+    border-color: #8fcdae;
+    box-shadow: 0 12px 28px rgba(16, 100, 62, .10);
+    transform: translateY(-2px);
+  }
+  .ix-claim-section-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .ix-claim-section-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 34px;
+    width: 34px;
+    height: 34px;
+    border-radius: 11px;
+    color: #137346;
+    background: #e2f5e9;
+    font-weight: 900;
+    font-size: 13px;
+    transition: transform .35s ease, background .35s ease;
+  }
+  .ix-claim-section:hover .ix-claim-section-icon { transform: rotate(-8deg) scale(1.08); background: #c9eed8; }
+  .ix-claim-section-title { margin: 0; color: #103e2d; font-size: 15px; font-weight: 800; }
+  .ix-claim-section-note { margin: 3px 0 0; color: #526b60; font-size: 12px; line-height: 1.5; }
+  .ix-claim-form .form-grid { gap: 14px; }
+  .ix-claim-form label { color: #204637; font-weight: 650; }
+  .ix-claim-form input,
+  .ix-claim-form textarea,
+  .ix-claim-form select {
+    color: #17392e;
+    border-color: #cbded2;
+    background: #fff;
+    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .ix-claim-form input:focus,
+  .ix-claim-form textarea:focus,
+  .ix-claim-form select:focus {
+    border-color: #17814f;
+    box-shadow: 0 0 0 3px rgba(23, 129, 79, .12);
+    outline-color: #17814f;
+  }
+  .ix-claim-form input:disabled { background: #f1f7f3; color: #3e5b4e; opacity: 1; }
+  .ix-claim-form .alert.error {
+    border-radius: 12px;
+    color: #8c2020;
+    background: #fff0f0;
+    border: 1px solid #f1c3c3;
+    animation: ixClaimEnter .3s ease both;
+  }
+  .ix-claim-helper {
+    color: #4d6859;
+    background: #eff9f3;
+    border: 1px solid #d2ecdc;
+    border-radius: 12px;
+    padding: 11px 13px;
+    font-size: 12px;
+    line-height: 1.65;
+  }
+  .ix-claim-form-footer { display: flex; flex-wrap: wrap; gap: 10px; justify-content: flex-end; }
+  .ix-claim-form-footer > * { transition: transform .22s ease, box-shadow .22s ease; }
+  .ix-claim-form-footer > *:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 7px 17px rgba(16,62,45,.12); }
+  .ix-claim-form-footer > *:active:not(:disabled) { transform: translateY(0) scale(.98); }
+  @media (max-width: 640px) {
+    .ix-claim-hero { padding: 18px; border-radius: 14px; }
+    .ix-claim-form .ix-claim-section { padding: 14px; border-radius: 13px; }
+    .ix-claim-form-footer { width: 100%; }
+    .ix-claim-form-footer > * { flex: 1 1 120px; }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .ix-claim-form *, .ix-claim-form *::before, .ix-claim-form *::after,
+    .ix-claim-form-footer > * {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
+  }
+`
 
 export default function ClaimForm({ policy, onClose }) {
   const toast = useToast()
   const qc = useQueryClient()
   const mine = useQuery({ queryKey: ['my-policies'], queryFn: policies.mine, enabled: !policy })
   const [f, setF] = useState({
-    policyNumber: policy?.policyNumber ?? '', claimType: '', incidentDate: '', incidentLocation: '', amount: '', description: '', nFilepo: '',
+    policyNumber: policy?.policyNumber ?? '', claimType: '', incidentDate: '',
+    incidentLocation: '', amount: '', description: '', nFilepo: '',
   })
   const [errors, setErrors] = useState({})
   const [serverError, setServerError] = useState('')
-  const set = (k) => (e) => { setF((s) => ({ ...s, [k]: e.target.value })); setErrors((s) => ({ ...s, [k]: '' })) }
+  const set = (k) => (e) => {
+    setF((s) => ({ ...s, [k]: e.target.value }))
+    setErrors((s) => ({ ...s, [k]: '' }))
+  }
 
   const save = useMutation({
     mutationFn: (body) => claims.save(body),
@@ -30,6 +206,7 @@ export default function ClaimForm({ policy, onClose }) {
   })
 
   function submit() {
+    if (save.isPending) return
     const e = {}
     if (!f.policyNumber) e.policyNumber = 'Choose the policy this claim is for.'
     if (!f.claimType) e.claimType = 'Choose what happened.'
@@ -51,29 +228,103 @@ export default function ClaimForm({ policy, onClose }) {
   const activePolicies = (mine.data || []).filter((p) => p.isActive)
 
   return (
-    <Modal title="File a claim" onClose={onClose} wide footer={
-      <>
-        <Button onClick={onClose}>Cancel</Button>
-        <Button variant="dark" loading={save.isPending} onClick={submit}>Submit claim</Button>
-      </>
-    }>
-      <div className="form-grid">
-        {serverError && <div className="alert error full" role="alert">{serverError}</div>}
-        {policy ? (
-          <div className="full"><TextInput label="Policy" value={`#${policy.policyNumber} · ${policy.coveredTypes}`} disabled readOnly /></div>
-        ) : (
-          <div className="full">
-            <SelectInput label="Policy" value={f.policyNumber} onChange={set('policyNumber')} error={errors.policyNumber}
-              placeholder={mine.isLoading ? 'Loading…' : activePolicies.length ? 'Choose a policy…' : 'You have no active policies'}
-              options={activePolicies.map((p) => ({ value: p.policyNumber, label: `#${p.policyNumber} · ${p.coveredTypes}` }))} />
+    <Modal
+      title="File a claim"
+      onClose={onClose}
+      wide
+      footer={
+        <div className="ix-claim-form-footer">
+          <Button onClick={onClose} disabled={save.isPending}>Cancel</Button>
+          <Button variant="dark" loading={save.isPending} disabled={save.isPending} onClick={submit}>
+            Submit claim
+          </Button>
+        </div>
+      }
+    >
+      <style>{claimFormStyles}</style>
+      <div className="ix-claim-form">
+        <div className="ix-claim-hero">
+          <div className="ix-claim-eyebrow">InsureX · Claims assistance</div>
+          <h3 className="ix-claim-title">Tell us what happened</h3>
+          <p className="ix-claim-subtitle">
+            Submit the incident details below. Our team will review your claim and update its status in My Claims.
+          </p>
+        </div>
+
+        {serverError && <div className="alert error" role="alert" style={{ marginBottom: 14 }}>{serverError}</div>}
+
+        <section className="ix-claim-section" style={{ '--ix-claim-index': 1 }}>
+          <div className="ix-claim-section-head">
+            <span className="ix-claim-section-icon" aria-hidden="true">01</span>
+            <div>
+              <h4 className="ix-claim-section-title">Policy & incident</h4>
+              <p className="ix-claim-section-note">Choose the insured policy and describe the event.</p>
+            </div>
           </div>
-        )}
-        <SelectInput label="What happened" value={f.claimType} onChange={set('claimType')} options={CLAIM_TYPES} placeholder="Choose…" error={errors.claimType} />
-        <TextInput label="Incident date" type="date" max={today()} value={f.incidentDate} onChange={set('incidentDate')} error={errors.incidentDate} />
-        <TextInput label="Where it happened" value={f.incidentLocation} onChange={set('incidentLocation')} error={errors.incidentLocation} />
-        <TextInput label="Amount claimed (₹)" type="number" min="1" value={f.amount} onChange={set('amount')} error={errors.amount} />
-        <div className="full"><TextArea label="Describe what happened" value={f.description} onChange={set('description')} error={errors.description} hint="Include what was damaged or treated, and anything that supports the amount." /></div>
-        <div className="full"><TextInput label="Document reference (optional)" value={f.nFilepo} onChange={set('nFilepo')} hint="A file name or reference for bills or reports you have submitted." /></div>
+          <div className="form-grid">
+            {policy ? (
+              <div className="full">
+                <TextInput label="Policy" value={`#${policy.policyNumber} · ${policy.coveredTypes}`} disabled readOnly />
+              </div>
+            ) : (
+              <div className="full">
+                <SelectInput
+                  label="Policy" value={f.policyNumber} onChange={set('policyNumber')}
+                  error={errors.policyNumber}
+                  placeholder={mine.isLoading ? 'Loading…' : activePolicies.length ? 'Choose a policy…' : 'You have no active policies'}
+                  options={activePolicies.map((p) => ({ value: p.policyNumber, label: `#${p.policyNumber} · ${p.coveredTypes}` }))}
+                />
+              </div>
+            )}
+            <SelectInput label="What happened" value={f.claimType} onChange={set('claimType')}
+              options={CLAIM_TYPES} placeholder="Choose…" error={errors.claimType} />
+            <TextInput label="Incident date" type="date" max={today()} value={f.incidentDate}
+              onChange={set('incidentDate')} error={errors.incidentDate} />
+            <div className="full">
+              <TextInput label="Where it happened" value={f.incidentLocation}
+                onChange={set('incidentLocation')} error={errors.incidentLocation} />
+            </div>
+          </div>
+        </section>
+
+        <section className="ix-claim-section" style={{ '--ix-claim-index': 2 }}>
+          <div className="ix-claim-section-head">
+            <span className="ix-claim-section-icon" aria-hidden="true">02</span>
+            <div>
+              <h4 className="ix-claim-section-title">Claim amount & details</h4>
+              <p className="ix-claim-section-note">Enter the requested amount and supporting description.</p>
+            </div>
+          </div>
+          <div className="form-grid">
+            <TextInput label="Amount claimed (₹)" type="number" min="1" value={f.amount}
+              onChange={set('amount')} error={errors.amount} />
+            <div className="full">
+              <TextArea label="Describe what happened" value={f.description} onChange={set('description')}
+                error={errors.description}
+                hint="Include what was damaged or treated, and anything that supports the amount." />
+            </div>
+          </div>
+        </section>
+
+        <section className="ix-claim-section" style={{ '--ix-claim-index': 3 }}>
+          <div className="ix-claim-section-head">
+            <span className="ix-claim-section-icon" aria-hidden="true">03</span>
+            <div>
+              <h4 className="ix-claim-section-title">Supporting reference</h4>
+              <p className="ix-claim-section-note">Optional reference for bills, reports or documents.</p>
+            </div>
+          </div>
+          <div className="form-grid">
+            <div className="full">
+              <TextInput label="Document reference (optional)" value={f.nFilepo}
+                onChange={set('nFilepo')}
+                hint="A file name or reference for bills or reports you have submitted." />
+            </div>
+          </div>
+          <p className="ix-claim-helper" style={{ margin: '12px 0 0' }}>
+            Review the information before submitting. Claim approval and payment depend on the policy terms and backend review.
+          </p>
+        </section>
       </div>
     </Modal>
   )
