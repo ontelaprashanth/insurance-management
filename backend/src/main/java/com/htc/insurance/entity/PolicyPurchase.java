@@ -73,12 +73,36 @@ public class PolicyPurchase {
      * Multiple abandoned payment attempts are allowed;
      * uniqueness applies only to saved purchases.
      */
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(
             name = "renewed_from_purchase_id",
             referencedColumnName = "purchaseId"
     )
     private PolicyPurchase renewedFromPurchase;
+
+    // =========================================================
+    // ORIGINAL INSURANCE PLAN - NEW
+    // =========================================================
+
+    /*
+     * Stores the verified insurance plan selected
+     * during the original purchase.
+     *
+     * For normal purchases, the value comes from
+     * the verified PaymentAttempt.
+     *
+     * For renewals, the original plan ID is retained.
+     *
+     * Nullable for historical purchases created
+     * before plan ID tracking was introduced.
+     *
+     * Never infer a historical plan ID using only
+     * current premium or coverage values.
+     */
+
+    @Column(name = "plan_id")
+    private Long planId;
 
     // =========================================================
     // COVERAGE
@@ -166,6 +190,7 @@ public class PolicyPurchase {
      *
      * Actual transitions are managed by refund services.
      */
+
     private String refundStatus;
 
     private String refundId;
@@ -221,6 +246,18 @@ public class PolicyPurchase {
             PolicyPurchase renewedFromPurchase) {
 
         this.renewedFromPurchase = renewedFromPurchase;
+    }
+
+    // =========================================================
+    // PLAN ID GETTERS AND SETTERS - NEW
+    // =========================================================
+
+    public Long getPlanId() {
+        return planId;
+    }
+
+    public void setPlanId(Long planId) {
+        this.planId = planId;
     }
 
     // =========================================================
