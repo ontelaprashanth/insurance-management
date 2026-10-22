@@ -788,6 +788,16 @@ export default function MyPolicies() {
             ? 'RENEWED'
             : baseStatus
 
+        // Claim history is separate from the effective lifecycle status.
+        const hasClaimHistory =
+          relatedClaims.length > 0 ||
+          (Array.isArray(policy.claims) && policy.claims.length > 0) ||
+          policy.hasSuccessfulClaim === true ||
+          policy.claimApproved === true ||
+          Boolean(normalizedStatus(policy.claimStatus)) ||
+          normalizedStatus(policy.status) === 'CLAIMED' ||
+          normalizedStatus(policy.lifecycleStatus) === 'CLAIMED'
+
         const pendingClaim = isPendingClaim(
           policy,
           relatedClaims,
@@ -842,6 +852,7 @@ export default function MyPolicies() {
           refunded,
           refundFailed,
           pendingClaim,
+          hasClaimHistory,
           alreadyRenewed,
           renewalChild,
           canFileClaim,
@@ -881,6 +892,10 @@ export default function MyPolicies() {
           return policy.displayStatus === 'RENEWED'
         }
 
+        if (status === 'claimed') {
+          return policy.hasClaimHistory
+        }
+
         return (
           policy.displayStatus ===
           status.toUpperCase()
@@ -918,7 +933,7 @@ export default function MyPolicies() {
       ).length,
 
       claimed: enrichedPolicies.filter(
-        (p) => p.displayStatus === 'CLAIMED',
+        (p) => p.hasClaimHistory,
       ).length,
 
       renewed: enrichedPolicies.filter(
