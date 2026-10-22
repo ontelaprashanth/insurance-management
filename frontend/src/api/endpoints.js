@@ -10,6 +10,7 @@ import { api } from './client'
    Policies
    Purchases & Refunds
    Payments
+   Policy Renewals
    Policy Holders
    Claims
    Settlements
@@ -84,12 +85,7 @@ export const users = {
     d(api.get(`/user/get/${id(userId)}`)),
 
   update: (userId, body) =>
-    d(
-      api.put(
-        `/user/update/${id(userId)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/user/update/${id(userId)}`, body)),
 
   activate: (userId) =>
     d(api.put(`/user/activate/${id(userId)}`)),
@@ -128,75 +124,38 @@ export const policies = {
     d(api.get('/policy/getAll')),
 
   get: (policyNumber) =>
-    d(
-      api.get(
-        `/policy/get/${id(policyNumber)}`,
-      ),
-    ),
+    d(api.get(`/policy/get/${id(policyNumber)}`)),
 
   save: (body) =>
     d(api.post('/policy/save', body)),
 
   update: (policyNumber, body) =>
-    d(
-      api.put(
-        `/policy/update/${id(policyNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/policy/update/${id(policyNumber)}`, body)),
 
   remove: (policyNumber) =>
-    d(
-      api.delete(
-        `/policy/delete/${id(policyNumber)}`,
-      ),
-    ),
+    d(api.delete(`/policy/delete/${id(policyNumber)}`)),
 
   activate: (policyNumber) =>
-    d(
-      api.put(
-        `/policy/activate/${id(policyNumber)}`,
-      ),
-    ),
+    d(api.put(`/policy/activate/${id(policyNumber)}`)),
 
   deactivate: (policyNumber) =>
-    d(
-      api.put(
-        `/policy/deactivate/${id(policyNumber)}`,
-      ),
-    ),
+    d(api.put(`/policy/deactivate/${id(policyNumber)}`)),
 }
 
 /* =========================================================
    POLICY PURCHASES & REFUNDS
-
-   Backend:
-   GET  /policy/my-purchases
-   GET  /policy/purchases
-   POST /policy/purchase
-   POST /refund/request
-
-   RefundRequestDto:
-   {
-     purchaseId: Long,
-     refundReason: String
-   }
 ========================================================= */
 
 export const purchases = {
-  // Customer: purchase insurance
   purchase: (body) =>
     d(api.post('/policy/purchase', body)),
 
-  // Customer: purchase history
   mine: () =>
     d(api.get('/policy/my-purchases')),
 
-  // Admin: all purchases
   getAll: () =>
     d(api.get('/policy/purchases')),
 
-  // Customer: request full refund
   refund: (purchaseId, body) => {
     const parsedPurchaseId = Number(purchaseId)
 
@@ -249,6 +208,45 @@ export const payment = {
 }
 
 /* =========================================================
+   POLICY RENEWALS — RAZORPAY
+
+   POST /api/policy-renewals/{policyNumber}/order
+
+   POST /api/policy-renewals/{policyNumber}/confirm
+
+   The backend determines:
+   - Original insurance plan
+   - Original paid premium
+   - Coverage amount
+   - Policy duration
+   - Renewal eligibility
+
+   Never send or calculate the renewal price
+   from the frontend.
+========================================================= */
+
+export const renewals = {
+  createOrder: (originalPolicyNumber) =>
+    d(
+      api.post(
+        `/api/policy-renewals/${id(originalPolicyNumber)}/order`,
+      ),
+    ),
+
+  confirm: (originalPolicyNumber, body) =>
+    d(
+      api.post(
+        `/api/policy-renewals/${id(originalPolicyNumber)}/confirm`,
+        {
+          razorpayOrderId: body.razorpayOrderId,
+          razorpayPaymentId: body.razorpayPaymentId,
+          razorpaySignature: body.razorpaySignature,
+        },
+      ),
+    ),
+}
+
+/* =========================================================
    POLICY HOLDERS
 ========================================================= */
 
@@ -257,11 +255,7 @@ export const policyHolders = {
     d(api.get('/policyholder/getAll')),
 
   get: (policyHolderId) =>
-    d(
-      api.get(
-        `/policyholder/get/${id(policyHolderId)}`,
-      ),
-    ),
+    d(api.get(`/policyholder/get/${id(policyHolderId)}`)),
 
   save: (body) =>
     d(api.post('/policyholder/save', body)),
@@ -275,11 +269,7 @@ export const policyHolders = {
     ),
 
   remove: (policyHolderId) =>
-    d(
-      api.delete(
-        `/policyholder/delete/${id(policyHolderId)}`,
-      ),
-    ),
+    d(api.delete(`/policyholder/delete/${id(policyHolderId)}`)),
 }
 
 /* =========================================================
@@ -297,42 +287,19 @@ export const claims = {
     d(api.get('/claims/getAll')),
 
   get: (claimNumber) =>
-    d(
-      api.get(
-        `/claims/get/${id(claimNumber)}`,
-      ),
-    ),
+    d(api.get(`/claims/get/${id(claimNumber)}`)),
 
   update: (claimNumber, body) =>
-    d(
-      api.put(
-        `/claims/update/${id(claimNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/claims/update/${id(claimNumber)}`, body)),
 
   approve: (claimNumber, body) =>
-    d(
-      api.put(
-        `/claims/approve/${id(claimNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/claims/approve/${id(claimNumber)}`, body)),
 
   reject: (claimNumber, body) =>
-    d(
-      api.put(
-        `/claims/reject/${id(claimNumber)}`,
-        body,
-      ),
-    ),
+    d(api.put(`/claims/reject/${id(claimNumber)}`, body)),
 
   remove: (claimNumber) =>
-    d(
-      api.delete(
-        `/claims/delete/${id(claimNumber)}`,
-      ),
-    ),
+    d(api.delete(`/claims/delete/${id(claimNumber)}`)),
 }
 
 /* =========================================================
@@ -344,18 +311,10 @@ export const settlements = {
     d(api.get('/settlement/getAll')),
 
   get: (settlementNumber) =>
-    d(
-      api.get(
-        `/settlement/get/${id(settlementNumber)}`,
-      ),
-    ),
+    d(api.get(`/settlement/get/${id(settlementNumber)}`)),
 
   byClaim: (claimNumber) =>
-    d(
-      api.get(
-        `/settlement/claim/${id(claimNumber)}`,
-      ),
-    ),
+    d(api.get(`/settlement/claim/${id(claimNumber)}`)),
 
   save: (body) =>
     d(api.post('/settlement/save', body)),
@@ -379,9 +338,7 @@ export const settlements = {
     d(
       api.put(
         `/settlement/reject/${id(settlementNumber)}`,
-        {
-          rejectionReason,
-        },
+        { rejectionReason },
       ),
     ),
 
@@ -408,11 +365,7 @@ export const reviews = {
     d(api.get('/reviewer/getAll')),
 
   get: (reviewId) =>
-    d(
-      api.get(
-        `/reviewer/get/${id(reviewId)}`,
-      ),
-    ),
+    d(api.get(`/reviewer/get/${id(reviewId)}`)),
 
   update: (reviewId, body) =>
     d(
@@ -431,11 +384,7 @@ export const reviews = {
     ),
 
   remove: (reviewId) =>
-    d(
-      api.delete(
-        `/reviewer/delete/${id(reviewId)}`,
-      ),
-    ),
+    d(api.delete(`/reviewer/delete/${id(reviewId)}`)),
 }
 
 /* =========================================================
@@ -473,26 +422,13 @@ export const notifications = {
 
 export const broadcast = {
   send: (body) =>
-    d(
-      api.post(
-        '/api/admin/notifications',
-        body,
-      ),
-    ),
+    d(api.post('/api/admin/notifications', body)),
 
   customers: () =>
-    d(
-      api.get(
-        '/api/admin/notifications/customers',
-      ),
-    ),
+    d(api.get('/api/admin/notifications/customers')),
 
   list: () =>
-    d(
-      api.get(
-        '/api/admin/notifications',
-      ),
-    ),
+    d(api.get('/api/admin/notifications')),
 
   remove: (notificationId) =>
     d(
