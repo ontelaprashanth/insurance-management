@@ -149,6 +149,10 @@ public class SettlementService {
         settlement.setSettlementStatus("SETTLED");
         settlement.setRejectionReason(null);
 
+        // Keep the associated claim synchronized with the completed settlement.
+        claim.setStatus(ClaimStatus.SETTLED);
+        claimsRepository.save(claim);
+
         Settlement saved = settlementRepository.save(settlement);
 
         notifySettlementOwner(
@@ -190,8 +194,23 @@ public class SettlementService {
                     "Only pending settlements can be rejected.");
         }
 
+        Claims claim = settlement.getClaim();
+        if (claim == null) {
+            throw new IllegalStateException(
+                    "Settlement is not linked to a claim.");
+        }
+        if (claim.getStatus() != ClaimStatus.APPROVED) {
+            throw new IllegalStateException(
+                    "Only settlements for approved claims can be rejected.");
+        }
+
         settlement.setSettlementStatus("REJECTED");
         settlement.setRejectionReason(reason);
+
+        // A rejected settlement also rejects the claim, as required by InsureX.
+        // The rejected claim and settlement are retained for audit/history.
+        claim.setStatus(ClaimStatus.REJECTED);
+        claimsRepository.save(claim);
 
         Settlement saved = settlementRepository.save(settlement);
 
@@ -200,7 +219,9 @@ public class SettlementService {
                 "Settlement Rejected",
                 "Your settlement #" + saved.getSettlementNumber()
                         + " for claim #" + getClaimNumber(saved)
-                        + " has been rejected. Reason: " + reason,
+                        + " has been rejected. The associated claim has also been rejected. Reason: "
+                        + reason
+                        + ". You may submit a new claim if your policy is eligible.",
                 "SETTLEMENT");
 
         return mapToDto(saved);
