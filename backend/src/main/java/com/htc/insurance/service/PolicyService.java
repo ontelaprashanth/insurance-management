@@ -12,15 +12,22 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyHolderDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.dao.UserDao;
+
 import com.htc.insurance.dto.PolicyDto;
+
+import com.htc.insurance.entity.Claims;
+import com.htc.insurance.entity.ClaimStatus;
 import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyHolder;
+import com.htc.insurance.entity.PolicyLifecycleStatus;
 import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.User;
+
 import com.htc.insurance.mapper.PolicyMapper;
 
 @Service
@@ -45,6 +52,9 @@ public class PolicyService {
     @Autowired
     private PolicyPurchaseDao policyPurchaseDao;
 
+    @Autowired
+    private ClaimsDao claimsDao;
+
     // =========================================================
     // VALIDATE POLICY
     // =========================================================
@@ -52,19 +62,19 @@ public class PolicyService {
     private void validatePolicyDetails(PolicyDto dto) {
 
         if (dto == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy details are required.");
         }
 
         if (dto.getCoveredTypes() == null
                 || dto.getCoveredTypes().trim().isEmpty()) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Insurance cover type is required.");
         }
 
         if (dto.getStartDate() == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy start date is required.");
         }
 
@@ -72,7 +82,7 @@ public class PolicyService {
 
         if (duration == null || duration < 1 || duration > 5) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy duration must be between 1 and 5 years.");
         }
     }
@@ -91,7 +101,7 @@ public class PolicyService {
                 policyHolderDao.getPolicyHolderById(holderId);
 
         if (holder == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy holder not found.");
         }
 
@@ -100,7 +110,6 @@ public class PolicyService {
 
     // =========================================================
     // CHECK POLICY EXPIRY
-    // Expiry date itself is treated as expired.
     // =========================================================
 
     private boolean hasExpired(Policy policy) {
@@ -108,6 +117,18 @@ public class PolicyService {
         return policy != null
                 && policy.getExpiryDate() != null
                 && !policy.getExpiryDate().isAfter(
+                        LocalDate.now());
+    }
+
+    // =========================================================
+    // CHECK COVERAGE START
+    // =========================================================
+
+    private boolean coverageStarted(Policy policy) {
+
+        return policy != null
+                && policy.getStartDate() != null
+                && !policy.getStartDate().isAfter(
                         LocalDate.now());
     }
 
@@ -121,24 +142,48 @@ public class PolicyService {
             return policy;
         }
 
-        // Do not send repeated expiry notifications.
-        if (Boolean.FALSE.equals(policy.getIsActive())) {
+        boolean wasActive =
+                Boolean.TRUE.equals(policy.getIsActive());
+
+        boolean alreadyExpired =
+                policy.getLifecycleStatus()
+                        == PolicyLifecycleStatus.EXPIRED;
+
+        if (!wasActive && alreadyExpired) {
             return policy;
         }
 
+        // Never leave an expired policy active.
         policy.setIsActive(Boolean.FALSE);
 
-        Policy updated = policyDao.updatePolicy(policy);
+        // Preserve claim/refund/administrative lock reasons.
+        // Expiry still prevents activation through date checks.
+        PolicyLifecycleStatus lifecycle =
+                policy.getLifecycleStatus();
 
-        createPolicyNotification(
-                updated.getPolicyHolder(),
-                "Policy Expired",
-                "Your insurance policy #"
-                        + updated.getPolicyNumber()
-                        + " expired on "
-                        + updated.getExpiryDate()
-                        + ". Please contact InsureX for renewal options.",
-                "POLICY");
+        if (lifecycle == null
+                || lifecycle == PolicyLifecycleStatus.ACTIVE) {
+
+            policy.setLifecycleStatus(
+                    PolicyLifecycleStatus.EXPIRED);
+        }
+
+        Policy updated =
+                policyDao.updatePolicy(policy);
+
+        if (wasActive && !alreadyExpired) {
+
+            createPolicyNotification(
+                    updated.getPolicyHolder(),
+                    "Policy Expired",
+                    "Your insurance policy #"
+                            + updated.getPolicyNumber()
+                            + " expired on "
+                            + updated.getExpiryDate()
+                            + ". Please contact InsureX "
+                            + "for renewal options.",
+                    "POLICY");
+        }
 
         return updated;
     }
@@ -160,12 +205,20 @@ public class PolicyService {
                         policyDto);
 
         policy.setPolicyHolder(holder);
-        policy.setStartDate(policyDto.getStartDate());
+
+        policy.setCoveredTypes(
+                policyDto.getCoveredTypes().trim());
+
+        policy.setStartDate(
+                policyDto.getStartDate());
+
         policy.setDurationYears(
                 policyDto.getDurationYears());
 
-        LocalDate expiryDate = policyDto.getStartDate()
-                .plusYears(policyDto.getDurationYears());
+        LocalDate expiryDate =
+                policyDto.getStartDate()
+                        .plusYears(
+                                policyDto.getDurationYears());
 
         policy.setExpiryDate(expiryDate);
 
@@ -174,13 +227,29 @@ public class PolicyService {
 
         boolean requestedActive =
                 policyDto.getIsActive() == null
-                        || Boolean.TRUE.equals(
-                                policyDto.getIsActive());
+                || Boolean.TRUE.equals(
+                        policyDto.getIsActive());
 
-        policy.setIsActive(
-                alreadyExpired
-                        ? Boolean.FALSE
-                        : requestedActive);
+        boolean active =
+                !alreadyExpired && requestedActive;
+
+        policy.setIsActive(active);
+
+        if (alreadyExpired) {
+
+            policy.setLifecycleStatus(
+                    PolicyLifecycleStatus.EXPIRED);
+
+        } else if (active) {
+
+            policy.setLifecycleStatus(
+                    PolicyLifecycleStatus.ACTIVE);
+
+        } else {
+
+            policy.setLifecycleStatus(
+                    PolicyLifecycleStatus.ADMIN_DISABLED);
+        }
 
         Policy savedPolicy =
                 policyDao.savePolicy(policy);
@@ -230,7 +299,7 @@ public class PolicyService {
     public PolicyDto getPolicyById(Long policyNumber) {
 
         if (policyNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy number is required.");
         }
 
@@ -256,25 +325,50 @@ public class PolicyService {
             PolicyDto policyDto) {
 
         if (policyNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy number is required.");
         }
 
         validatePolicyDetails(policyDto);
 
         Policy existingPolicy =
-                policyDao.getPolicyById(policyNumber);
+                policyDao.getPolicyByIdForUpdate(
+                        policyNumber);
 
         if (existingPolicy == null) {
             return null;
         }
 
-        existingPolicy =
-                expireIfNecessary(existingPolicy);
-
         PolicyHolder holder =
                 resolvePolicyHolder(
                         policyDto.getPolicyHolderId());
+
+        // Preserve existing ownership for policies
+        // with purchases or historical claims.
+        if (hasPurchaseRecord(policyNumber)
+                || hasAnyClaim(policyNumber)) {
+
+            Long existingHolderId =
+                    existingPolicy.getPolicyHolder() == null
+                            ? null
+                            : existingPolicy.getPolicyHolder()
+                                    .getPolicyHolderId();
+
+            Long requestedHolderId =
+                    holder == null
+                            ? null
+                            : holder.getPolicyHolderId();
+
+            if (existingHolderId == null
+                    ? requestedHolderId != null
+                    : !existingHolderId.equals(
+                            requestedHolderId)) {
+
+                throw new IllegalStateException(
+                        "Policy ownership cannot be changed "
+                                + "after purchase or claim activity.");
+            }
+        }
 
         existingPolicy.setCoveredTypes(
                 policyDto.getCoveredTypes().trim());
@@ -285,15 +379,29 @@ public class PolicyService {
         existingPolicy.setDurationYears(
                 policyDto.getDurationYears());
 
-        LocalDate expiryDate = policyDto.getStartDate()
-                .plusYears(policyDto.getDurationYears());
+        LocalDate expiryDate =
+                policyDto.getStartDate()
+                        .plusYears(
+                                policyDto.getDurationYears());
 
         existingPolicy.setExpiryDate(expiryDate);
         existingPolicy.setPolicyHolder(holder);
 
-        // Preserve existing active/inactive state.
+        // Do not activate a policy simply because
+        // an admin changes its dates or other details.
         if (hasExpired(existingPolicy)) {
+
             existingPolicy.setIsActive(Boolean.FALSE);
+
+            PolicyLifecycleStatus lifecycle =
+                    existingPolicy.getLifecycleStatus();
+
+            if (lifecycle == null
+                    || lifecycle == PolicyLifecycleStatus.ACTIVE) {
+
+                existingPolicy.setLifecycleStatus(
+                        PolicyLifecycleStatus.EXPIRED);
+            }
         }
 
         Policy savedPolicy =
@@ -318,31 +426,31 @@ public class PolicyService {
     public void deletePolicy(Long policyNumber) {
 
         if (policyNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy number is required.");
         }
 
         Policy policy =
-                policyDao.getPolicyById(policyNumber);
+                policyDao.getPolicyByIdForUpdate(
+                        policyNumber);
 
         if (policy == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy not found.");
         }
 
-        if (policy.getClaims() != null
-                && !policy.getClaims().isEmpty()) {
+        if (hasAnyClaim(policyNumber)) {
 
-            throw new RuntimeException(
-                    "Policy cannot be deleted because it has claims.");
+            throw new IllegalStateException(
+                    "Policy cannot be deleted "
+                            + "because it has claim history.");
         }
 
-        // Preserve the purchase/payment audit trail.
         if (hasPurchaseRecord(policyNumber)) {
 
             throw new IllegalStateException(
                     "Purchased policies cannot be deleted. "
-                    + "Deactivate the policy instead.");
+                            + "Deactivate the policy instead.");
         }
 
         PolicyHolder holder =
@@ -365,25 +473,74 @@ public class PolicyService {
 
     public PolicyDto activatePolicy(Long policyNumber) {
 
-        Policy policy = requirePolicy(policyNumber);
+        Policy policy =
+                requireLockedPolicy(policyNumber);
 
-        // A refunding or refunded policy must not be activated.
-        if (hasBlockingRefund(policyNumber)) {
+        // Lock purchase after policy to match
+        // claim and refund transaction ordering.
+        PolicyPurchase purchase = policyPurchaseDao
+                .getPurchaseByPolicyNumberForUpdate(
+                        policyNumber)
+                .orElse(null);
+
+        if (hasBlockingRefund(purchase)) {
 
             throw new IllegalStateException(
                     "This policy has a refund in progress "
-                    + "or has already been refunded. "
-                    + "It cannot be activated.");
+                            + "or has already been refunded. "
+                            + "It cannot be activated.");
         }
 
         if (hasExpired(policy)) {
 
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Expired policies cannot be activated. "
-                            + "Renew the policy before activating it.");
+                            + "Renew the policy first.");
+        }
+
+        if (!coverageStarted(policy)) {
+
+            throw new IllegalStateException(
+                    "Policy coverage has not started yet.");
+        }
+
+        if (hasBlockingClaim(policyNumber)) {
+
+            throw new IllegalStateException(
+                    "This policy already has a pending, "
+                            + "approved or settled claim. "
+                            + "It cannot be activated.");
+        }
+
+        PolicyLifecycleStatus lifecycle =
+                policy.getLifecycleStatus();
+
+        if (lifecycle == PolicyLifecycleStatus.CLAIM_LOCKED) {
+
+            throw new IllegalStateException(
+                    "This policy is locked due to claim approval. "
+                            + "It cannot be manually activated.");
+        }
+
+        if (lifecycle == PolicyLifecycleStatus.REFUNDED) {
+
+            throw new IllegalStateException(
+                    "Refunded policies cannot be activated.");
+        }
+
+        // An expired policy requires a separate
+        // verified renewal process.
+        if (lifecycle == PolicyLifecycleStatus.EXPIRED) {
+
+            throw new IllegalStateException(
+                    "This policy is marked expired. "
+                            + "Complete the renewal process first.");
         }
 
         policy.setIsActive(Boolean.TRUE);
+
+        policy.setLifecycleStatus(
+                PolicyLifecycleStatus.ACTIVE);
 
         Policy updated =
                 policyDao.updatePolicy(policy);
@@ -406,9 +563,23 @@ public class PolicyService {
 
     public PolicyDto deactivatePolicy(Long policyNumber) {
 
-        Policy policy = requirePolicy(policyNumber);
+        Policy policy =
+                requireLockedPolicy(policyNumber);
 
         policy.setIsActive(Boolean.FALSE);
+
+        // Preserve claim/refund/expiry lifecycle reasons.
+        // Admin deactivation should not erase a claim lock.
+        PolicyLifecycleStatus lifecycle =
+                policy.getLifecycleStatus();
+
+        if (lifecycle == null
+                || lifecycle == PolicyLifecycleStatus.ACTIVE
+                || lifecycle == PolicyLifecycleStatus.ADMIN_DISABLED) {
+
+            policy.setLifecycleStatus(
+                    PolicyLifecycleStatus.ADMIN_DISABLED);
+        }
 
         Policy updated =
                 policyDao.updatePolicy(policy);
@@ -426,21 +597,22 @@ public class PolicyService {
     }
 
     // =========================================================
-    // FIND POLICY
+    // REQUIRE LOCKED POLICY
     // =========================================================
 
-    private Policy requirePolicy(Long policyNumber) {
+    private Policy requireLockedPolicy(Long policyNumber) {
 
         if (policyNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy number is required.");
         }
 
         Policy policy =
-                policyDao.getPolicyById(policyNumber);
+                policyDao.getPolicyByIdForUpdate(
+                        policyNumber);
 
         if (policy == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy not found.");
         }
 
@@ -457,7 +629,7 @@ public class PolicyService {
         if (username == null
                 || username.trim().isEmpty()) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Username is required.");
         }
 
@@ -466,7 +638,7 @@ public class PolicyService {
                         username.trim());
 
         if (user == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "User not found.");
         }
 
@@ -477,7 +649,6 @@ public class PolicyService {
 
                 .filter(policy -> policy != null)
 
-                // Only policies belonging to this customer
                 .filter(policy ->
                         policy.getPolicyHolder() != null
                         && policy.getPolicyHolder()
@@ -488,39 +659,92 @@ public class PolicyService {
                                         .getUser()
                                         .getUserId()))
 
-                // Process expiry using existing logic
                 .map(this::expireIfNecessary)
 
-                // Only active policies
                 .filter(policy ->
                         Boolean.TRUE.equals(
                                 policy.getIsActive()))
 
-                // Coverage must have started
+                .filter(policy ->
+                        policy.getLifecycleStatus() == null
+                        || policy.getLifecycleStatus()
+                                == PolicyLifecycleStatus.ACTIVE)
+
                 .filter(policy ->
                         policy.getStartDate() != null
                         && !policy.getStartDate()
                                 .isAfter(today))
 
-                // Coverage must not have expired
                 .filter(policy ->
                         policy.getExpiryDate() != null
                         && policy.getExpiryDate()
                                 .isAfter(today))
 
-                // Exclude policies with refund activity
                 .filter(policy ->
                         !hasBlockingRefund(
                                 policy.getPolicyNumber()))
 
-                .map(
-                        policyMapper::convertPolicyEntityToDto)
+                .map(policyMapper::convertPolicyEntityToDto)
 
                 .collect(Collectors.toList());
     }
 
     // =========================================================
-    // CHECK IF POLICY HAS A PURCHASE RECORD
+    // CHECK POLICY HAS ANY CLAIM
+    // =========================================================
+
+    private boolean hasAnyClaim(Long policyNumber) {
+
+        if (policyNumber == null) {
+            return false;
+        }
+
+        return claimsDao.getAllClaims()
+                .stream()
+                .anyMatch(claim ->
+                        claim != null
+                        && claim.getPolicy() != null
+                        && policyNumber.equals(
+                                claim.getPolicy()
+                                        .getPolicyNumber()));
+    }
+
+    // =========================================================
+    // CHECK FOR BLOCKING CLAIMS
+    // =========================================================
+
+    private boolean hasBlockingClaim(Long policyNumber) {
+
+        if (policyNumber == null) {
+            return false;
+        }
+
+        for (Claims claim : claimsDao.getAllClaims()) {
+
+            if (claim == null
+                    || claim.getPolicy() == null
+                    || !policyNumber.equals(
+                            claim.getPolicy()
+                                    .getPolicyNumber())) {
+                continue;
+            }
+
+            ClaimStatus status = claim.getStatus();
+
+            // Historical rejected claims allow retry.
+            if (status == ClaimStatus.REJECTED) {
+                continue;
+            }
+
+            // PENDING, APPROVED, SETTLED and null block.
+            return true;
+        }
+
+        return false;
+    }
+
+    // =========================================================
+    // CHECK POLICY HAS A PURCHASE RECORD
     // =========================================================
 
     private boolean hasPurchaseRecord(Long policyNumber) {
@@ -540,7 +764,7 @@ public class PolicyService {
     }
 
     // =========================================================
-    // PREVENT REFUNDED POLICY REACTIVATION
+    // CHECK BLOCKING REFUND FOR POLICY
     // =========================================================
 
     private boolean hasBlockingRefund(Long policyNumber) {
@@ -562,6 +786,21 @@ public class PolicyService {
                                 purchase.getRefundStatus()));
     }
 
+    // =========================================================
+    // CHECK BLOCKING REFUND FOR LOCKED PURCHASE
+    // =========================================================
+
+    private boolean hasBlockingRefund(
+            PolicyPurchase purchase) {
+
+        if (purchase == null) {
+            return false;
+        }
+
+        return isRefundBlocking(
+                purchase.getRefundStatus());
+    }
+
     private boolean isRefundBlocking(String refundStatus) {
 
         if (refundStatus == null
@@ -574,7 +813,7 @@ public class PolicyService {
     }
 
     // =========================================================
-    // NORMALIZE COVER TYPE FOR DUPLICATE DETECTION
+    // NORMALIZE COVER TYPE
     // =========================================================
 
     private String normalizeCoverType(
@@ -593,7 +832,7 @@ public class PolicyService {
     }
 
     // =========================================================
-    // AVAILABLE POLICIES - CUSTOMER BUY INSURANCE PAGE
+    // AVAILABLE POLICIES - BUY INSURANCE PAGE
     // =========================================================
 
     @Transactional(readOnly = true)
@@ -616,6 +855,14 @@ public class PolicyService {
                 continue;
             }
 
+            PolicyLifecycleStatus lifecycle =
+                    policy.getLifecycleStatus();
+
+            if (lifecycle != null
+                    && lifecycle != PolicyLifecycleStatus.ACTIVE) {
+                continue;
+            }
+
             if (policy.getStartDate() == null
                     || policy.getStartDate()
                             .isAfter(today)) {
@@ -625,6 +872,12 @@ public class PolicyService {
             if (policy.getExpiryDate() == null
                     || !policy.getExpiryDate()
                             .isAfter(today)) {
+                continue;
+            }
+
+            // Exclude refunded customer policies.
+            if (hasBlockingRefund(
+                    policy.getPolicyNumber())) {
                 continue;
             }
 
@@ -642,8 +895,7 @@ public class PolicyService {
 
         return uniquePolicies.values()
                 .stream()
-                .map(
-                        policyMapper::convertPolicyEntityToDto)
+                .map(policyMapper::convertPolicyEntityToDto)
                 .collect(Collectors.toList());
     }
 
