@@ -358,6 +358,19 @@ const BUY_GREEN_STYLES = `
 .ix-buy-page .ix-term-choice strong{font-size:12px;color:#103e2d}
 .ix-buy-page .ix-term-choice small{font-size:11px;color:#547563;overflow-wrap:anywhere}
 .ix-buy-page .ix-term-choice:focus-within{outline:2px solid #17814f;outline-offset:2px}
+/* Animated, compact term slider — presentation only */
+.ix-buy-page .ix-year-value{font-size:19px;font-weight:800;text-align:center;color:#17814f;animation:ixYearPop .24s ease both}
+.ix-buy-page .ix-year-range{display:block;margin:8px 0 13px;accent-color:#17814f;transition:filter .2s ease}
+.ix-buy-page .ix-year-range:hover{filter:brightness(1.12)}
+.ix-buy-page .ix-term-compact{grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.ix-buy-page .ix-term-compact .ix-term-choice{display:grid;place-items:center;padding:9px 2px;min-height:38px;border-radius:9px;font-size:12px;font-weight:700;color:#145c3e;transition:transform .2s ease,background .25s ease,border-color .25s ease,box-shadow .25s ease}
+.ix-buy-page .ix-term-compact .ix-term-choice.selected{padding:8px 1px;background:#d9f5e6;border:2px solid #17814f;box-shadow:0 4px 12px rgba(23,129,79,.17);animation:ixTermSelect .22s ease}
+.ix-buy-page .ix-term-compact .ix-term-choice:not(:disabled):hover{transform:translateY(-2px);background:#eaf8ef}
+.ix-buy-page .ix-side-total strong:last-child,.ix-buy-page .ix-side-price{transition:color .2s ease,transform .2s ease}
+.ix-buy-page .ix-side-card{animation:ixBuyRise .45s ease both}
+@keyframes ixYearPop{from{opacity:.6;transform:translateY(5px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+@keyframes ixTermSelect{from{transform:scale(.94)}to{transform:scale(1)}}
+@media(prefers-reduced-motion:reduce){.ix-buy-page .ix-year-value,.ix-buy-page .ix-term-compact .ix-term-choice.selected,.ix-buy-page .ix-side-card{animation:none!important}}
 @media(max-width:480px){.ix-buy-page .ix-side-top,.ix-buy-page .ix-side-body,.ix-buy-page .ix-side-controls{padding:16px}.ix-buy-page .ix-side-price{font-size:27px}.ix-buy-page .ix-term-choices{gap:7px}.ix-buy-page .ix-term-choice{padding:9px}.ix-buy-page .ix-term-choice.selected{padding:8px}}
 
 .ix-buy-page { --ix-green-950:#103e2d; --ix-green-800:#145c3e; --ix-green-700:#17814f; --ix-green-100:#d9f5e6; --ix-green-50:#f4fbf7; color:#163c2d; }
@@ -1872,20 +1885,34 @@ export default function BuyPolicy() {
                         disabled={paying || paymentUncertain}
                       />
                       <div className="ix-slider-labels"><span>{inrShort(Math.max(100000, Math.floor(Number(policy.baseCoverage) / 100000) * 100000))}</span><span>{inrShort(Math.max(5000000, Number(policy.baseCoverage) * 2))}</span></div>
-                      <h4 style={{marginTop:18}}>Policy term</h4>
-                      <p>Choose the policy duration</p>
-                      <div className="ix-term-choices">
+                      <h4 style={{marginTop:16}}>Policy term</h4>
+                      <p>Slide or tap a year to update the total</p>
+                      <div className="ix-year-value" key={effectiveYears}>
+                        {effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}
+                      </div>
+                      <input
+                        className="ix-year-range"
+                        aria-label="Policy term in years"
+                        type="range"
+                        min="1"
+                        max="5"
+                        step="1"
+                        value={effectiveYears}
+                        onChange={(event) => setVal((current) => ({ ...current, years: Number(event.target.value) }))}
+                        disabled={paying || paymentUncertain}
+                      />
+                      <div className="ix-term-choices ix-term-compact">
                         {[1, 2, 3, 4, 5].map((years) => (
-                          <label key={years} className={`ix-term-choice ${effectiveYears === years ? 'selected' : ''}`}>
-                            <input
-                              type="radio"
-                              name="ix-policy-term"
-                              checked={effectiveYears === years}
-                              onChange={() => setVal((current) => ({ ...current, years }))}
-                              disabled={paying || paymentUncertain}
-                            />
-                            <span><strong>{years} {years === 1 ? 'year' : 'years'}</strong><small>{inr(Number(policy.basePremium) * (effectiveCoverage / Number(policy.baseCoverage)) * years)} total</small></span>
-                          </label>
+                          <button
+                            key={years}
+                            type="button"
+                            aria-pressed={effectiveYears === years}
+                            className={`ix-term-choice ${effectiveYears === years ? 'selected' : ''}`}
+                            onClick={() => setVal((current) => ({ ...current, years }))}
+                            disabled={paying || paymentUncertain}
+                          >
+                            {years} yr
+                          </button>
                         ))}
                       </div>
                     </div>
