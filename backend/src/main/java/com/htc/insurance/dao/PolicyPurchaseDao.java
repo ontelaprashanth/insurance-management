@@ -134,4 +134,19 @@ public class PolicyPurchaseDao {
                 .findByPolicyPolicyHolderUserUsername(
                         username);
     }
+
+    // =========================================================
+    // GET PURCHASES WITH UNFINISHED REFUNDS
+    // =========================================================
+
+    /**
+     * Used by refund reconciliation to find purchases
+     * that still have an unfinished refund status.
+     *
+     * Does not modify database records.
+     */
+    public List<PolicyPurchase> getPurchasesWithUnfinishedRefunds() {
+
+        return repository.findPurchasesWithUnfinishedRefunds();
+    }
 }
