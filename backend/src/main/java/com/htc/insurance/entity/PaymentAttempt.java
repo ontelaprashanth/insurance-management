@@ -1,3 +1,4 @@
+
 package com.htc.insurance.entity;
 
 import java.math.BigDecimal;
@@ -31,10 +32,18 @@ import jakarta.persistence.Version;
         @Index(
             name = "idx_payment_attempt_created_at",
             columnList = "created_at"
+        ),
+        @Index(
+            name = "idx_payment_attempt_renewal_source",
+            columnList = "renewal_source_policy_number"
         )
     }
 )
 public class PaymentAttempt {
+
+    // =========================================================
+    // PRIMARY KEY
+    // =========================================================
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -52,11 +61,19 @@ public class PaymentAttempt {
     )
     private String attemptReference;
 
+    // =========================================================
+    // CUSTOMER
+    // =========================================================
+
     /*
      * The authenticated account that initiated checkout.
      */
     @Column(name = "username", nullable = false, length = 100)
     private String username;
+
+    // =========================================================
+    // INSURANCE PLAN
+    // =========================================================
 
     @Column(name = "plan_id", nullable = false)
     private Long planId;
@@ -74,6 +91,12 @@ public class PaymentAttempt {
 
     /*
      * Calculated by the backend, never trusted from the browser.
+     *
+     * NEW:
+     * Calculated from the selected insurance plan.
+     *
+     * RENEWAL:
+     * Taken from the original paid PolicyPurchase.
      */
     @Column(
         name = "calculated_premium",
@@ -86,21 +109,82 @@ public class PaymentAttempt {
     @Column(name = "currency", nullable = false, length = 3)
     private String currency;
 
+    // =========================================================
+    // PURCHASE TYPE / RENEWAL TRACKING
+    // =========================================================
+
     /*
-     * Razorpay identifiers are nullable until an order/payment exists.
+     * NEW:
+     * Normal insurance purchase.
+     *
+     * RENEWAL:
+     * Renewal of a previously claimed policy.
+     *
+     * Nullable for backward compatibility with existing rows.
+     * Existing null values must be interpreted as NEW.
      */
-    @Column(name = "razorpay_order_id", unique = true, length = 100)
+    @Column(
+        name = "purchase_type",
+        length = 20
+    )
+    private String purchaseType;
+
+    /*
+     * Original policy number when purchaseType is RENEWAL.
+     *
+     * Must be null for normal purchases.
+     *
+     * This field is intentionally not unique because multiple
+     * payment attempts may be created for the same renewal.
+     * Only one successful renewal purchase is permitted,
+     * enforced separately in PolicyPurchase.
+     */
+    @Column(name = "renewal_source_policy_number")
+    private Long renewalSourcePolicyNumber;
+
+    // =========================================================
+    // RAZORPAY
+    // =========================================================
+
+    /*
+     * Razorpay identifiers are nullable until an order/payment
+     * exists.
+     */
+    @Column(
+        name = "razorpay_order_id",
+        unique = true,
+        length = 100
+    )
     private String razorpayOrderId;
 
-    @Column(name = "razorpay_payment_id", unique = true, length = 100)
+    @Column(
+        name = "razorpay_payment_id",
+        unique = true,
+        length = 100
+    )
     private String razorpayPaymentId;
 
+    // =========================================================
+    // PAYMENT STATUS
+    // =========================================================
+
     @Enumerated(EnumType.STRING)
-    @Column(name = "status", nullable = false, length = 40)
+    @Column(
+        name = "status",
+        nullable = false,
+        length = 40
+    )
     private PaymentAttemptStatus status;
 
-    @Column(name = "failure_reason", columnDefinition = "TEXT")
+    @Column(
+        name = "failure_reason",
+        columnDefinition = "TEXT"
+    )
     private String failureReason;
+
+    // =========================================================
+    // TIMESTAMPS
+    // =========================================================
 
     @Column(
         name = "created_at",
@@ -109,22 +193,41 @@ public class PaymentAttempt {
     )
     private LocalDateTime createdAt;
 
-    @Column(name = "updated_at", nullable = false)
+    @Column(
+        name = "updated_at",
+        nullable = false
+    )
     private LocalDateTime updatedAt;
+
+    // =========================================================
+    // OPTIMISTIC LOCKING
+    // =========================================================
 
     /*
      * Prevents silent overwrites when concurrent requests update
-     * the same attempt.
+     * the same payment attempt.
      */
     @Version
-    @Column(name = "version", nullable = false)
+    @Column(
+        name = "version",
+        nullable = false
+    )
     private Long version;
+
+    // =========================================================
+    // CONSTRUCTOR
+    // =========================================================
 
     public PaymentAttempt() {
     }
 
+    // =========================================================
+    // JPA LIFECYCLE
+    // =========================================================
+
     @PrePersist
     protected void onCreate() {
+
         LocalDateTime now = LocalDateTime.now();
 
         if (createdAt == null) {
@@ -136,12 +239,20 @@ public class PaymentAttempt {
         if (status == null) {
             status = PaymentAttemptStatus.ORDER_CREATING;
         }
+
+        if (purchaseType == null || purchaseType.isBlank()) {
+            purchaseType = "NEW";
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
     }
+
+    // =========================================================
+    // GETTERS AND SETTERS
+    // =========================================================
 
     public Long getAttemptId() {
         return attemptId;
@@ -207,6 +318,33 @@ public class PaymentAttempt {
         this.currency = currency;
     }
 
+    // =========================================================
+    // RENEWAL GETTERS AND SETTERS
+    // =========================================================
+
+    public String getPurchaseType() {
+        return purchaseType;
+    }
+
+    public void setPurchaseType(String purchaseType) {
+        this.purchaseType = purchaseType;
+    }
+
+    public Long getRenewalSourcePolicyNumber() {
+        return renewalSourcePolicyNumber;
+    }
+
+    public void setRenewalSourcePolicyNumber(
+            Long renewalSourcePolicyNumber) {
+
+        this.renewalSourcePolicyNumber =
+                renewalSourcePolicyNumber;
+    }
+
+    // =========================================================
+    // RAZORPAY GETTERS AND SETTERS
+    // =========================================================
+
     public String getRazorpayOrderId() {
         return razorpayOrderId;
     }
@@ -223,6 +361,10 @@ public class PaymentAttempt {
         this.razorpayPaymentId = razorpayPaymentId;
     }
 
+    // =========================================================
+    // STATUS GETTERS AND SETTERS
+    // =========================================================
+
     public PaymentAttemptStatus getStatus() {
         return status;
     }
@@ -238,6 +380,10 @@ public class PaymentAttempt {
     public void setFailureReason(String failureReason) {
         this.failureReason = failureReason;
     }
+
+    // =========================================================
+    // TIMESTAMP GETTERS
+    // =========================================================
 
     public LocalDateTime getCreatedAt() {
         return createdAt;
