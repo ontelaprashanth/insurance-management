@@ -44,6 +44,8 @@ import com.htc.insurance.repository.PaymentAttemptRepository;
  * 8. Original policy is never reactivated.
  * 9. Only one renewal is permitted per original purchase.
  * 10. Captured payment failures require reconciliation.
+ * 11. Original plan ID is preserved in renewal purchases.
+ * 12. Legacy purchases may use a verified stored plan ID.
  */
 @Service
 public class PolicyRenewalService {
@@ -112,19 +114,20 @@ public class PolicyRenewalService {
                 originalPolicyNumber,
                 purchase);
 
-        PaymentAttempt originalAttempt =
-                requireOriginalAttempt(
-                        purchase,
-                        username);
+        // =====================================================
+        // RESOLVE ORIGINAL PLAN
+        // =====================================================
 
         Long originalPlanId =
-                originalAttempt.getPlanId();
+                resolveOriginalPlanId(
+                        purchase,
+                        username);
 
         if (originalPlanId == null
                 || originalPlanId <= 0) {
 
             throw new IllegalStateException(
-                    "Original plan ID is invalid.");
+                    "Original insurance plan ID is invalid.");
         }
 
         return paymentService.createRenewalOrder(
@@ -241,17 +244,25 @@ public class PolicyRenewalService {
 
         validateOriginalPayment(originalPurchase);
 
-        PaymentAttempt originalAttempt =
-                requireOriginalAttempt(
+        // =====================================================
+        // RESOLVE ORIGINAL PLAN ID
+        // =====================================================
+
+        Long originalPlanId =
+                resolveOriginalPlanId(
                         originalPurchase,
                         username);
 
+        // =====================================================
+        // VERIFY RENEWAL TERMS
+        // =====================================================
+
         if (!Objects.equals(
-                    attempt.getPlanId(),
-                    originalAttempt.getPlanId())
+                attempt.getPlanId(),
+                originalPlanId)
                 || !Objects.equals(
-                    attempt.getDurationYears(),
-                    original.getDurationYears())
+                        attempt.getDurationYears(),
+                        original.getDurationYears())
                 || attempt.getCoverageAmount() == null
                 || originalPurchase.getCoverageAmount() == null
                 || attempt.getCoverageAmount().compareTo(
@@ -291,7 +302,7 @@ public class PolicyRenewalService {
         if (sameOrder != null) {
 
             if (!paymentId.equals(
-                        sameOrder.getRazorpayPaymentId())
+                    sameOrder.getRazorpayPaymentId())
                     || sameOrder.getRenewedFromPurchase() == null
                     || !Objects.equals(
                             originalPurchase.getPurchaseId(),
@@ -322,6 +333,8 @@ public class PolicyRenewalService {
         // =====================================================
 
         validateRenewalLifecycle(original);
+
+        validateOriginalPayment(originalPurchase);
 
         if (purchaseDao.existsRenewalByOriginalPurchaseId(
                 originalPurchase.getPurchaseId())) {
@@ -385,6 +398,16 @@ public class PolicyRenewalService {
         renewedPurchase.setRenewedFromPurchase(
                 originalPurchase);
 
+        // =====================================================
+        // PRESERVE ORIGINAL PLAN ID - NEW
+        // =====================================================
+
+        renewedPurchase.setPlanId(originalPlanId);
+
+        // =====================================================
+        // PRESERVE ORIGINAL COVERAGE AND PREMIUM
+        // =====================================================
+
         renewedPurchase.setCoverageAmount(
                 originalPurchase.getCoverageAmount());
 
@@ -406,6 +429,10 @@ public class PolicyRenewalService {
         renewedPurchase.setTotalPremium(
                 originalPurchase.getTotalPremium());
 
+        // =====================================================
+        // PRESERVE NOMINEE DETAILS
+        // =====================================================
+
         renewedPurchase.setNomineeName(
                 originalPurchase.getNomineeName());
 
@@ -414,6 +441,10 @@ public class PolicyRenewalService {
 
         renewedPurchase.setNomineeContact(
                 originalPurchase.getNomineeContact());
+
+        // =====================================================
+        // PAYMENT DETAILS
+        // =====================================================
 
         renewedPurchase.setPaymentMethod("RAZORPAY");
         renewedPurchase.setPaymentStatus("PAID");
@@ -594,6 +625,99 @@ public class PolicyRenewalService {
     }
 
     // =========================================================
+    // RESOLVE ORIGINAL PLAN ID - NEW
+    // =========================================================
+
+    /**
+     * Resolves the original plan ID using:
+     *
+     * 1. Stored PolicyPurchase.planId, when present.
+     * 2. Completed original PaymentAttempt, as a fallback.
+     *
+     * If both records exist, their plan IDs must match.
+     *
+     * Historical purchases without either source cannot
+     * be renewed until an administrator independently
+     * verifies and backfills the original plan ID.
+     *
+     * This method never guesses a plan based on price
+     * or coverage.
+     */
+    private Long resolveOriginalPlanId(
+            PolicyPurchase purchase,
+            String username) {
+
+        if (purchase == null) {
+            throw new IllegalArgumentException(
+                    "Original purchase is required.");
+        }
+
+        Long storedPlanId = purchase.getPlanId();
+
+        if (storedPlanId != null && storedPlanId <= 0) {
+            throw new IllegalStateException(
+                    "Stored original plan ID is invalid.");
+        }
+
+        if (blank(purchase.getRazorpayOrderId())) {
+
+            if (storedPlanId != null) {
+                return storedPlanId;
+            }
+
+            throw new IllegalStateException(
+                    "Original plan cannot be recovered because "
+                    + "the purchase has no Razorpay order ID "
+                    + "or stored plan ID.");
+        }
+
+        PaymentAttempt historicalAttempt =
+                attemptRepository
+                        .findByRazorpayOrderId(
+                                purchase.getRazorpayOrderId())
+                        .orElse(null);
+
+        if (historicalAttempt != null) {
+
+            PaymentAttempt verifiedAttempt =
+                    requireOriginalAttempt(
+                            purchase,
+                            username);
+
+            Long historicalPlanId =
+                    verifiedAttempt.getPlanId();
+
+            if (storedPlanId != null
+                    && !Objects.equals(
+                            storedPlanId,
+                            historicalPlanId)) {
+
+                throw new IllegalStateException(
+                        "Stored original plan ID conflicts "
+                        + "with the completed payment history.");
+            }
+
+            return historicalPlanId;
+        }
+
+        if (storedPlanId != null) {
+
+            // Historical purchase:
+            // the original attempt record is unavailable,
+            // but the independently verified plan ID
+            // has been stored on the purchase.
+
+            return storedPlanId;
+        }
+
+        throw new IllegalStateException(
+                "Original plan cannot be recovered from "
+                + "purchase or payment history. "
+                + "An administrator must verify and "
+                + "record the original plan ID.");
+    }
+
+    // =========================================================
     // REQUIRE ORIGINAL PAYMENT ATTEMPT
     // =========================================================
 
@@ -618,7 +742,7 @@ public class PolicyRenewalService {
                                         + "from payment history."));
 
         if (!username.equals(
-                    originalAttempt.getUsername())
+                originalAttempt.getUsername())
                 || originalAttempt.getPlanId() == null
                 || originalAttempt.getPlanId() <= 0
                 || originalAttempt.getStatus() == null
@@ -704,9 +828,9 @@ public class PolicyRenewalService {
             PolicyPurchase purchase) {
 
         if (!"PAID".equalsIgnoreCase(
-                    purchase.getPaymentStatus())
+                purchase.getPaymentStatus())
                 || !"NOT_REFUNDED".equalsIgnoreCase(
-                    purchase.getRefundStatus())) {
+                        purchase.getRefundStatus())) {
 
             throw new IllegalStateException(
                     "Original policy must be paid "
