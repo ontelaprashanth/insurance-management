@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link, useNavigate, useParams, useLocation } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { payment, plans, purchases } from '../../api/endpoints'
+import {
+  payment,
+  plans,
+  purchases,
+  renewals,
+  policies,
+} from '../../api/endpoints'
 import { errorMessage } from '../../api/client'
 import {
   Button,
@@ -14,8 +21,16 @@ import {
   TextInput,
 } from '../../components/ui'
 import CoverageDial from '../../components/CoverageDial'
-import { COVERAGE_MAX, COVERAGE_MIN, planFor } from '../../lib/premium'
-import { dateTime, inr, inrShort } from '../../lib/format'
+import {
+  COVERAGE_MAX,
+  COVERAGE_MIN,
+  planFor,
+} from '../../lib/premium'
+import {
+  dateTime,
+  inr,
+  inrShort,
+} from '../../lib/format'
 import { useAuth } from '../../auth/AuthContext'
 
 const RELATIONS = [
@@ -60,11 +75,9 @@ function loadRazorpay() {
 
       existingScript.addEventListener(
         'error',
-        () => {
-          reject(
-            new Error('Could not load the Razorpay payment window.'),
-          )
-        },
+        () => reject(
+          new Error('Could not load the Razorpay payment window.'),
+        ),
         { once: true },
       )
 
@@ -83,13 +96,10 @@ function loadRazorpay() {
       }
     }
 
-    script.onerror = () => {
-      reject(
-        new Error(
-          'Could not load the payment window. Check your internet connection.',
-        ),
-      )
-    }
+    script.onerror = () =>
+      reject(new Error(
+        'Could not load the payment window. Check your internet connection.',
+      ))
 
     document.body.appendChild(script)
   })
@@ -101,7 +111,6 @@ function normalizePlans(data) {
   if (Array.isArray(data?.data)) return data.data
   if (Array.isArray(data?.data?.content)) return data.data.content
   if (Array.isArray(data?.plans)) return data.plans
-
   return []
 }
 
@@ -146,8 +155,6 @@ function calculatePremium(plan, coverage, years) {
     duration >= 2 ? roundMoney(base * 0.05) : 0
 
   const taxable = roundMoney(base - discount)
-
-  // Current InsureX backend configuration uses 0% GST.
   const gst = 0
   const total = roundMoney(taxable + gst)
 
@@ -160,10 +167,58 @@ function calculatePremium(plan, coverage, years) {
   }
 }
 
+function normalizePurchase(data) {
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.data?.content)) return data.data.content
+  return []
+}
+
+function extractPolicyNumber(purchase) {
+  return (
+    purchase?.policyNumber ??
+    purchase?.policy?.policyNumber ??
+    null
+  )
+}
+
+function normalizeOrder(order) {
+  return {
+    orderId: order?.orderId ?? order?.razorpayOrderId,
+    keyId: order?.keyId ?? order?.razorpayKeyId,
+    amount: Number(order?.amount ?? order?.totalPremium),
+    currency: order?.currency || 'INR',
+  }
+}
+
+function validOrder(order) {
+  return Boolean(
+    order?.orderId &&
+    order?.keyId &&
+    Number.isFinite(order?.amount) &&
+    order.amount > 0 &&
+    order.currency === 'INR',
+  )
+}
+
+function getPurchaseError(error) {
+  return errorMessage(
+    error,
+    'We could not record your purchase.',
+  )
+}
+
 export default function BuyPolicy() {
-  // The existing route parameter is retained for compatibility.
-  // Its value represents the catalogue plan ID.
-  const { policyNumber: planIdParam } = useParams()
+  const { policyNumber: routeId } = useParams()
+  const location = useLocation()
+
+  const isRenewal =
+    location.pathname.startsWith('/app/renew/')
+
+  const originalPolicyNumber = isRenewal
+    ? routeId
+    : null
 
   const { user } = useAuth()
   const nav = useNavigate()
@@ -173,6 +228,21 @@ export default function BuyPolicy() {
     queryKey: ['insurance-plans'],
     queryFn: plans.available,
     staleTime: 60_000,
+    retry: 1,
+    enabled: !isRenewal,
+  })
+
+  const originalPolicyQuery = useQuery({
+    queryKey: ['renewal-policy', originalPolicyNumber],
+    queryFn: () => policies.get(originalPolicyNumber),
+    enabled: isRenewal && Boolean(originalPolicyNumber),
+    retry: 1,
+  })
+
+  const originalPurchasesQuery = useQuery({
+    queryKey: ['my-purchases'],
+    queryFn: purchases.mine,
+    enabled: isRenewal,
     retry: 1,
   })
 
@@ -184,10 +254,26 @@ export default function BuyPolicy() {
   const policy = useMemo(
     () =>
       catalogue.find(
-        (item) => String(item.planId) === String(planIdParam),
+        (item) => String(item.planId) === String(routeId),
       ) ?? null,
-    [catalogue, planIdParam],
+    [catalogue, routeId],
   )
+
+  const originalPolicy = originalPolicyQuery.data
+
+  const originalPurchase = useMemo(() => {
+    if (!isRenewal) return null
+
+    return normalizePurchase(originalPurchasesQuery.data).find(
+      (purchase) =>
+        String(extractPolicyNumber(purchase)) ===
+        String(originalPolicyNumber),
+    ) ?? null
+  }, [
+    isRenewal,
+    originalPurchasesQuery.data,
+    originalPolicyNumber,
+  ])
 
   const [step, setStep] = useState(0)
 
@@ -207,34 +293,99 @@ export default function BuyPolicy() {
   const [error, setError] = useState('')
   const [done, setDone] = useState(null)
 
-  const coveredType =
-    policy?.coveredType ||
-    policy?.planName ||
-    policy?.planCode ||
-    'Insurance'
+  const paymentLock = useRef(false)
+  const [paymentUncertain, setPaymentUncertain] = useState(false)
+
+  const renewalCoverage = Number(
+    originalPurchase?.coverageAmount ?? 0,
+  )
+
+  const renewalYears = Number(
+    originalPolicy?.durationYears ?? 0,
+  )
+
+  const renewalPremium = Number(
+    originalPurchase?.totalPremium ?? 0,
+  )
+
+  const renewalDetailsReady =
+    Number.isFinite(renewalCoverage) &&
+    renewalCoverage > 0 &&
+    Number.isInteger(renewalYears) &&
+    renewalYears > 0 &&
+    Number.isFinite(renewalPremium) &&
+    renewalPremium > 0
+
+  const coveredType = isRenewal
+    ? (
+      originalPolicy?.coveredTypes ||
+      'Insurance'
+    )
+    : (
+      policy?.coveredType ||
+      policy?.planName ||
+      policy?.planCode ||
+      'Insurance'
+    )
 
   const planDetails = useMemo(
-    () => (policy ? planFor(coveredType) : null),
-    [policy, coveredType],
+    () => planFor(coveredType),
+    [coveredType],
   )
 
   const est = useMemo(
     () =>
-      policy
-        ? calculatePremium(policy, val.coverage, val.years)
-        : null,
-    [policy, val.coverage, val.years],
+      isRenewal
+        ? (
+          renewalDetailsReady
+            ? {
+              base: Number(originalPurchase?.basePremium ?? renewalPremium),
+              discount: Number(originalPurchase?.discountAmount ?? 0),
+              taxable: Number(originalPurchase?.taxableAmount ?? renewalPremium),
+              gst: Number(originalPurchase?.gstAmount ?? 0),
+              total: renewalPremium,
+            }
+            : null
+        )
+        : (
+          policy
+            ? calculatePremium(policy, val.coverage, val.years)
+            : null
+        ),
+    [
+      isRenewal,
+      renewalDetailsReady,
+      originalPurchase,
+      renewalPremium,
+      policy,
+      val.coverage,
+      val.years,
+    ],
   )
 
-  const coverageIsValid =
-    Number.isFinite(Number(val.coverage)) &&
-    Number(val.coverage) >= COVERAGE_MIN &&
-    Number(val.coverage) <= COVERAGE_MAX
+  const effectiveCoverage = isRenewal
+    ? renewalCoverage
+    : Number(val.coverage)
 
-  const durationIsValid =
-    Number.isInteger(Number(val.years)) &&
-    Number(val.years) >= 1 &&
-    Number(val.years) <= 5
+  const effectiveYears = isRenewal
+    ? renewalYears
+    : Number(val.years)
+
+  const coverageIsValid = isRenewal
+    ? renewalDetailsReady
+    : (
+      Number.isFinite(Number(val.coverage)) &&
+      Number(val.coverage) >= COVERAGE_MIN &&
+      Number(val.coverage) <= COVERAGE_MAX
+    )
+
+  const durationIsValid = isRenewal
+    ? renewalDetailsReady
+    : (
+      Number.isInteger(Number(val.years)) &&
+      Number(val.years) >= 1 &&
+      Number(val.years) <= 5
+    )
 
   useEffect(() => {
     window.scrollTo({
@@ -242,6 +393,16 @@ export default function BuyPolicy() {
       behavior: 'smooth',
     })
   }, [step])
+
+  useEffect(() => {
+    if (!isRenewal || !originalPurchase) return
+
+    setNominee({
+      name: originalPurchase.nomineeName || '',
+      relation: originalPurchase.nomineeRelation || '',
+      contact: originalPurchase.nomineeContact || '',
+    })
+  }, [isRenewal, originalPurchase])
 
   function validateNominee() {
     const nextErrors = {}
@@ -264,104 +425,114 @@ export default function BuyPolicy() {
     return Object.keys(nextErrors).length === 0
   }
 
+  async function openCheckout(order) {
+    const Razorpay = await loadRazorpay()
+
+    return new Promise((resolve, reject) => {
+      const checkout = new Razorpay({
+        key: order.keyId,
+        order_id: order.orderId,
+        amount: Math.round(order.amount * 100),
+        currency: order.currency,
+        name: 'InsureX',
+        description: isRenewal
+          ? `Renewal of policy #${originalPolicyNumber}`
+          : `${coveredType} · ${inrShort(effectiveCoverage)} · ${effectiveYears} yr`,
+
+        prefill: {
+          name: user?.username || '',
+          email: user?.email || '',
+          contact: user?.contactNumber || '',
+        },
+
+        theme: {
+          color: '#0F3D3E',
+        },
+
+        handler: (response) => resolve(response),
+
+        modal: {
+          ondismiss: () => reject(new Error('CANCELLED')),
+        },
+      })
+
+      checkout.on?.('payment.failed', (response) => {
+        reject(
+          new Error(
+            response?.error?.description || 'Payment failed.',
+          ),
+        )
+      })
+
+      checkout.open()
+    })
+  }
+
   async function pay() {
-    if (paying) return
+    if (paying || paymentLock.current || paymentUncertain) return
 
     setError('')
 
-    if (!policy || !est || !coverageIsValid || !durationIsValid) {
+    if (
+      (!isRenewal && !policy) ||
+      !est ||
+      !coverageIsValid ||
+      !durationIsValid
+    ) {
       setError(
-        'The selected plan, coverage amount, or policy duration is invalid.',
+        'The selected policy, coverage, or duration is invalid.',
       )
       return
     }
 
-    if (!validateNominee()) {
+    if (!isRenewal && !validateNominee()) {
       setStep(1)
       return
     }
 
-    if (!Number.isFinite(est.total) || est.total <= 0) {
-      setError('Unable to calculate the premium for this plan.')
+    if (isRenewal && !originalPurchase) {
+      setError('The original policy purchase was not found.')
       return
     }
 
+    if (!Number.isFinite(est.total) || est.total <= 0) {
+      setError('Unable to determine the payment amount.')
+      return
+    }
+
+    paymentLock.current = true
     setPaying(true)
 
     let razorpayResponse = null
 
     try {
-      /*
-       * SECURE ORDER CREATION
-       *
-       * Do not send the frontend-calculated premium as the
-       * authoritative amount. The backend loads the active plan
-       * and calculates the amount itself.
-       */
-      const order = await payment.createOrder({
-        planId: Number(policy.planId),
-        coverageAmount: Number(val.coverage),
-        durationYears: Number(val.years),
-        currency: 'INR',
-      })
+      const rawOrder = isRenewal
+        ? await renewals.createOrder(originalPolicyNumber)
+        : await payment.createOrder({
+          planId: Number(policy.planId),
+          coverageAmount: Number(val.coverage),
+          durationYears: Number(val.years),
+          currency: 'INR',
+        })
 
-      const orderAmount = Number(order?.amount)
+      const order = normalizeOrder(rawOrder)
 
-      if (
-        !order?.orderId ||
-        !order?.keyId ||
-        !Number.isFinite(orderAmount) ||
-        orderAmount <= 0
-      ) {
+      if (!validOrder(order)) {
         throw new Error(
           'The server returned incomplete payment order details.',
         )
       }
 
-      const Razorpay = await loadRazorpay()
+      if (
+        isRenewal &&
+        Math.abs(order.amount - renewalPremium) > 0.009
+      ) {
+        throw new Error(
+          'The renewal amount does not match the original paid premium. No payment was started.',
+        )
+      }
 
-      razorpayResponse = await new Promise((resolve, reject) => {
-        const checkout = new Razorpay({
-          key: order.keyId,
-          order_id: order.orderId,
-
-          // Razorpay checkout expects the amount in paise.
-          amount: Math.round(orderAmount * 100),
-
-          currency: order.currency || 'INR',
-          name: 'InsureX',
-
-          description: `${coveredType} · ${inrShort(
-            val.coverage,
-          )} · ${val.years} yr`,
-
-          prefill: {
-            name: user?.username || '',
-            email: user?.email || '',
-            contact: user?.contactNumber || '',
-          },
-
-          theme: {
-            color: '#0F3D3E',
-          },
-
-          handler: (response) => resolve(response),
-
-          modal: {
-            ondismiss: () => reject(new Error('CANCELLED')),
-          },
-        })
-
-        checkout.on?.('payment.failed', (response) => {
-          reject(
-            new Error(
-              response?.error?.description || 'Payment failed.',
-            ),
-          )
-        })
-
-        checkout.open()
-      })
+      razorpayResponse = await openCheckout(order)
 
       if (
         !razorpayResponse?.razorpay_order_id ||
@@ -369,52 +540,47 @@ export default function BuyPolicy() {
         !razorpayResponse?.razorpay_signature
       ) {
         throw new Error(
-          'Razorpay did not return all required payment verification details.',
+          'Razorpay did not return all required payment details.',
         )
       }
 
-      /*
-       * PURCHASE
-       *
-       * The backend must independently:
-       * 1. Load the selected active plan.
-       * 2. Recalculate the premium.
-       * 3. Verify the Razorpay signature and exact expected amount.
-       * 4. Save the policy and purchase only after verification.
-       */
       try {
-        const saved = await purchases.purchase({
-          planId: Number(policy.planId),
-          coveredTypes: coveredType,
-          durationYears: Number(val.years),
-          coverageAmount: Number(val.coverage),
+        const saved = isRenewal
+          ? await renewals.confirm(originalPolicyNumber, {
+            razorpayOrderId:
+              razorpayResponse.razorpay_order_id,
+            razorpayPaymentId:
+              razorpayResponse.razorpay_payment_id,
+            razorpaySignature:
+              razorpayResponse.razorpay_signature,
+          })
+          : await purchases.purchase({
+            planId: Number(policy.planId),
+            coveredTypes: coveredType,
+            durationYears: Number(val.years),
+            coverageAmount: Number(val.coverage),
 
-          nomineeName: nominee.name.trim(),
-          nomineeRelation: nominee.relation,
-          nomineeContact: nominee.contact.trim(),
+            nomineeName: nominee.name.trim(),
+            nomineeRelation: nominee.relation,
+            nomineeContact: nominee.contact.trim(),
 
-          paymentMethod: 'RAZORPAY',
+            paymentMethod: 'RAZORPAY',
 
-          razorpayOrderId:
-            razorpayResponse.razorpay_order_id,
-
-          razorpayPaymentId:
-            razorpayResponse.razorpay_payment_id,
-
-          razorpaySignature:
-            razorpayResponse.razorpay_signature,
-        })
+            razorpayOrderId:
+              razorpayResponse.razorpay_order_id,
+            razorpayPaymentId:
+              razorpayResponse.razorpay_payment_id,
+            razorpaySignature:
+              razorpayResponse.razorpay_signature,
+          })
 
         setDone(saved)
         await qc.invalidateQueries()
       } catch (purchaseError) {
+        setPaymentUncertain(true)
+
         setError(
-          `${errorMessage(
-            purchaseError,
-            'We could not record your purchase.',
-          )} If Razorpay charged you, do not retry immediately. Keep payment ID ${
-            razorpayResponse.razorpay_payment_id
-          } and contact InsureX support.`,
+          `${getPurchaseError(purchaseError)} If Razorpay charged you, do not retry immediately. Keep payment ID ${razorpayResponse.razorpay_payment_id} and contact InsureX support.`,
         )
       }
     } catch (paymentError) {
@@ -427,6 +593,7 @@ export default function BuyPolicy() {
         )
       }
     } finally {
+      paymentLock.current = false
       setPaying(false)
     }
   }
@@ -439,12 +606,14 @@ export default function BuyPolicy() {
             <Icon name="check" size={32} strokeWidth={3} />
           </div>
 
-          <h4 style={{ fontSize: 24 }}>You are covered</h4>
+          <h4 style={{ fontSize: 24 }}>
+            {isRenewal ? 'Policy renewed successfully' : 'You are covered'}
+          </h4>
 
           <p>
-            {coveredType} · {inrShort(val.coverage)} for {val.years}{' '}
-            {val.years === 1 ? 'year' : 'years'}. Your purchase has been
-            recorded.
+            {isRenewal
+              ? `Your original policy #${originalPolicyNumber} remains in your history. Your renewed policy has been recorded.`
+              : `${coveredType} · ${inrShort(effectiveCoverage)} for ${effectiveYears} ${effectiveYears === 1 ? 'year' : 'years'}. Your purchase has been recorded.`}
           </p>
 
           <dl
@@ -460,17 +629,33 @@ export default function BuyPolicy() {
 
             <dt>Transaction</dt>
             <dd>
-              {done.transactionId || done.razorpayPaymentId || '—'}
+              {done.transactionId ||
+                done.razorpayPaymentId ||
+                '—'}
             </dd>
 
             <dt>Paid on</dt>
             <dd>{dateTime(done.paymentDateTime)}</dd>
 
             <dt>Policy number</dt>
-            <dd>{done.policyNumber ?? 'Processing'}</dd>
+            <dd>
+              {done.policyNumber ??
+                done.policy?.policyNumber ??
+                'Processing'}
+            </dd>
+
+            {isRenewal && (
+              <>
+                <dt>Original policy</dt>
+                <dd>#{originalPolicyNumber}</dd>
+              </>
+            )}
           </dl>
 
-          <div className="row" style={{ justifyContent: 'center' }}>
+          <div
+            className="row"
+            style={{ justifyContent: 'center' }}
+          >
             <Button
               variant="dark"
               onClick={() => nav('/app/purchases')}
@@ -487,34 +672,61 @@ export default function BuyPolicy() {
     )
   }
 
+  const currentQuery = isRenewal
+    ? {
+      isLoading:
+        originalPolicyQuery.isLoading ||
+        originalPurchasesQuery.isLoading,
+      isError:
+        originalPolicyQuery.isError ||
+        originalPurchasesQuery.isError,
+      error:
+        originalPolicyQuery.error ||
+        originalPurchasesQuery.error,
+      refetch: async () => {
+        await Promise.all([
+          originalPolicyQuery.refetch(),
+          originalPurchasesQuery.refetch(),
+        ])
+      },
+    }
+    : list
+
   return (
     <>
       <PageHeader
-        title="Buy insurance"
+        title={isRenewal ? 'Renew insurance' : 'Buy insurance'}
         subtitle={
-          policy
-            ? `${policy.planName || coveredType} · ${
-                policy.planCode || `Plan #${policy.planId}`
-              }`
-            : undefined
+          isRenewal
+            ? `Renew policy #${originalPolicyNumber} at the original paid premium`
+            : policy
+              ? `${policy.planName || coveredType} · ${
+                  policy.planCode || `Plan #${policy.planId}`
+                }`
+              : undefined
         }
       >
-        <Link className="btn" to="/app/plans">
-          Back to plans
+        <Link
+          className="btn"
+          to={isRenewal ? '/app/policies' : '/app/plans'}
+        >
+          {isRenewal ? 'Back to policies' : 'Back to plans'}
         </Link>
       </PageHeader>
 
-      <DataState query={list}>
+      <DataState query={currentQuery}>
         {() =>
-          !policy ? (
+          (isRenewal && !originalPurchase) ||
+          (!isRenewal && !policy) ? (
             <div className="alert error" role="alert">
-              This insurance plan is not available.{' '}
-              <Link to="/app/plans">Choose another plan</Link>
+              {isRenewal
+                ? 'The original policy purchase could not be found.'
+                : 'This insurance plan is not available.'}
             </div>
           ) : !est ? (
             <div className="alert warn" role="alert">
-              This plan does not have valid pricing configured. Please
-              contact support before purchasing.
+              Unable to determine valid insurance pricing.
+              Please contact support.
             </div>
           ) : (
             <>
@@ -525,6 +737,17 @@ export default function BuyPolicy() {
                   style={{ marginBottom: 16 }}
                 >
                   {error}
+                </div>
+              )}
+
+              {paymentUncertain && (
+                <div
+                  className="alert warn"
+                  role="alert"
+                  style={{ marginBottom: 16 }}
+                >
+                  Payment confirmation is pending. Do not
+                  make another payment for this policy.
                 </div>
               )}
 
@@ -555,54 +778,59 @@ export default function BuyPolicy() {
                 <div>
                   {step === 0 && (
                     <Panel
-                      title={`${planDetails?.label || coveredType} cover`}
+                      title={
+                        isRenewal
+                          ? 'Original policy coverage'
+                          : `${planDetails?.label || coveredType} cover`
+                      }
                     >
                       <p
                         className="muted"
                         style={{ marginBottom: 16 }}
                       >
-                        {policy.description ||
-                          planDetails?.blurb ||
-                          'Insurance coverage designed around your needs.'}
+                        {isRenewal
+                          ? 'Your renewal keeps the original coverage amount, duration, and paid premium.'
+                          : policy.description ||
+                            planDetails?.blurb ||
+                            'Insurance coverage designed around your needs.'}
                       </p>
 
                       <dl className="kv">
-                        <dt>Plan code</dt>
-                        <dd>{policy.planCode || '—'}</dd>
+                        {isRenewal && (
+                          <>
+                            <dt>Original policy</dt>
+                            <dd>#{originalPolicyNumber}</dd>
+                          </>
+                        )}
+
+                        <dt>Cover type</dt>
+                        <dd>{coveredType}</dd>
 
                         <dt>Cover amount</dt>
-                        <dd>
-                          {inrShort(COVERAGE_MIN)} to{' '}
-                          {inrShort(COVERAGE_MAX)}
-                        </dd>
+                        <dd>{inr(effectiveCoverage)}</dd>
 
                         <dt>Term</dt>
-                        <dd>1 to 5 years</dd>
+                        <dd>{effectiveYears} yr</dd>
 
-                        <dt>Base premium</dt>
-                        <dd>
-                          {inr(policy.basePremium)} per{' '}
-                          {inr(policy.baseCoverage)} of cover, per year
-                        </dd>
+                        {!isRenewal && (
+                          <>
+                            <dt>Plan code</dt>
+                            <dd>{policy.planCode || '—'}</dd>
 
-                        <dt>Multi-year discount</dt>
-                        <dd>5% off for 2 years or more</dd>
+                            <dt>Base premium</dt>
+                            <dd>
+                              {inr(policy.basePremium)} per{' '}
+                              {inr(policy.baseCoverage)} of cover,
+                              per year
+                            </dd>
 
-                        <dt>GST</dt>
-                        <dd>0%</dd>
-                      </dl>
+                            <dt>Multi-year discount</dt>
+                            <dd>5% off for 2 years or more</dd>
 
-                      <p className="faint" style={{ marginTop: 16 }}>
-                        Adjust the coverage and term to update your
-                        estimated premium.
-                      </p>
-
-                      <dl className="kv">
-                        <dt>Premium before discount</dt>
-                        <dd>{inr(est.base)}</dd>
-
-                        <dt>Discount</dt>
-                        <dd>−{inr(est.discount)}</dd>
+                            <dt>GST</dt>
+                            <dd>0%</dd>
+                          </>
+                        )}
 
                         <dt>Total payable</dt>
                         <dd>{inr(est.total)}</dd>
@@ -611,7 +839,14 @@ export default function BuyPolicy() {
                   )}
 
                   {step === 1 && (
-                    <Panel title="Who should receive the payout?">
+                    <Panel title="Nominee details">
+                      {isRenewal && (
+                        <div className="alert info">
+                          Renewal uses the nominee details
+                          stored with the original purchase.
+                        </div>
+                      )}
+
                       <div className="form-grid">
                         <div className="full">
                           <TextInput
@@ -622,14 +857,13 @@ export default function BuyPolicy() {
                                 ...nominee,
                                 name: event.target.value,
                               })
-
                               setErrors({
                                 ...errors,
                                 name: '',
                               })
                             }}
                             error={errors.name}
-                            autoFocus
+                            disabled={isRenewal}
                           />
                         </div>
 
@@ -641,7 +875,6 @@ export default function BuyPolicy() {
                               ...nominee,
                               relation: event.target.value,
                             })
-
                             setErrors({
                               ...errors,
                               relation: '',
@@ -650,6 +883,7 @@ export default function BuyPolicy() {
                           options={RELATIONS}
                           placeholder="Choose…"
                           error={errors.relation}
+                          disabled={isRenewal}
                         />
 
                         <TextInput
@@ -661,18 +895,17 @@ export default function BuyPolicy() {
                             const contact = event.target.value
                               .replace(/\D/g, '')
                               .slice(0, 10)
-
                             setNominee({
                               ...nominee,
                               contact,
                             })
-
                             setErrors({
                               ...errors,
                               contact: '',
                             })
                           }}
                           error={errors.contact}
+                          disabled={isRenewal}
                         />
                       </div>
                     </Panel>
@@ -681,37 +914,39 @@ export default function BuyPolicy() {
                   {step === 2 && (
                     <Panel title="Review and pay">
                       <dl className="kv">
-                        <dt>Insurance plan</dt>
-                        <dd>{policy.planName || coveredType}</dd>
+                        <dt>Purchase type</dt>
+                        <dd>
+                          {isRenewal
+                            ? 'Policy renewal'
+                            : 'New insurance'}
+                        </dd>
 
-                        <dt>Plan code</dt>
-                        <dd>{policy.planCode || '—'}</dd>
+                        {isRenewal && (
+                          <>
+                            <dt>Original policy</dt>
+                            <dd>#{originalPolicyNumber}</dd>
+                          </>
+                        )}
+
+                        <dt>Insurance</dt>
+                        <dd>{coveredType}</dd>
 
                         <dt>Coverage</dt>
-                        <dd>{inr(val.coverage)}</dd>
+                        <dd>{inr(effectiveCoverage)}</dd>
 
                         <dt>Term</dt>
-                        <dd>
-                          {val.years}{' '}
-                          {val.years === 1 ? 'year' : 'years'}
-                        </dd>
+                        <dd>{effectiveYears} yr</dd>
 
                         <dt>Nominee</dt>
                         <dd>
-                          {nominee.name} ({nominee.relation})
+                          {nominee.name || '—'}
+                          {nominee.relation
+                            ? ` (${nominee.relation})`
+                            : ''}
                         </dd>
 
                         <dt>Nominee mobile</dt>
-                        <dd>{nominee.contact}</dd>
-
-                        <dt>Base premium</dt>
-                        <dd>{inr(est.base)}</dd>
-
-                        <dt>Discount</dt>
-                        <dd>−{inr(est.discount)}</dd>
-
-                        <dt>GST</dt>
-                        <dd>{inr(est.gst)}</dd>
+                        <dd>{nominee.contact || '—'}</dd>
 
                         <dt>Total payable</dt>
                         <dd>{inr(est.total)}</dd>
@@ -721,16 +956,21 @@ export default function BuyPolicy() {
                         className="alert info"
                         style={{ marginTop: 16 }}
                       >
-                        Payment is processed through Razorpay. Please
-                        check your plan, coverage, and nominee details
-                        before paying. Do not make another payment if a
-                        previous payment appears successful but your
+                        Payment is processed through Razorpay.
+                        {isRenewal
+                          ? ' Your renewal price is taken from the original paid purchase.'
+                          : ' The backend independently verifies the payment before issuing your policy.'}
+                        {' '}Do not pay again if a previous
+                        payment appears successful but your
                         policy has not been recorded.
                       </div>
                     </Panel>
                   )}
 
-                  <div className="row" style={{ marginTop: 16 }}>
+                  <div
+                    className="row"
+                    style={{ marginTop: 16 }}
+                  >
                     {step > 0 && (
                       <Button
                         onClick={() => setStep(step - 1)}
@@ -752,7 +992,7 @@ export default function BuyPolicy() {
                               !durationIsValid
                             ) {
                               setError(
-                                'Choose a valid coverage amount and policy duration.',
+                                'Choose valid coverage and duration.',
                               )
                               return
                             }
@@ -761,7 +1001,10 @@ export default function BuyPolicy() {
                             return
                           }
 
-                          if (!validateNominee()) return
+                          if (
+                            !isRenewal &&
+                            !validateNominee()
+                          ) return
 
                           setStep(2)
                         }}
@@ -776,29 +1019,34 @@ export default function BuyPolicy() {
                         loading={paying}
                         disabled={
                           paying ||
+                          paymentUncertain ||
                           !coverageIsValid ||
                           !durationIsValid ||
                           !est
                         }
                         onClick={pay}
                       >
-                        Pay {inr(est.total)}
+                        {isRenewal
+                          ? `Renew for ${inr(est.total)}`
+                          : `Pay ${inr(est.total)}`}
                       </Button>
                     )}
                   </div>
                 </div>
 
-                <CoverageDial
-                  value={val}
-                  onChange={setVal}
-                  planKey={
-                    planDetails?.key ||
-                    String(
-                      policy.planCode || 'insurance',
-                    ).toLowerCase()
-                  }
-                  lockedPlan
-                />
+                {!isRenewal && (
+                  <CoverageDial
+                    value={val}
+                    onChange={setVal}
+                    planKey={
+                      planDetails?.key ||
+                      String(
+                        policy.planCode || 'insurance',
+                      ).toLowerCase()
+                    }
+                    lockedPlan
+                  />
+                )}
               </div>
             </>
           )
