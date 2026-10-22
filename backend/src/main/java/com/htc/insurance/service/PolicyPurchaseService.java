@@ -165,6 +165,23 @@ public class PolicyPurchaseService {
                     "Payment attempt was not found.");
         }
 
+        // Renewal orders must be confirmed only through the dedicated
+        // renewal flow. Legacy null purchase types are normal purchases.
+        String purchaseType = attempt.getPurchaseType();
+        if (purchaseType != null
+                && !purchaseType.isBlank()
+                && !"NEW".equalsIgnoreCase(purchaseType)) {
+            throw new IllegalStateException(
+                    "Renewal payment orders cannot be used for a normal "
+                    + "policy purchase. Use renewal confirmation.");
+        }
+
+        if (attempt.getRenewalSourcePolicyNumber() != null) {
+            throw new IllegalStateException(
+                    "A renewal-linked payment order cannot be used "
+                    + "for a normal policy purchase.");
+        }
+
         if (!username.equals(attempt.getUsername())) {
             throw new AccessDeniedException(
                     "Payment order belongs to another customer.");
