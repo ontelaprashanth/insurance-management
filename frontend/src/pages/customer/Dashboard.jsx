@@ -115,73 +115,119 @@ export default function Dashboard() {
   const open = claimRows.filter((c) => ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(normalize(c.status))).length
   const unread = notificationRows.filter((n) => !n.isRead).length
 
+  const recentClaims = claimRows.slice().sort((a, b) => Number(b.claimNumber) - Number(a.claimNumber)).slice(0, 5)
+  const latestAlerts = notificationRows.slice().sort((a, b) => new Date(b.createdAt || 0) - new Date(a.createdAt || 0)).slice(0, 5)
+  const expiringPolicies = displayedPolicies.slice().sort((a, b) => new Date(a.expiryDate || '9999-12-31') - new Date(b.expiryDate || '9999-12-31')).slice(0, 4)
+
   return (
     <>
-      <PageHeader title={`Hello, ${user?.username || 'there'}`} subtitle="Here is where your cover and claims stand today.">
+      <PageHeader
+        title={`Hello, ${user?.username || 'there'}`}
+        subtitle="Here is where your cover and claims stand today."
+      >
         <Link className="btn primary" to="/app/plans">Buy insurance</Link>
       </PageHeader>
 
-      <div className="ledger" style={{ marginBottom: 20 }}>
-        <div><div className="label">Active policies</div><div className="value">{pol.isLoading || pur.isLoading || clm.isLoading ? '…' : active}</div><div className="sub">of {policyRows.length} total</div></div>
-        <div><div className="label">Total cover</div><div className="value">{pur.isLoading ? '…' : inrShort(totalCover)}</div><div className="sub">across paid, non-refunded purchases</div></div>
-        <div><div className="label">Claims in review</div><div className="value">{clm.isLoading ? '…' : open}</div><div className="sub">{claimRows.length} filed in all</div></div>
-        <div><div className="label">Unread alerts</div><div className="value">{ntf.isLoading ? '…' : unread}</div><div className="sub"><Link to="/app/notifications">Open notifications</Link></div></div>
-      </div>
+      <style>{`
+        .ix-dash { --ix-line: #dce6e4; --ix-soft: #f6faf9; }
+        .ix-dash * { box-sizing: border-box; }
+        .ix-dash-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
+        .ix-dash-stat { display:flex; flex-direction:column; gap:10px; min-width:0; padding:20px; border:1px solid var(--ix-line); border-radius:17px; background:#fff; box-shadow:0 2px 4px rgba(15,48,47,.035); }
+        .ix-dash-stat-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+        .ix-dash-stat-label { color:#526b6b; font-size:14px; font-weight:600; }
+        .ix-dash-stat-icon { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border-radius:12px; background:#eaf5f2; color:#134744; }
+        .ix-dash-stat-value { color:#112d2d; font-size:clamp(26px,2.2vw,35px); font-weight:800; letter-spacing:-.04em; line-height:1.15; overflow-wrap:anywhere; }
+        .ix-dash-stat-sub { color:#627676; font-size:12.5px; line-height:1.5; }
+        .ix-dash-stat-sub a { color:#145854; font-weight:700; text-decoration:none; }
+        .ix-dash-sections { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-bottom:20px; align-items:start; }
+        .ix-dash-section { min-width:0; padding:18px; border:1px solid var(--ix-line); border-radius:18px; background:#fff; }
+        .ix-dash-section-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:15px; }
+        .ix-dash-section-head h2 { margin:0; color:#163231; font-size:18px; font-weight:800; }
+        .ix-dash-section-head .btn { white-space:nowrap; }
+        .ix-dash-list { display:grid; gap:10px; }
+        .ix-dash-item { display:flex; align-items:flex-start; gap:12px; min-width:0; padding:14px; border:1px solid #e6eeec; border-radius:13px; background:var(--ix-soft); }
+        .ix-dash-item-icon { width:36px; height:36px; display:grid; place-items:center; flex:0 0 36px; border-radius:11px; background:#e4f0ec; color:#164b46; }
+        .ix-dash-item-main { flex:1; min-width:0; }
+        .ix-dash-item-title { margin:0 0 4px; color:#193433; font-size:14px; font-weight:750; overflow-wrap:anywhere; }
+        .ix-dash-item-meta { color:#647978; font-size:12.5px; line-height:1.5; overflow-wrap:anywhere; }
+        .ix-dash-item-right { display:flex; align-items:flex-end; flex-direction:column; gap:6px; text-align:right; flex-shrink:0; }
+        .ix-dash-amount { color:#173b39; font-weight:750; font-size:13px; }
+        .ix-dash-policies { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
+        .ix-dash-policy { display:flex; flex-direction:column; gap:14px; min-width:0; border:1px solid #e2eae8; border-radius:15px; padding:16px; background:var(--ix-soft); }
+        .ix-dash-policy-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
+        .ix-dash-policy-number { font-size:17px; font-weight:800; color:#163533; }
+        .ix-dash-policy-cover { font-size:14px; font-weight:650; color:#2a4947; overflow-wrap:anywhere; }
+        .ix-dash-policy-foot { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding-top:11px; border-top:1px solid #dfe9e6; font-size:12.5px; color:#627675; }
+        .ix-dash-empty { padding:22px 12px; text-align:center; color:#647978; font-size:14px; }
+        @media(max-width:1150px) { .ix-dash-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        @media(max-width:850px) { .ix-dash-sections { grid-template-columns:minmax(0,1fr); } }
+        @media(max-width:640px) { .ix-dash-stats { gap:10px; } .ix-dash-stat { padding:14px; } .ix-dash-stat-icon { width:32px; height:32px; flex-basis:32px; } .ix-dash-stat-label { font-size:12px; } .ix-dash-section { padding:13px; } .ix-dash-policies { grid-template-columns:minmax(0,1fr); } .ix-dash-item { padding:11px; gap:9px; } .ix-dash-item-icon { width:30px; height:30px; flex-basis:30px; } .ix-dash-item-right { max-width:40%; } }
+      `}</style>
 
-      <div className="two-col">
-        <Panel title="Recent claims" flush actions={<Link className="btn sm" to="/app/claims">View all</Link>}>
-          <DataState query={clm} empty={{ title: 'No claims yet', text: 'If something happens, file a claim from any active policy.' }} emptyAction={<Link className="btn dark" to="/app/policies">Go to my policies</Link>}>
-            {(rows) => rows.slice().sort((a, b) => Number(b.claimNumber) - Number(a.claimNumber)).slice(0, 5).map((c) => (
-              <div className="list-item" key={c.claimNumber}>
-                <div className="dot-icon"><Icon name="claim" /></div>
-                <div className="grow">
-                  <b>Claim #{c.claimNumber}</b> <span className="muted">· {c.claimType}</span>
-                  <div className="faint" style={{ fontSize: 13 }}>Policy #{policyNumberOf(c) ?? '—'} · filed {date(c.claimDate)}</div>
+      <div className="ix-dash">
+        <div className="ix-dash-stats">
+          <div className="ix-dash-stat">
+            <div className="ix-dash-stat-head"><span className="ix-dash-stat-label">Active policies</span><span className="ix-dash-stat-icon"><Icon name="claim" /></span></div>
+            <div className="ix-dash-stat-value">{pol.isLoading || pur.isLoading || clm.isLoading ? '…' : active}</div>
+            <div className="ix-dash-stat-sub">Of {policyRows.length} total policy records</div>
+          </div>
+          <div className="ix-dash-stat">
+            <div className="ix-dash-stat-head"><span className="ix-dash-stat-label">Total cover</span><span className="ix-dash-stat-icon"><Icon name="claim" /></span></div>
+            <div className="ix-dash-stat-value">{pur.isLoading ? '…' : inrShort(totalCover)}</div>
+            <div className="ix-dash-stat-sub">Across paid, non-refunded purchases</div>
+          </div>
+          <div className="ix-dash-stat">
+            <div className="ix-dash-stat-head"><span className="ix-dash-stat-label">Claims in review</span><span className="ix-dash-stat-icon"><Icon name="claim" /></span></div>
+            <div className="ix-dash-stat-value">{clm.isLoading ? '…' : open}</div>
+            <div className="ix-dash-stat-sub">{claimRows.length} claims filed in all</div>
+          </div>
+          <div className="ix-dash-stat">
+            <div className="ix-dash-stat-head"><span className="ix-dash-stat-label">Unread alerts</span><span className="ix-dash-stat-icon"><Icon name="bell" /></span></div>
+            <div className="ix-dash-stat-value">{ntf.isLoading ? '…' : unread}</div>
+            <div className="ix-dash-stat-sub"><Link to="/app/notifications">Open notifications →</Link></div>
+          </div>
+        </div>
+
+        <div className="ix-dash-sections">
+          <section className="ix-dash-section">
+            <div className="ix-dash-section-head"><h2>Recent claims</h2><Link className="btn sm" to="/app/claims">View all</Link></div>
+            <DataState query={clm} empty={{ title:'No claims yet', text:'File a claim from an eligible policy.' }} emptyAction={<Link className="btn dark" to="/app/policies">Go to my policies</Link>}>
+              {() => <div className="ix-dash-list">{recentClaims.map(c => (
+                <div className="ix-dash-item" key={c.claimNumber}>
+                  <span className="ix-dash-item-icon"><Icon name="claim" /></span>
+                  <div className="ix-dash-item-main"><div className="ix-dash-item-title">Claim #{c.claimNumber} · {c.claimType || 'Insurance claim'}</div><div className="ix-dash-item-meta">Policy #{policyNumberOf(c) ?? '—'} · Filed {date(c.claimDate)}</div></div>
+                  <div className="ix-dash-item-right"><StatusBadge value={c.status} /><span className="ix-dash-amount">{inr(normalize(c.status) === 'APPROVED' ? (c.approvedAmount ?? c.amount) : c.amount)}</span></div>
                 </div>
-                <div style={{ textAlign: 'right' }}>
-                  <StatusBadge value={c.status} />
-                  <div className="num" style={{ fontSize: 13.5, marginTop: 4 }}>{inr(normalize(c.status) === 'APPROVED' ? (c.approvedAmount ?? c.amount) : c.amount)}</div>
+              ))}</div>}
+            </DataState>
+          </section>
+
+          <section className="ix-dash-section">
+            <div className="ix-dash-section-head"><h2>Latest alerts</h2><Link className="btn sm" to="/app/notifications">View all</Link></div>
+            <DataState query={ntf} empty={{ title:'Nothing new', text:'Your updates and receipts will appear here.' }}>
+              {() => <div className="ix-dash-list">{latestAlerts.map(n => (
+                <div className="ix-dash-item" key={n.notificationId}>
+                  <span className="ix-dash-item-icon"><Icon name="bell" /></span>
+                  <div className="ix-dash-item-main"><div className="ix-dash-item-title">{n.title || 'Notification'}</div><div className="ix-dash-item-meta">{n.message}</div><div className="ix-dash-item-meta" style={{marginTop:6}}>{timeAgo(n.createdAt)}{!n.isRead ? ' · Unread' : ''}</div></div>
                 </div>
-              </div>
-            ))}
+              ))}</div>}
+            </DataState>
+          </section>
+        </div>
+
+        <section className="ix-dash-section">
+          <div className="ix-dash-section-head"><h2>Policies by expiry date</h2><Link className="btn sm" to="/app/policies">All policies</Link></div>
+          <DataState query={pol} empty={{ title:'No policies yet', text:'Choose an insurance plan and complete your purchase.' }} emptyAction={<Link className="btn primary" to="/app/plans">Browse plans</Link>}>
+            {() => <div className="ix-dash-policies">{expiringPolicies.map(p => (
+              <article className="ix-dash-policy" key={p.policyNumber}>
+                <div className="ix-dash-policy-head"><span className="ix-dash-policy-number">Policy #{p.policyNumber}</span><StatusBadge value={p.displayStatus} /></div>
+                <div className="ix-dash-policy-cover">{p.coveredTypes || 'Insurance cover'}</div>
+                <div className="ix-dash-policy-foot"><span>Expires {date(p.expiryDate)}</span><Link to="/app/policies">View policies →</Link></div>
+              </article>
+            ))}</div>}
           </DataState>
-        </Panel>
-
-        <Panel title="Latest alerts" flush actions={<Link className="btn sm" to="/app/notifications">View all</Link>}>
-          <DataState query={ntf} empty={{ title: 'Nothing new', text: 'Offers, payment receipts and claim updates show up here.' }}>
-            {(rows) => rows.slice(0, 5).map((n) => (
-              <div className={`list-item ${n.isRead ? '' : 'unread'}`} key={n.notificationId}>
-                <div className="dot-icon"><Icon name="bell" /></div>
-                <div className="grow">
-                  <b>{n.title}</b>
-                  <div className="muted" style={{ fontSize: 13.5 }}>{n.message}</div>
-                  <div className="faint" style={{ fontSize: 12.5 }}>{timeAgo(n.createdAt)}</div>
-                </div>
-              </div>
-            ))}
-          </DataState>
-        </Panel>
+        </section>
       </div>
-
-      <Panel title="Policies by expiry date" flush className="" actions={<Link className="btn sm" to="/app/policies">All policies</Link>}>
-        <DataState query={pol} empty={{ title: 'No policies yet', text: 'Pick a cover, set the amount and pay securely online.' }} emptyAction={<Link className="btn primary" to="/app/plans">Browse plans</Link>}>
-          {() => (
-            <div className="table-wrap">
-              <table className="tbl">
-                <thead><tr><th>Policy</th><th>Cover</th><th>Expires</th><th>Status</th></tr></thead>
-                <tbody>
-                  {displayedPolicies.slice().sort((a, b) => new Date(a.expiryDate) - new Date(b.expiryDate)).slice(0, 4).map((p) => (
-                    <tr key={p.policyNumber}>
-                      <td>#{p.policyNumber}</td><td>{p.coveredTypes}</td><td>{date(p.expiryDate)}</td>
-                      <td><StatusBadge value={p.displayStatus} /></td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </DataState>
-      </Panel>
     </>
   )
 }
