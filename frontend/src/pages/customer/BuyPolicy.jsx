@@ -409,6 +409,7 @@ export default function BuyPolicy() {
   const [step, setStep] = useState(0)
 
   const [val, setVal] = useState({
+    planId: null,
     coverage: 0,
     years: 1,
   })
@@ -492,11 +493,18 @@ export default function BuyPolicy() {
     if (isRenewal || !policy) return
     const base = Number(policy.baseCoverage)
     if (Number.isFinite(base) && base > 0) {
-      setVal({ coverage: base, years: 1 })
+      setVal({ planId: String(policy.planId), coverage: base, years: 1 })
     }
   }, [isRenewal, policy?.planId, policy?.baseCoverage])
 
   const planName = policy?.planName || policy?.planCode || 'Insurance plan'
+  // Derive coverage from the selected plan immediately, even before the reset effect runs.
+  const selectedCoverage =
+    policy && val.planId === String(policy.planId)
+      ? Number(val.coverage)
+      : Number(policy?.baseCoverage ?? 0)
+  const selectedYears =
+    policy && val.planId === String(policy.planId) ? Number(val.years) : 1
 
   const originalPolicy = useMemo(() => {
     if (!isRenewal) return null
@@ -639,8 +647,8 @@ export default function BuyPolicy() {
             policy
               ? calculatePremium(
                   policy,
-                  val.coverage,
-                  val.years,
+                  selectedCoverage,
+                  selectedYears,
                 )
               : null
           ),
@@ -650,36 +658,36 @@ export default function BuyPolicy() {
       originalPurchase,
       renewalPremium,
       policy,
-      val.coverage,
-      val.years,
+      selectedCoverage,
+      selectedYears,
     ],
   )
 
   const effectiveCoverage = isRenewal
     ? renewalCoverage
-    : Number(val.coverage)
+    : selectedCoverage
 
   const effectiveYears = isRenewal
     ? renewalYears
-    : Number(val.years)
+    : selectedYears
 
   const coverageIsValid = isRenewal
     ? renewalDetailsReady
     : (
         Number.isFinite(
-          Number(val.coverage),
+          selectedCoverage,
         ) &&
-        Number(val.coverage) > 0
+        selectedCoverage > 0
       )
 
   const durationIsValid = isRenewal
     ? renewalDetailsReady
     : (
         Number.isInteger(
-          Number(val.years),
+          selectedYears,
         ) &&
-        Number(val.years) >= 1 &&
-        Number(val.years) <= 5
+        selectedYears >= 1 &&
+        selectedYears <= 5
       )
 
   const blockedRenewal =
@@ -946,8 +954,8 @@ export default function BuyPolicy() {
           )
         : await payment.createOrder({
             planId: Number(policy.planId),
-            coverageAmount: Number(val.coverage),
-            durationYears: Number(val.years),
+            coverageAmount: selectedCoverage,
+            durationYears: selectedYears,
             currency: 'INR',
           })
 
@@ -1025,8 +1033,8 @@ export default function BuyPolicy() {
         : await purchases.purchase({
             planId: Number(policy.planId),
             coveredTypes: coveredType,
-            durationYears: Number(val.years),
-            coverageAmount: Number(val.coverage),
+            durationYears: selectedYears,
+            coverageAmount: selectedCoverage,
 
             nomineeName: nominee.name.trim(),
             nomineeRelation: nominee.relation,
@@ -1804,7 +1812,7 @@ export default function BuyPolicy() {
                           type="number"
                           min="1"
                           step="1"
-                          value={val.coverage || ''}
+                          value={selectedCoverage || ''}
                           onChange={(event) => setVal((current) => ({
                             ...current,
                             coverage: event.target.value,
@@ -1817,7 +1825,7 @@ export default function BuyPolicy() {
                         </label>
                         <select
                           id="ix-duration-years"
-                          value={val.years}
+                          value={selectedYears}
                           onChange={(event) => setVal((current) => ({
                             ...current,
                             years: Number(event.target.value),
@@ -1832,9 +1840,25 @@ export default function BuyPolicy() {
                         </select>
                       </div>
                     </div>
-                    <p className="muted" style={{ marginTop: 12, fontSize: 12 }}>
-                      Availability of custom coverage and terms depends on backend rules.
-                    </p>
+                    <div className="ix-side-breakdown" aria-live="polite" style={{ marginTop: 16, padding: 16, border: '1px solid #cce9d9', borderRadius: 14, background: '#f4fbf7' }}>
+                      <strong style={{ display: 'block', marginBottom: 12 }}>{planName} — premium estimate</strong>
+                      <dl className="kv" style={{ margin: 0 }}>
+                        <dt>Selected plan</dt><dd>{planName}</dd>
+                        <dt>Category</dt><dd>{coveredType}</dd>
+                        <dt>Base coverage</dt><dd>{inr(policy.baseCoverage)}</dd>
+                        <dt>Base premium / year</dt><dd>{inr(policy.basePremium)}</dd>
+                        <dt>Selected coverage</dt><dd>{inr(effectiveCoverage)}</dd>
+                        <dt>Duration</dt><dd>{effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</dd>
+                        <dt>Calculated premium</dt><dd>{est ? inr(est.base) : '—'}</dd>
+                        <dt>GST (estimated)</dt><dd>{est ? inr(est.gst) : '—'}</dd>
+                        <dt>Multi-year discount</dt><dd>{est ? `− ${inr(est.discount)}` : '—'}</dd>
+                        <dt>Estimated total</dt><dd><strong>{est ? inr(est.total) : '—'}</strong></dd>
+                      </dl>
+                      <p className="muted" style={{ margin: '12px 0 0', fontSize: 12 }}>
+                        Estimate only. Your backend calculates the actual amount when the payment order is created.
+                        Custom coverage and terms must also be accepted by the backend.
+                      </p>
+                    </div>
                   </Panel>
                 )}
               </div>
