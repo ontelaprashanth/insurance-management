@@ -155,8 +155,9 @@ public class ClaimsService {
         if (!Boolean.TRUE.equals(policy.getIsActive())) {
 
             throw new RuntimeException(
-                    "Claims cannot be submitted "
-                    + "for an inactive policy.");
+                    "This policy is inactive. If a previous settlement was rejected, "
+                    + "contact InsureX support to restore policy eligibility "
+                    + "after verification. Claims cannot be filed until then.");
         }
 
         // =====================================================
@@ -301,7 +302,8 @@ public class ClaimsService {
             throw new IllegalStateException(
                     "This policy already has a claim that is pending "
                     + "or has been approved. A new claim is allowed "
-                    + "only after all earlier claims are rejected.");
+                    + "only after all earlier claims are rejected. "
+                    + "A settled or approved claim permanently uses this policy's claim allowance.");
         }
     }
 
