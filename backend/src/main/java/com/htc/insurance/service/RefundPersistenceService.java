@@ -61,7 +61,6 @@ public class RefundPersistenceService {
                 .orElseThrow(() -> new IllegalStateException(
                         "Refund attempt not found."));
 
-        // Never associate two different Razorpay refunds.
         validateExistingRefundId(
                 purchase.getRefundId(),
                 razorpayRefundId);
@@ -70,19 +69,16 @@ public class RefundPersistenceService {
                 attempt.getRazorpayRefundId(),
                 razorpayRefundId);
 
-        // =====================================================
-        // ALREADY COMPLETED
-        // =====================================================
-
+        // Already completed.
         if (REFUNDED.equalsIgnoreCase(
                 purchase.getRefundStatus())
                 || attempt.getStatus()
-                        == RefundAttemptStatus.REFUNDED) {
+                    == RefundAttemptStatus.REFUNDED) {
 
             if (!REFUNDED.equalsIgnoreCase(
                     purchase.getRefundStatus())
                     || attempt.getStatus()
-                            != RefundAttemptStatus.REFUNDED) {
+                        != RefundAttemptStatus.REFUNDED) {
 
                 throw new IllegalStateException(
                         "Refund records are inconsistent. "
@@ -92,14 +88,11 @@ public class RefundPersistenceService {
             return purchase;
         }
 
-        // =====================================================
-        // ALREADY FAILED
-        // =====================================================
-
+        // Already failed.
         if (REFUND_FAILED.equalsIgnoreCase(
                 purchase.getRefundStatus())
                 || attempt.getStatus()
-                        == RefundAttemptStatus.FAILED) {
+                    == RefundAttemptStatus.FAILED) {
 
             throw new IllegalStateException(
                     "Razorpay reported a failed refund. "
@@ -115,10 +108,6 @@ public class RefundPersistenceService {
             throw new IllegalStateException(
                     "Purchase is not awaiting refund processing.");
         }
-
-        // =====================================================
-        // UPDATE BOTH RECORDS
-        // =====================================================
 
         purchase.setRefundId(razorpayRefundId);
         purchase.setRefundStatus(REFUND_PROCESSING);
@@ -159,14 +148,10 @@ public class RefundPersistenceService {
                 attempt.getRazorpayRefundId(),
                 razorpayRefundId);
 
-        // =====================================================
-        // IDEMPOTENT COMPLETION
-        // =====================================================
-
         if (REFUNDED.equalsIgnoreCase(
                 purchase.getRefundStatus())
                 && attempt.getStatus()
-                        == RefundAttemptStatus.REFUNDED) {
+                    == RefundAttemptStatus.REFUNDED) {
 
             return purchase;
         }
@@ -183,8 +168,7 @@ public class RefundPersistenceService {
                     "Purchase is not ready for refund completion.");
         }
 
-        // Only call this method after verifying that Razorpay
-        // confirms this refund as processed.
+        // Caller must verify Razorpay before invoking this.
         purchase.setRefundId(razorpayRefundId);
         purchase.setRefundStatus(REFUNDED);
 
@@ -197,6 +181,110 @@ public class RefundPersistenceService {
         attempt.setFailureReason(null);
 
         refundAttemptRepository.save(attempt);
+
+        return policyPurchaseDao.savePurchase(purchase);
+    }
+
+    // =========================================================
+    // RECOVER VERIFIED REFUND WITHOUT AN ATTEMPT RECORD
+    // =========================================================
+
+    /**
+     * Repairs an existing purchase after Razorpay has
+     * independently confirmed that its refund is processed.
+     *
+     * This method does NOT create a new Razorpay refund.
+     *
+     * The caller must verify:
+     * - Razorpay refund status = processed
+     * - Refund ID
+     * - Original payment ID
+     * - Refund amount
+     */
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public PolicyPurchase recoverProcessedRefundWithoutAttempt(
+            Long purchaseId,
+            String razorpayRefundId,
+            String verifiedPaymentId,
+            long verifiedAmountInPaise) {
+
+        validateRefundId(razorpayRefundId);
+
+        if (verifiedAmountInPaise <= 0) {
+            throw new IllegalArgumentException(
+                    "Verified refund amount must be positive.");
+        }
+
+        PolicyPurchase purchase =
+                getPurchaseForUpdate(purchaseId);
+
+        // Never associate a different refund with the purchase.
+        if (purchase.getRefundId() == null
+                || !purchase.getRefundId()
+                    .equals(razorpayRefundId)) {
+
+            throw new IllegalStateException(
+                    "Purchase refund ID does not match "
+                    + "the verified Razorpay refund.");
+        }
+
+        // Validate the original Razorpay payment.
+        if (verifiedPaymentId == null
+                || purchase.getRazorpayPaymentId() == null
+                || !purchase.getRazorpayPaymentId()
+                    .equals(verifiedPaymentId)) {
+
+            throw new IllegalStateException(
+                    "Original Razorpay payment ID does not match.");
+        }
+
+        // Validate the exact refund amount in paise.
+        if (purchase.getRefundAmount() == null
+                || purchase.getRefundAmount()
+                    .movePointRight(2)
+                    .longValueExact() != verifiedAmountInPaise) {
+
+            throw new IllegalStateException(
+                    "Refund amount does not match Razorpay.");
+        }
+
+        // Do not bypass normal reconciliation if an
+        // attempt record has appeared meanwhile.
+        if (refundAttemptRepository
+                .findByPurchaseId(purchaseId)
+                .isPresent()) {
+
+            throw new IllegalStateException(
+                    "Refund attempt now exists. "
+                    + "Use normal reconciliation.");
+        }
+
+        String currentStatus = purchase.getRefundStatus();
+
+        // Idempotent recovery.
+        if (REFUNDED.equalsIgnoreCase(currentStatus)) {
+
+            if (purchase.getRefundDateTime() == null) {
+                purchase.setRefundDateTime(LocalDateTime.now());
+                return policyPurchaseDao.savePurchase(purchase);
+            }
+
+            return purchase;
+        }
+
+        if (!REFUND_PROCESSING.equalsIgnoreCase(currentStatus)
+                && !RECONCILIATION.equalsIgnoreCase(currentStatus)) {
+
+            throw new IllegalStateException(
+                    "Purchase status is not eligible "
+                    + "for verified refund recovery.");
+        }
+
+        purchase.setRefundStatus(REFUNDED);
+
+        if (purchase.getRefundDateTime() == null) {
+            purchase.setRefundDateTime(LocalDateTime.now());
+        }
 
         return policyPurchaseDao.savePurchase(purchase);
     }
@@ -236,12 +324,11 @@ public class RefundPersistenceService {
             if (attempt.getStatus()
                     == RefundAttemptStatus.REFUNDED
                     || attempt.getStatus()
-                            == RefundAttemptStatus.FAILED) {
+                        == RefundAttemptStatus.FAILED) {
                 return;
             }
 
-            // A known refund ID can be reconciled directly
-            // against Razorpay. Preserve its processing state.
+            // Preserve existing known refund IDs.
             if (attempt.getRazorpayRefundId() != null
                     && !attempt.getRazorpayRefundId().isBlank()) {
                 return;
@@ -266,6 +353,7 @@ public class RefundPersistenceService {
         purchase.setRefundStatus(RECONCILIATION);
 
         if (attempt != null) {
+
             attempt.setStatus(
                     RefundAttemptStatus.REQUIRES_RECONCILIATION);
 
