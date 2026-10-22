@@ -50,9 +50,6 @@ public class PaymentAttempt {
     @Column(name = "attempt_id")
     private Long attemptId;
 
-    /*
-     * Unique server-generated reference for this attempt.
-     */
     @Column(
         name = "attempt_reference",
         nullable = false,
@@ -65,10 +62,11 @@ public class PaymentAttempt {
     // CUSTOMER
     // =========================================================
 
-    /*
-     * The authenticated account that initiated checkout.
-     */
-    @Column(name = "username", nullable = false, length = 100)
+    @Column(
+        name = "username",
+        nullable = false,
+        length = 100
+    )
     private String username;
 
     // =========================================================
@@ -89,15 +87,6 @@ public class PaymentAttempt {
     @Column(name = "duration_years", nullable = false)
     private Integer durationYears;
 
-    /*
-     * Calculated by the backend, never trusted from the browser.
-     *
-     * NEW:
-     * Calculated from the selected insurance plan.
-     *
-     * RENEWAL:
-     * Taken from the original paid PolicyPurchase.
-     */
     @Column(
         name = "calculated_premium",
         nullable = false,
@@ -106,7 +95,11 @@ public class PaymentAttempt {
     )
     private BigDecimal calculatedPremium;
 
-    @Column(name = "currency", nullable = false, length = 3)
+    @Column(
+        name = "currency",
+        nullable = false,
+        length = 3
+    )
     private String currency;
 
     // =========================================================
@@ -118,38 +111,25 @@ public class PaymentAttempt {
      * Normal insurance purchase.
      *
      * RENEWAL:
-     * Renewal of a previously claimed policy.
+     * Renewal of an existing eligible policy.
      *
-     * Nullable for backward compatibility with existing rows.
-     * Existing null values must be interpreted as NEW.
+     * Nullable for compatibility with historical rows.
+     * Null is interpreted as NEW by business logic.
      */
+
     @Column(
         name = "purchase_type",
         length = 20
     )
     private String purchaseType;
 
-    /*
-     * Original policy number when purchaseType is RENEWAL.
-     *
-     * Must be null for normal purchases.
-     *
-     * This field is intentionally not unique because multiple
-     * payment attempts may be created for the same renewal.
-     * Only one successful renewal purchase is permitted,
-     * enforced separately in PolicyPurchase.
-     */
     @Column(name = "renewal_source_policy_number")
     private Long renewalSourcePolicyNumber;
 
     // =========================================================
-    // RAZORPAY
+    // RAZORPAY PAYMENT IDENTIFIERS
     // =========================================================
 
-    /*
-     * Razorpay identifiers are nullable until an order/payment
-     * exists.
-     */
     @Column(
         name = "razorpay_order_id",
         unique = true,
@@ -203,10 +183,6 @@ public class PaymentAttempt {
     // OPTIMISTIC LOCKING
     // =========================================================
 
-    /*
-     * Prevents silent overwrites when concurrent requests update
-     * the same payment attempt.
-     */
     @Version
     @Column(
         name = "version",
@@ -362,7 +338,7 @@ public class PaymentAttempt {
     }
 
     // =========================================================
-    // STATUS GETTERS AND SETTERS
+    // PAYMENT STATUS GETTERS AND SETTERS
     // =========================================================
 
     public PaymentAttemptStatus getStatus() {
