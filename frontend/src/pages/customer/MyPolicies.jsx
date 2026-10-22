@@ -611,6 +611,9 @@ export default function MyPolicies() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     refetchOnReconnect: true,
+    // Pick up newly completed purchases without requiring a page reload.
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
   })
 
   const claimsQuery = useQuery({
@@ -663,6 +666,29 @@ export default function MyPolicies() {
     () => normalizeRows(purchasesQuery.data),
     [purchasesQuery.data],
   )
+
+  /* =======================================================
+     PAID PURCHASE / POLICY SYNCHRONIZATION
+
+     Do not fabricate policies or change ACTIVE / RENEWED
+     counts. Surface paid purchases whose linked policy is
+     absent from the authoritative policies response.
+  ======================================================= */
+
+  const unlinkedPaidPurchases = useMemo(() => {
+    const knownPolicyNumbers = new Set(
+      policyRows
+        .map((policy) => policyNumberOf(policy))
+        .filter((number) => number != null)
+        .map(String),
+    )
+
+    return purchaseRows.filter((purchase) => {
+      if (!isSuccessfulPurchase(purchase)) return false
+      const number = policyNumberOf(purchase)
+      return number != null && !knownPolicyNumbers.has(String(number))
+    })
+  }, [policyRows, purchaseRows])
 
   /* =======================================================
      INDEX CLAIMS BY POLICY
@@ -896,6 +922,12 @@ export default function MyPolicies() {
           return policy.displayStatus === 'RENEWED'
         }
 
+        // Include renewed cover in the Active tab as requested.
+        // Refund/expired/inactive statuses remain excluded.
+        if (status === 'active') {
+          return ['ACTIVE', 'RENEWED'].includes(policy.displayStatus)
+        }
+
         if (status === 'claimed') {
           return policy.hasClaimHistory
         }
@@ -932,8 +964,10 @@ export default function MyPolicies() {
     () => ({
       total: enrichedPolicies.length,
 
+      // Renewed policies also contribute to the Active summary.
+      // They remain visible in the separate Renewed summary and filter.
       active: enrichedPolicies.filter(
-        (p) => p.displayStatus === 'ACTIVE',
+        (p) => ['ACTIVE', 'RENEWED'].includes(p.displayStatus),
       ).length,
 
       claimed: enrichedPolicies.filter(
@@ -1330,6 +1364,21 @@ export default function MyPolicies() {
         </Panel>
       </div>
 
+      )}
+
+      {/* A paid purchase must be linked by the backend before it is counted. */}
+      {!query.isLoading && !query.isError && unlinkedPaidPurchases.length > 0 && (
+        <div className="alert info" role="status" style={{ marginBottom: 16 }}>
+          <Clock3 size={17} />
+          <span>
+            {unlinkedPaidPurchases.length} paid {unlinkedPaidPurchases.length === 1 ? 'purchase has' : 'purchases have'}
+            {' '}a policy number that is not yet in My Policies. Refresh to check again.
+            If this persists, the purchase-to-policy link needs backend verification.
+          </span>
+          <Button size="sm" onClick={refreshAll} disabled={refreshing}>
+            <RefreshCw size={15} /> Refresh
+          </Button>
+        </div>
       )}
 
       {/* REFUND NOTICE */}
