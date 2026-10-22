@@ -24,6 +24,7 @@ import com.htc.insurance.entity.ClaimStatus;
 import com.htc.insurance.entity.Claims;
 import com.htc.insurance.entity.Policy;
 import com.htc.insurance.entity.PolicyHolder;
+import com.htc.insurance.entity.PolicyLifecycleStatus;
 import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.User;
 
@@ -60,7 +61,7 @@ public class ClaimsService {
             Authentication authentication) {
 
         if (claimsDto == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim data is required.");
         }
 
@@ -69,12 +70,12 @@ public class ClaimsService {
                 || authentication.getName() == null
                 || authentication.getName().isBlank()) {
 
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "User authentication required.");
         }
 
         if (claimsDto.getPolicyNumber() == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy number is required.");
         }
 
@@ -87,7 +88,7 @@ public class ClaimsService {
         User user = userDao.getUserByUsername(username);
 
         if (user == null || user.getUserId() == null) {
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Logged-in user not found.");
         }
 
@@ -95,20 +96,11 @@ public class ClaimsService {
         // STEP 1 - LOCK POLICY ROW
         // =====================================================
 
-        /*
-         * Both claim submission and refund preparation
-         * must lock the same policy before checking
-         * whether the operation is allowed.
-         *
-         * The lock remains held until this transaction
-         * commits or rolls back.
-         */
-
         Policy policy = policyDao.getPolicyByIdForUpdate(
                 claimsDto.getPolicyNumber());
 
         if (policy == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy not found.");
         }
 
@@ -125,23 +117,14 @@ public class ClaimsService {
                 || !user.getUserId().equals(
                         policyHolder.getUser().getUserId())) {
 
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "You can only raise a claim against "
-                    + "your own policy.");
+                            + "your own policy.");
         }
 
         // =====================================================
         // STEP 2 - LOCK ASSOCIATED PURCHASE ROW
         // =====================================================
-
-        /*
-         * A legacy policy might not have a purchase
-         * record. Preserve the previous behavior for
-         * such policies.
-         *
-         * For purchased policies, read refund status
-         * while holding the purchase write lock.
-         */
 
         PolicyPurchase purchase = policyPurchaseDao
                 .getPurchaseByPolicyNumberForUpdate(
@@ -153,11 +136,25 @@ public class ClaimsService {
         // =====================================================
 
         if (!Boolean.TRUE.equals(policy.getIsActive())) {
+            throw new IllegalStateException(
+                    "Claims cannot be submitted for an inactive policy.");
+        }
 
-            throw new RuntimeException(
-                    "This policy is inactive. If a previous settlement was rejected, "
-                    + "contact InsureX support to restore policy eligibility "
-                    + "after verification. Claims cannot be filed until then.");
+        // =====================================================
+        // CHECK POLICY LIFECYCLE
+        // =====================================================
+
+        PolicyLifecycleStatus lifecycle =
+                policy.getLifecycleStatus();
+
+        // Legacy policies may have a null lifecycle.
+        // Preserve existing behavior only when isActive=true.
+        if (lifecycle != null
+                && lifecycle != PolicyLifecycleStatus.ACTIVE) {
+
+            throw new IllegalStateException(
+                    "Claims cannot be submitted. Policy status: "
+                            + lifecycle);
         }
 
         // =====================================================
@@ -169,21 +166,19 @@ public class ClaimsService {
         if (policy.getStartDate() == null
                 || policy.getExpiryDate() == null) {
 
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Policy coverage dates are not available.");
         }
 
         if (policy.getStartDate().isAfter(today)) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Your policy coverage has not started yet.");
         }
 
         if (!policy.getExpiryDate().isAfter(today)) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Your policy has expired. "
-                    + "New claims cannot be submitted.");
+                            + "New claims cannot be submitted.");
         }
 
         // =====================================================
@@ -191,20 +186,20 @@ public class ClaimsService {
         // =====================================================
 
         if (hasBlockingRefund(purchase)) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Claims cannot be submitted because "
-                    + "a refund has been requested or "
-                    + "processed for this policy.");
+                            + "a refund has been requested or "
+                            + "processed for this policy.");
         }
 
-        // A policy can have multiple historical rejected claims,
-        // but only one unresolved or successful claim.
-        // Policy row is locked, serializing claim submissions.
+        // =====================================================
+        // CHECK EXISTING CLAIMS
+        // =====================================================
+
         ensureClaimSlotAvailable(policy.getPolicyNumber());
 
         // =====================================================
-        // CONVERT CLAIM DTO TO ENTITY
+        // CONVERT DTO TO ENTITY
         // =====================================================
 
         Claims claims =
@@ -212,20 +207,20 @@ public class ClaimsService {
                         claimsDto);
 
         if (claims == null) {
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Unable to create claim.");
         }
 
-        // Always use the verified, locked policy.
+        // Always use the verified policy.
         claims.setPolicy(policy);
 
-        // Never trust claim date supplied by client.
+        // Do not trust claim date from frontend.
         claims.setClaimDate(today);
 
-        // New claims must start as pending.
+        // Every new claim starts as PENDING.
         claims.setStatus(ClaimStatus.PENDING);
 
-        // Clear client-supplied admin decision fields.
+        // Clear any client-supplied admin decision fields.
         claims.setApprovedAmount(null);
         claims.setAdminRemarks(null);
         claims.setRejectionReason(null);
@@ -256,54 +251,58 @@ public class ClaimsService {
     }
 
     // =========================================================
-    // CHECK REFUND STATUS FOR LOCKED PURCHASE
+    // CHECK REFUND STATUS
     // =========================================================
 
     private boolean hasBlockingRefund(
             PolicyPurchase purchase) {
 
-        // Preserve support for legacy policies
-        // that have no purchase record.
+        // Preserve legacy policies without purchase records.
         if (purchase == null) {
             return false;
         }
 
         String refundStatus = purchase.getRefundStatus();
 
-        // Unknown status: block new claims.
+        // Unknown refund state must not allow a claim.
         if (refundStatus == null
                 || refundStatus.isBlank()) {
             return true;
         }
 
-        // Only NOT_REFUNDED allows claim submission.
         return !"NOT_REFUNDED".equalsIgnoreCase(
                 refundStatus.trim());
     }
 
     // =========================================================
-    // ONE SUCCESSFUL CLAIM PER POLICY
+    // ONE UNRESOLVED OR SUCCESSFUL CLAIM PER POLICY
     // =========================================================
 
     private void ensureClaimSlotAvailable(Long policyNumber) {
+
         for (Claims existing : claimsDao.getAllClaims()) {
-            if (existing == null || existing.getPolicy() == null
+
+            if (existing == null
+                    || existing.getPolicy() == null
                     || !policyNumber.equals(
                             existing.getPolicy().getPolicyNumber())) {
                 continue;
             }
 
             ClaimStatus status = existing.getStatus();
+
+            // Historical rejected claims do not block retries.
             if (status == ClaimStatus.REJECTED) {
                 continue;
             }
-            // Includes PENDING, APPROVED, SETTLED and any
-            // unrecognized or null status (fail closed).
+
+            // PENDING, APPROVED, SETTLED, and unknown states
+            // all block another claim.
             throw new IllegalStateException(
-                    "This policy already has a claim that is pending "
-                    + "or has been approved. A new claim is allowed "
-                    + "only after all earlier claims are rejected. "
-                    + "A settled or approved claim permanently uses this policy's claim allowance.");
+                    "This policy already has an unresolved "
+                            + "or successful claim. "
+                            + "A new claim is allowed only when "
+                            + "all previous claims are rejected.");
         }
     }
 
@@ -311,12 +310,11 @@ public class ClaimsService {
     // ADMIN - GET ALL CLAIMS
     // =========================================================
 
+    @Transactional(readOnly = true)
     public List<ClaimsDto> getAllClaims() {
 
-        List<Claims> claimsList =
-                claimsDao.getAllClaims();
-
-        return claimsList.stream()
+        return claimsDao.getAllClaims()
+                .stream()
                 .map(claimsMapper::convertClaimsEntityToDto)
                 .collect(Collectors.toList());
     }
@@ -325,6 +323,7 @@ public class ClaimsService {
     // USER - GET MY CLAIMS
     // =========================================================
 
+    @Transactional(readOnly = true)
     public List<ClaimsDto> getMyClaims(
             Authentication authentication) {
 
@@ -333,7 +332,7 @@ public class ClaimsService {
                 || authentication.getName() == null
                 || authentication.getName().isBlank()) {
 
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "User authentication required.");
         }
 
@@ -341,22 +340,14 @@ public class ClaimsService {
                 authentication.getName());
 
         if (user == null || user.getUserId() == null) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Logged-in user not found.");
         }
 
-        /*
-         * Do not filter by policy active status or
-         * refund status here.
-         *
-         * Historical claims must remain visible.
-         */
-
-        List<Claims> allClaims =
-                claimsDao.getAllClaims();
-
-        return allClaims.stream()
+        // Preserve all historical claims, even if the
+        // policy is inactive, expired, or refunded.
+        return claimsDao.getAllClaims()
+                .stream()
                 .filter(claim -> {
 
                     if (claim == null
@@ -384,12 +375,13 @@ public class ClaimsService {
     // USER + ADMIN - GET CLAIM BY ID
     // =========================================================
 
+    @Transactional(readOnly = true)
     public ClaimsDto getClaimsById(
             Long claimNumber,
             Authentication authentication) {
 
         if (claimNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim number is required.");
         }
 
@@ -398,7 +390,7 @@ public class ClaimsService {
                 || authentication.getName() == null
                 || authentication.getName().isBlank()) {
 
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "User authentication required.");
         }
 
@@ -429,14 +421,14 @@ public class ClaimsService {
         }
 
         // =====================================================
-        // USER CAN ONLY VIEW OWN CLAIM
+        // USER CAN VIEW ONLY OWN CLAIM
         // =====================================================
 
         User user = userDao.getUserByUsername(
                 authentication.getName());
 
         if (user == null || user.getUserId() == null) {
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Logged-in user not found.");
         }
 
@@ -448,7 +440,7 @@ public class ClaimsService {
                 || policy.getPolicyHolder()
                         .getUser().getUserId() == null) {
 
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Claim ownership could not be verified.");
         }
 
@@ -457,8 +449,7 @@ public class ClaimsService {
                 .getUserId();
 
         if (!ownerId.equals(user.getUserId())) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "You are not authorized to view this claim.");
         }
 
@@ -467,7 +458,7 @@ public class ClaimsService {
     }
 
     // =========================================================
-    // ADMIN - UPDATE CLAIM
+    // ADMIN - UPDATE PENDING CLAIM
     // =========================================================
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -476,12 +467,12 @@ public class ClaimsService {
             ClaimsDto claimsDto) {
 
         if (claimNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim number is required.");
         }
 
         if (claimsDto == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim data is required.");
         }
 
@@ -493,19 +484,22 @@ public class ClaimsService {
         }
 
         if (claimsDto.getPolicyNumber() == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy number is required.");
         }
 
         if (existingClaims.getPolicy() == null
-                || existingClaims.getPolicy().getPolicyNumber() == null) {
+                || existingClaims.getPolicy()
+                        .getPolicyNumber() == null) {
+
             throw new IllegalStateException(
                     "Existing claim policy is unavailable.");
         }
 
-        // Claim history must never be moved to another policy.
+        // Never move a claim to another policy.
         if (!existingClaims.getPolicy().getPolicyNumber()
                 .equals(claimsDto.getPolicyNumber())) {
+
             throw new IllegalStateException(
                     "A claim cannot be transferred to another policy.");
         }
@@ -514,21 +508,30 @@ public class ClaimsService {
                 claimsDto.getPolicyNumber());
 
         if (policy == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Policy not found.");
         }
 
-        existingClaims = claimsDao.getClaimsById(claimNumber);
-        if (existingClaims == null || existingClaims.getPolicy() == null
+        // Reload after acquiring the policy lock.
+        existingClaims =
+                claimsDao.getClaimsById(claimNumber);
+
+        if (existingClaims == null
+                || existingClaims.getPolicy() == null
                 || !policy.getPolicyNumber().equals(
-                        existingClaims.getPolicy().getPolicyNumber())) {
+                        existingClaims.getPolicy()
+                                .getPolicyNumber())) {
+
             throw new IllegalStateException(
                     "Claim changed during update.");
         }
 
-        if (existingClaims.getStatus() != ClaimStatus.PENDING) {
+        if (existingClaims.getStatus()
+                != ClaimStatus.PENDING) {
+
             throw new IllegalStateException(
-                    "Reviewed claims cannot be edited. Preserve claim history.");
+                    "Reviewed claims cannot be edited. "
+                            + "Preserve claim history.");
         }
 
         Claims claims =
@@ -536,14 +539,14 @@ public class ClaimsService {
                         claimsDto);
 
         if (claims == null) {
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Unable to update claim.");
         }
 
         claims.setClaimNumber(claimNumber);
         claims.setPolicy(policy);
 
-        // Preserve original claim date and review details.
+        // Preserve claim history and admin fields.
         claims.setClaimDate(
                 existingClaims.getClaimDate());
 
@@ -587,12 +590,12 @@ public class ClaimsService {
             ClaimDecisionDto decisionDto) {
 
         if (claimNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim number is required.");
         }
 
         if (decisionDto == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim decision data is required.");
         }
 
@@ -604,18 +607,45 @@ public class ClaimsService {
         }
 
         Policy lockedPolicy = lockClaimPolicy(claim);
+
+        // Reload after acquiring policy lock.
         claim = claimsDao.getClaimsById(claimNumber);
-        if (claim == null || claim.getPolicy() == null
+
+        if (claim == null
+                || claim.getPolicy() == null
                 || !lockedPolicy.getPolicyNumber().equals(
                         claim.getPolicy().getPolicyNumber())) {
+
             throw new IllegalStateException(
                     "Claim policy changed during review.");
         }
 
         if (claim.getStatus() != ClaimStatus.PENDING) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Only pending claims can be approved.");
+        }
+
+        // =====================================================
+        // VERIFY POLICY IS STILL ELIGIBLE FOR APPROVAL
+        // =====================================================
+
+        if (!Boolean.TRUE.equals(
+                lockedPolicy.getIsActive())) {
+
+            throw new IllegalStateException(
+                    "The policy is inactive and cannot "
+                            + "be used for a new approval.");
+        }
+
+        PolicyLifecycleStatus lifecycle =
+                lockedPolicy.getLifecycleStatus();
+
+        if (lifecycle != null
+                && lifecycle != PolicyLifecycleStatus.ACTIVE) {
+
+            throw new IllegalStateException(
+                    "Policy cannot be approved in status: "
+                            + lifecycle);
         }
 
         // =====================================================
@@ -623,34 +653,32 @@ public class ClaimsService {
         // =====================================================
 
         if (decisionDto.getApprovedAmount() == null) {
-
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Approved amount is required.");
         }
 
         if (decisionDto.getApprovedAmount()
                 .compareTo(BigDecimal.ZERO) < 0) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Approved amount cannot be negative.");
         }
 
         if (claim.getAmount() == null) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Claim amount is not available.");
         }
 
         if (decisionDto.getApprovedAmount()
                 .compareTo(claim.getAmount()) > 0) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Approved amount cannot be greater "
-                    + "than the claimed amount.");
+                            + "than the claimed amount.");
         }
 
         // =====================================================
-        // SAVE APPROVAL
+        // APPROVE CLAIM AND LOCK POLICY
         // =====================================================
 
         claim.setStatus(ClaimStatus.APPROVED);
@@ -664,9 +692,14 @@ public class ClaimsService {
         claim.setRejectionReason(null);
         claim.setReviewedDate(LocalDate.now());
 
-        // Successful claim consumes this policy's single
-        // claim allowance. Keep the record for history/renewal.
+        // Record the reason for deactivation.
+        // Settlement rejection can restore eligibility
+        // only for a CLAIM_LOCKED policy.
         lockedPolicy.setIsActive(false);
+
+        lockedPolicy.setLifecycleStatus(
+                PolicyLifecycleStatus.CLAIM_LOCKED);
+
         policyDao.savePolicy(lockedPolicy);
 
         Claims updatedClaim =
@@ -687,7 +720,7 @@ public class ClaimsService {
     }
 
     // =========================================================
-    // ADMIN - REJECT CLAIM
+    // ADMIN - REJECT PENDING CLAIM
     // =========================================================
 
     @Transactional(isolation = Isolation.READ_COMMITTED)
@@ -696,12 +729,12 @@ public class ClaimsService {
             ClaimDecisionDto decisionDto) {
 
         if (claimNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim number is required.");
         }
 
         if (decisionDto == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim decision data is required.");
         }
 
@@ -712,30 +745,29 @@ public class ClaimsService {
             return null;
         }
 
-        // Serialize admin decisions with claim submissions and approvals.
         Policy lockedPolicy = lockClaimPolicy(claim);
+
+        // Reload after acquiring policy lock.
         claim = claimsDao.getClaimsById(claimNumber);
-        if (claim == null || claim.getPolicy() == null
+
+        if (claim == null
+                || claim.getPolicy() == null
                 || !lockedPolicy.getPolicyNumber().equals(
                         claim.getPolicy().getPolicyNumber())) {
+
             throw new IllegalStateException(
                     "Claim policy changed during review.");
         }
 
         if (claim.getStatus() != ClaimStatus.PENDING) {
-
-            throw new RuntimeException(
+            throw new IllegalStateException(
                     "Only pending claims can be rejected.");
         }
-
-        // =====================================================
-        // VALIDATE REJECTION REASON
-        // =====================================================
 
         if (decisionDto.getRejectionReason() == null
                 || decisionDto.getRejectionReason().isBlank()) {
 
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Rejection reason is required.");
         }
 
@@ -770,20 +802,27 @@ public class ClaimsService {
                 updatedClaim);
     }
 
-    // Lock policy before applying admin claim decisions,
-    // matching the claim/refund lock order.
+    // =========================================================
+    // LOCK CLAIM POLICY
+    // =========================================================
+
     private Policy lockClaimPolicy(Claims claim) {
+
         if (claim.getPolicy() == null
                 || claim.getPolicy().getPolicyNumber() == null) {
+
             throw new IllegalStateException(
                     "Claim policy information is unavailable.");
         }
+
         Policy locked = policyDao.getPolicyByIdForUpdate(
                 claim.getPolicy().getPolicyNumber());
+
         if (locked == null) {
             throw new IllegalStateException(
                     "Claim policy no longer exists.");
         }
+
         return locked;
     }
 
@@ -795,7 +834,7 @@ public class ClaimsService {
     public void deleteClaims(Long claimNumber) {
 
         if (claimNumber == null) {
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim number is required.");
         }
 
@@ -803,35 +842,48 @@ public class ClaimsService {
                 claimsDao.getClaimsById(claimNumber);
 
         if (existingClaim == null) {
-
-            throw new RuntimeException(
+            throw new IllegalArgumentException(
                     "Claim not found: " + claimNumber);
         }
 
         Policy policy = existingClaim.getPolicy();
 
-        if (policy != null && policy.getPolicyNumber() != null) {
-            Policy lockedPolicy = policyDao.getPolicyByIdForUpdate(
-                    policy.getPolicyNumber());
+        if (policy != null
+                && policy.getPolicyNumber() != null) {
+
+            Policy lockedPolicy =
+                    policyDao.getPolicyByIdForUpdate(
+                            policy.getPolicyNumber());
+
             if (lockedPolicy == null) {
                 throw new IllegalStateException(
                         "Claim policy no longer exists.");
             }
-            existingClaim = claimsDao.getClaimsById(claimNumber);
-            if (existingClaim == null || existingClaim.getPolicy() == null
+
+            existingClaim =
+                    claimsDao.getClaimsById(claimNumber);
+
+            if (existingClaim == null
+                    || existingClaim.getPolicy() == null
                     || !lockedPolicy.getPolicyNumber().equals(
-                            existingClaim.getPolicy().getPolicyNumber())) {
+                            existingClaim.getPolicy()
+                                    .getPolicyNumber())) {
+
                 throw new IllegalStateException(
                         "Claim changed during deletion.");
             }
+
             policy = lockedPolicy;
-            // Any historical claim blocks a refund. Deleting it would
-            // incorrectly restore refund eligibility for this purchase.
-            if (policyPurchaseDao.getPurchaseByPolicyNumberForUpdate(
-                    policy.getPolicyNumber()).isPresent()) {
+
+            // Purchased-policy claim history cannot be deleted.
+            if (policyPurchaseDao
+                    .getPurchaseByPolicyNumberForUpdate(
+                            policy.getPolicyNumber())
+                    .isPresent()) {
+
                 throw new IllegalStateException(
                         "Purchased-policy claims cannot be deleted. "
-                        + "Preserve the claim and payment history.");
+                                + "Preserve claim and payment history.");
             }
         }
 
@@ -845,10 +897,6 @@ public class ClaimsService {
         }
 
         claimsDao.deleteClaims(claimNumber);
-
-        // =====================================================
-        // NOTIFY CUSTOMER
-        // =====================================================
 
         if (customer != null
                 && customer.getUserId() != null) {
@@ -878,7 +926,6 @@ public class ClaimsService {
         }
 
         try {
-
             notificationService.createNotification(
                     user,
                     title,
@@ -886,7 +933,6 @@ public class ClaimsService {
                     type);
 
         } catch (Exception e) {
-
             System.err.println(
                     "Claim notification failed: "
                             + e.getClass().getSimpleName()
