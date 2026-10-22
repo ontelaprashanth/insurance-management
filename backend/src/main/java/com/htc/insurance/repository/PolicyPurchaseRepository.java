@@ -93,6 +93,43 @@ public interface PolicyPurchaseRepository
             @Param("policyNumber") Long policyNumber);
 
     // =========================================================
+    // POLICY RENEWAL - NEW METHODS
+    // =========================================================
+
+    /**
+     * Finds the completed renewal purchase associated with
+     * an original purchase.
+     *
+     * Returns Optional because only one renewal purchase
+     * may reference a particular original purchase.
+     *
+     * Database uniqueness is enforced by the
+     * renewed_from_purchase_id constraint.
+     */
+    Optional<PolicyPurchase>
+            findByRenewedFromPurchasePurchaseId(
+                    Long originalPurchaseId);
+
+    /**
+     * Checks whether the original purchase has already
+     * been renewed successfully.
+     *
+     * This is useful before creating another renewal order.
+     *
+     * The service must still use database locking because
+     * this check alone cannot prevent concurrent requests.
+     */
+    boolean existsByRenewedFromPurchasePurchaseId(
+            Long originalPurchaseId);
+
+    /**
+     * Finds purchases created through renewal.
+     *
+     * Useful for renewal history and administration.
+     */
+    List<PolicyPurchase> findByRenewedFromPurchaseIsNotNull();
+
+    // =========================================================
     // FIND PURCHASES WITH UNFINISHED REFUNDS
     // =========================================================
 
