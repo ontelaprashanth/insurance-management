@@ -35,7 +35,6 @@ import {
   Megaphone,
   LogOut,
   ChevronRight,
-  CircleHelp,
 } from 'lucide-react'
 
 import { useAuth } from '../auth/AuthContext'
@@ -44,18 +43,9 @@ import { Icon, Logo } from './ui'
 import { initials } from '../lib/format'
 
 /* =========================================================
-   INSUREX — PREMIUM APPLICATION LAYOUT
-
-   Emerald visual identity
-   Responsive customer/admin navigation
-   Animated sidebar and navigation
-   Accessible mobile menu
-   Unread notifications
-   Existing authentication and logout
-========================================================= */
-
-/* =========================================================
-   CUSTOMER NAVIGATION
+   INSUREX — REFINED APPLICATION LAYOUT
+   Consistent alignment • Responsive • Emerald theme
+   Existing navigation and authentication preserved
 ========================================================= */
 
 const USER_NAV = [
@@ -129,10 +119,6 @@ const USER_NAV = [
     ],
   },
 ]
-
-/* =========================================================
-   ADMIN NAVIGATION
-========================================================= */
 
 const ADMIN_NAV = [
   {
@@ -208,10 +194,6 @@ const ADMIN_NAV = [
   },
 ]
 
-/* =========================================================
-   HELPERS
-========================================================= */
-
 function getUnreadCount(data) {
   const raw =
     typeof data === 'number'
@@ -231,8 +213,7 @@ function getUnreadCount(data) {
 function isClaimedRoute(pathname, search) {
   return (
     pathname === '/app/policies' &&
-    new URLSearchParams(search).get('status') ===
-      'claimed'
+    new URLSearchParams(search).get('status') === 'claimed'
   )
 }
 
@@ -243,13 +224,8 @@ function isPoliciesRoute(pathname, search) {
   )
 }
 
-/* =========================================================
-   MAIN LAYOUT
-========================================================= */
-
 export default function Layout({ role }) {
   const { user, logout } = useAuth()
-
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -261,32 +237,21 @@ export default function Layout({ role }) {
   const sidebarRef = useRef(null)
 
   const isAdmin = role === 'ADMIN'
+  const nav = isAdmin ? ADMIN_NAV : USER_NAV
+  const dashboardPath = isAdmin ? '/admin' : '/app'
 
-  const nav = isAdmin
-    ? ADMIN_NAV
-    : USER_NAV
-
-  const dashboardPath = isAdmin
-    ? '/admin'
-    : '/app'
-
-  /* =======================================================
-     CLOSE MOBILE MENU ON NAVIGATION
-  ======================================================= */
+  /* Close the mobile menu after navigation. */
 
   useEffect(() => {
     setOpen(false)
   }, [pathname, search])
 
-  /* =======================================================
-     MOBILE SCROLL LOCK
-  ======================================================= */
+  /* Prevent background scrolling while mobile menu is open. */
 
   useEffect(() => {
     if (!open) return
 
     const previousOverflow = document.body.style.overflow
-
     document.body.style.overflow = 'hidden'
 
     return () => {
@@ -294,9 +259,7 @@ export default function Layout({ role }) {
     }
   }, [open])
 
-  /* =======================================================
-     KEYBOARD ACCESSIBILITY
-  ======================================================= */
+  /* Keyboard support. */
 
   useEffect(() => {
     if (!open) return
@@ -305,31 +268,6 @@ export default function Layout({ role }) {
       if (event.key === 'Escape') {
         setOpen(false)
         menuButtonRef.current?.focus()
-      }
-
-      if (event.key === 'Tab' && sidebarRef.current) {
-        const focusable = sidebarRef.current.querySelectorAll(
-          'a[href], button:not([disabled])'
-        )
-
-        if (!focusable.length) return
-
-        const first = focusable[0]
-        const last = focusable[focusable.length - 1]
-
-        if (
-          event.shiftKey &&
-          document.activeElement === first
-        ) {
-          event.preventDefault()
-          last.focus()
-        } else if (
-          !event.shiftKey &&
-          document.activeElement === last
-        ) {
-          event.preventDefault()
-          first.focus()
-        }
       }
     }
 
@@ -340,11 +278,7 @@ export default function Layout({ role }) {
     }
   }, [open])
 
-  /* =======================================================
-     CUSTOMER UNREAD NOTIFICATIONS
-
-     Admin does not call the customer notification endpoint.
-  ======================================================= */
+  /* Customer notification badge. */
 
   const unread = useQuery({
     queryKey: ['notifications', 'unread'],
@@ -359,11 +293,7 @@ export default function Layout({ role }) {
 
   const unreadCount = getUnreadCount(unread.data)
 
-  /* =======================================================
-     LOGOUT
-
-     Uses the existing AuthContext logout implementation.
-  ======================================================= */
+  /* Preserve existing logout flow. */
 
   const handleLogout = useCallback(() => {
     setOpen(false)
@@ -375,10 +305,6 @@ export default function Layout({ role }) {
     })
   }, [logout, navigate])
 
-  /* =======================================================
-     MOBILE MENU CONTROLS
-  ======================================================= */
-
   const closeMenu = useCallback(() => {
     setOpen(false)
   }, [])
@@ -387,21 +313,13 @@ export default function Layout({ role }) {
     setOpen((current) => !current)
   }, [])
 
-  /* =======================================================
-     DISPLAY NAME
-  ======================================================= */
-
   const displayName =
     user?.username ||
     user?.name ||
     user?.email ||
     'InsureX user'
 
-  const displayInitials = initials(displayName)
-
-  /* =======================================================
-     NAVIGATION ITEM
-  ======================================================= */
+  /* Navigation link with a consistent icon column. */
 
   const renderNavItem = (item) => {
     const NavIcon = item.icon
@@ -419,29 +337,28 @@ export default function Layout({ role }) {
         key={item.to}
         to={item.to}
         end={item.end ?? false}
-        className={({ isActive }) => {
-          const active = customActive ?? isActive
-
-          return `ix-nav-link${active ? ' active' : ''}`
-        }}
         onClick={closeMenu}
+        className={({ isActive }) =>
+          `ix-nav-link ${
+            (customActive ?? isActive) ? 'active' : ''
+          }`
+        }
       >
-        <span className="ix-nav-icon-wrap">
+        <span className="ix-nav-icon-box">
           <NavIcon
-            className="ix-nav-icon"
             size={19}
             strokeWidth={1.9}
             aria-hidden="true"
           />
         </span>
 
-        <span className="ix-nav-label">
+        <span className="ix-nav-text">
           {item.label}
         </span>
 
         {item.badge && unreadCount > 0 && (
           <span
-            className="ix-notification-count"
+            className="ix-count"
             aria-label={`${unreadCount} unread notifications`}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -449,7 +366,7 @@ export default function Layout({ role }) {
         )}
 
         <ChevronRight
-          className="ix-nav-chevron"
+          className="ix-chevron"
           size={15}
           aria-hidden="true"
         />
@@ -457,27 +374,20 @@ export default function Layout({ role }) {
     )
   }
 
-  /* =======================================================
-     RENDER
-  ======================================================= */
-
   return (
-    <div
-      className={`ix-shell${open ? ' ix-menu-open' : ''}`}
-    >
+    <div className={`ix-shell ${open ? 'ix-menu-open' : ''}`}>
       <style>{`
         .ix-shell {
           --ix-green: #047857;
           --ix-green-dark: #065f46;
-          --ix-green-deep: #064e3b;
-          --ix-green-bright: #10b981;
-          --ix-green-soft: #ecfdf5;
-          --ix-green-pale: #f5fbf7;
+          --ix-green-light: #10b981;
+          --ix-sidebar: #073f30;
           --ix-text: #172b23;
-          --ix-muted: #819087;
-          --ix-border: #e6eee8;
-          --ix-sidebar-width: 258px;
+          --ix-muted: #809087;
+          --ix-border: #e5eee8;
+          --ix-sidebar-width: 260px;
 
+          display: flex;
           min-height: 100vh;
           min-height: 100dvh;
           color: var(--ix-text);
@@ -485,9 +395,8 @@ export default function Layout({ role }) {
           isolation: isolate;
         }
 
-        .ix-shell *,
-        .ix-shell *::before,
-        .ix-shell *::after {
+        .ix-shell,
+        .ix-shell * {
           box-sizing: border-box;
         }
 
@@ -502,69 +411,33 @@ export default function Layout({ role }) {
           width: var(--ix-sidebar-width);
           height: 100vh;
           height: 100dvh;
+          padding: 22px 14px 13px;
           overflow: hidden;
-          padding: 22px 15px 14px;
           color: #e8f5ed;
           background:
             radial-gradient(
-              ellipse at 0% 0%,
-              rgba(16,185,129,.16),
-              transparent 42%
+              circle at 100% 0%,
+              rgba(16,185,129,.13),
+              transparent 38%
             ),
-            linear-gradient(
-              175deg,
-              #073f30 0%,
-              #064e3b 46%,
-              #063b2e 100%
-            );
-          border-right: 1px solid rgba(255,255,255,.07);
-          box-shadow: 8px 0 35px rgba(5,46,34,.06);
-          animation: ixSidebarAppear .55s cubic-bezier(.2,.7,.25,1) both;
-          transition: transform .3s cubic-bezier(.2,.7,.25,1);
+            linear-gradient(165deg, #073f30, #064e3b 55%, #063b2e);
+          border-right: 1px solid rgba(255,255,255,.06);
+          box-shadow: 5px 0 24px rgba(6,50,36,.05);
+          animation: ix-sidebar-in .45s ease-out both;
+          transition: transform .28s ease;
         }
 
-        .ix-shell .sidebar::before {
-          position: absolute;
-          top: -90px;
-          right: -110px;
-          width: 240px;
-          height: 240px;
-          content: "";
-          border: 1px solid rgba(167,243,208,.09);
-          border-radius: 50%;
-          box-shadow:
-            0 0 0 25px rgba(167,243,208,.025),
-            0 0 0 55px rgba(167,243,208,.02);
-          pointer-events: none;
-        }
-
-        .ix-shell .sidebar::after {
-          position: absolute;
-          right: 0;
-          bottom: 0;
-          left: 0;
-          height: 110px;
-          content: "";
-          background: linear-gradient(
-            0deg,
-            rgba(3,35,26,.18),
-            transparent
-          );
-          pointer-events: none;
-        }
-
-        /* BRAND */
+        /* BRAND ALIGNMENT */
 
         .ix-shell .brand {
           position: relative;
-          z-index: 1;
           display: flex;
-          flex-shrink: 0;
+          flex: 0 0 auto;
           align-items: center;
           gap: 11px;
-          min-width: 0;
-          padding: 2px 8px 23px;
-          color: inherit;
+          min-height: 49px;
+          padding: 0 8px;
+          color: #fff;
           text-decoration: none;
         }
 
@@ -573,17 +446,16 @@ export default function Layout({ role }) {
           flex-direction: column;
           min-width: 0;
           color: #fff;
-          font-size: 1.15rem;
+          font-size: 1.13rem;
           font-weight: 850;
-          letter-spacing: -.04em;
           line-height: 1.2;
+          letter-spacing: -.035em;
         }
 
         .ix-shell .brand small {
-          display: block;
           margin-top: 5px;
           color: #a9cabb;
-          font-size: .7rem;
+          font-size: .69rem;
           font-weight: 550;
           letter-spacing: .025em;
         }
@@ -594,96 +466,91 @@ export default function Layout({ role }) {
           outline-offset: 3px;
         }
 
-        /* NAVIGATION SCROLL AREA */
+        /* NAVIGATION */
 
         .ix-shell .nav {
-          position: relative;
-          z-index: 1;
-          flex: 1;
+          flex: 1 1 auto;
           min-height: 0;
+          margin-top: 22px;
+          padding: 0 0 12px;
           overflow-x: hidden;
           overflow-y: auto;
-          padding: 5px 0 16px;
-          scrollbar-color: rgba(167,243,208,.24) transparent;
           scrollbar-width: thin;
+          scrollbar-color: rgba(167,243,208,.2) transparent;
         }
 
         .ix-shell .nav > div {
-          margin-bottom: 19px;
+          margin: 0 0 20px;
         }
 
         .ix-shell .nav-group {
-          margin: 0 10px 9px;
-          color: #8fb8a4;
+          display: flex;
+          align-items: center;
+          min-height: 20px;
+          margin: 0 10px 8px;
+          color: #91b9a4;
           font-size: .65rem;
           font-weight: 800;
-          letter-spacing: .14em;
-          line-height: 1.5;
+          line-height: 1.2;
+          letter-spacing: .13em;
           text-transform: uppercase;
         }
 
-        /* NAVIGATION LINKS */
-
         .ix-shell .ix-nav-link {
           position: relative;
-          display: flex;
+          display: grid;
+          grid-template-columns: 30px minmax(0, 1fr) auto 15px;
           align-items: center;
-          gap: 10px;
-          min-height: 43px;
+          column-gap: 9px;
+          width: 100%;
+          min-height: 44px;
           margin: 3px 0;
-          padding: 9px 10px;
+          padding: 6px 9px;
           overflow: hidden;
           border: 1px solid transparent;
-          border-radius: 11px;
+          border-radius: 10px;
           color: #c4ddd0;
           text-decoration: none;
-          font-size: .84rem;
+          font-size: .835rem;
           font-weight: 570;
           line-height: 1.35;
           transition:
-            color .2s ease,
-            background .2s ease,
-            border-color .2s ease,
-            transform .2s ease,
-            box-shadow .2s ease;
-          animation: ixNavEnter .38s ease-out both;
-        }
-
-        .ix-shell .nav > div:nth-child(1) .ix-nav-link:nth-of-type(1) {
-          animation-delay: .04s;
+            color .18s ease,
+            background .18s ease,
+            border-color .18s ease,
+            transform .18s ease;
+          animation: ix-nav-in .32s ease-out both;
         }
 
         .ix-shell .ix-nav-link::before {
           position: absolute;
-          top: 10px;
-          bottom: 10px;
+          top: 9px;
+          bottom: 9px;
           left: 0;
           width: 3px;
           content: "";
           border-radius: 0 4px 4px 0;
           background: #6ee7b7;
           opacity: 0;
-          transform: scaleY(.5);
-          transition: opacity .2s ease, transform .2s ease;
+          transform: scaleY(.6);
+          transition: opacity .18s ease, transform .18s ease;
         }
 
         .ix-shell .ix-nav-link:hover {
           color: #fff;
-          background: rgba(255,255,255,.075);
-          border-color: rgba(255,255,255,.055);
-          transform: translateX(2px);
+          background: rgba(255,255,255,.065);
+          border-color: rgba(255,255,255,.045);
         }
 
         .ix-shell .ix-nav-link.active {
           color: #fff;
-          font-weight: 730;
           background: linear-gradient(
             105deg,
-            rgba(16,185,129,.24),
-            rgba(16,185,129,.10)
+            rgba(16,185,129,.23),
+            rgba(16,185,129,.09)
           );
-          border-color: rgba(110,231,183,.18);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.035);
+          border-color: rgba(110,231,183,.15);
+          font-weight: 720;
         }
 
         .ix-shell .ix-nav-link.active::before {
@@ -696,104 +563,96 @@ export default function Layout({ role }) {
           outline-offset: 2px;
         }
 
-        .ix-shell .ix-nav-icon-wrap {
+        .ix-shell .ix-nav-icon-box {
           display: grid;
-          flex: 0 0 29px;
-          width: 29px;
-          height: 29px;
+          width: 30px;
+          height: 30px;
           place-items: center;
-          border-radius: 8px;
           color: #a7cdb8;
+          border-radius: 8px;
           transition:
-            color .2s ease,
-            background .2s ease,
-            transform .2s ease;
+            color .18s ease,
+            background .18s ease;
         }
 
-        .ix-shell .ix-nav-link:hover .ix-nav-icon-wrap {
+        .ix-shell .ix-nav-link:hover .ix-nav-icon-box {
           color: #d1fae5;
-          transform: scale(1.05);
         }
 
-        .ix-shell .ix-nav-link.active .ix-nav-icon-wrap {
+        .ix-shell .ix-nav-link.active .ix-nav-icon-box {
           color: #a7f3d0;
-          background: rgba(16,185,129,.15);
+          background: rgba(16,185,129,.14);
         }
 
-        .ix-shell .ix-nav-label {
-          flex: 1;
+        .ix-shell .ix-nav-text {
           min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
-        .ix-shell .ix-nav-chevron {
-          flex-shrink: 0;
-          color: #86ad98;
-          opacity: 0;
-          transform: translateX(-4px);
-          transition: opacity .2s ease, transform .2s ease;
-        }
-
-        .ix-shell .ix-nav-link:hover .ix-nav-chevron,
-        .ix-shell .ix-nav-link.active .ix-nav-chevron {
-          opacity: .9;
-          transform: translateX(0);
-        }
-
-        .ix-shell .ix-notification-count {
+        .ix-shell .ix-count {
           display: inline-flex;
-          flex-shrink: 0;
           align-items: center;
           justify-content: center;
           min-width: 21px;
           height: 21px;
-          padding: 0 6px;
+          padding: 0 5px;
           border: 1px solid rgba(255,255,255,.12);
           border-radius: 7px;
           color: #fff;
           background: #059669;
-          font-size: .66rem;
+          font-size: .65rem;
           font-weight: 800;
           font-variant-numeric: tabular-nums;
-          box-shadow: 0 2px 9px rgba(0,0,0,.12);
-          animation: ixBadgePop .35s cubic-bezier(.2,.8,.2,1.3) both;
+        }
+
+        .ix-shell .ix-chevron {
+          color: #86ad98;
+          opacity: 0;
+          transform: translateX(-3px);
+          transition: opacity .18s ease, transform .18s ease;
+        }
+
+        .ix-shell .ix-nav-link:hover .ix-chevron,
+        .ix-shell .ix-nav-link.active .ix-chevron {
+          opacity: .9;
+          transform: translateX(0);
         }
 
         /* ACCOUNT FOOTER */
 
         .ix-shell .sidebar-foot {
-          position: relative;
-          z-index: 2;
-          display: flex;
-          flex-shrink: 0;
+          display: grid;
+          grid-template-columns: 39px minmax(0, 1fr) 37px;
           align-items: center;
           gap: 10px;
-          margin-top: 5px;
-          padding: 13px 6px 4px;
+          flex: 0 0 auto;
+          min-height: 64px;
+          margin-top: auto;
+          padding: 12px 5px 2px;
           border-top: 1px solid rgba(209,250,229,.13);
         }
 
         .ix-shell .avatar {
           display: grid;
-          flex: 0 0 38px;
-          width: 38px;
-          height: 38px;
+          width: 39px;
+          height: 39px;
           place-items: center;
-          border: 1px solid rgba(167,243,208,.4);
+          border: 1px solid rgba(167,243,208,.35);
           border-radius: 12px;
           color: #d1fae5;
           background: linear-gradient(
             145deg,
-            rgba(16,185,129,.35),
-            rgba(6,95,70,.75)
+            rgba(16,185,129,.34),
+            rgba(6,95,70,.8)
           );
           font-size: .76rem;
           font-weight: 850;
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.1);
         }
 
         .ix-shell .who {
           display: flex;
-          flex: 1;
           flex-direction: column;
           min-width: 0;
           gap: 4px;
@@ -802,27 +661,26 @@ export default function Layout({ role }) {
         .ix-shell .who b {
           overflow: hidden;
           color: #f0fdf4;
-          font-size: .78rem;
+          font-size: .77rem;
           font-weight: 750;
+          line-height: 1.35;
           text-overflow: ellipsis;
           white-space: nowrap;
         }
 
         .ix-shell .who span {
           color: #9fc5b1;
-          font-size: .69rem;
-          font-weight: 550;
+          font-size: .68rem;
+          line-height: 1.3;
         }
-
-        /* BUTTONS */
 
         .ix-shell .btn.icon-btn {
           display: inline-grid;
-          flex: 0 0 37px;
+          align-items: center;
+          justify-items: center;
           width: 37px;
           height: 37px;
           min-width: 37px;
-          place-items: center;
           padding: 0;
           border: 1px solid rgba(255,255,255,.13);
           border-radius: 10px;
@@ -830,17 +688,16 @@ export default function Layout({ role }) {
           background: rgba(255,255,255,.045);
           cursor: pointer;
           transition:
-            color .2s ease,
-            background .2s ease,
-            border-color .2s ease,
-            transform .2s ease;
+            color .18s ease,
+            background .18s ease,
+            border-color .18s ease,
+            transform .18s ease;
         }
 
         .ix-shell .sidebar-foot .btn.icon-btn:hover {
           color: #fff;
-          background: rgba(239,68,68,.16);
-          border-color: rgba(252,165,165,.28);
-          transform: translateY(-1px);
+          background: rgba(239,68,68,.15);
+          border-color: rgba(252,165,165,.25);
         }
 
         .ix-shell .btn.icon-btn:focus-visible {
@@ -848,32 +705,28 @@ export default function Layout({ role }) {
           outline-offset: 3px;
         }
 
-        /* MAIN CONTENT */
+        /* MAIN CONTENT ALIGNMENT */
 
         .ix-shell .main {
+          flex: 1 1 auto;
           min-width: 0;
           min-height: 100vh;
           min-height: 100dvh;
           margin-left: var(--ix-sidebar-width);
-          background:
-            radial-gradient(
-              ellipse at 100% 0%,
-              rgba(16,185,129,.035),
-              transparent 35%
-            ),
-            #f6f9f7;
         }
 
         .ix-shell .content {
           width: 100%;
+          max-width: 1800px;
           min-width: 0;
           min-height: 100vh;
           min-height: 100dvh;
-          padding: clamp(20px, 3vw, 34px);
-          animation: ixContentEnter .45s ease-out both;
+          margin: 0 auto;
+          padding: clamp(20px, 2.4vw, 34px);
+          animation: ix-content-in .35s ease-out both;
         }
 
-        /* MOBILE TOP BAR */
+        /* MOBILE HEADER */
 
         .ix-shell .topbar {
           position: sticky;
@@ -882,19 +735,19 @@ export default function Layout({ role }) {
           display: none;
           align-items: center;
           gap: 12px;
-          min-height: 65px;
-          padding: 10px 17px;
-          border-bottom: 1px solid rgba(220,232,224,.9);
-          background: rgba(255,255,255,.92);
-          box-shadow: 0 4px 20px rgba(15,45,30,.035);
-          backdrop-filter: blur(16px);
-          -webkit-backdrop-filter: blur(16px);
+          min-height: 64px;
+          padding: 10px 18px;
+          border-bottom: 1px solid #e5eee8;
+          background: rgba(255,255,255,.94);
+          box-shadow: 0 3px 16px rgba(15,45,30,.035);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
         }
 
         .ix-shell .topbar .brand {
           gap: 9px;
+          min-height: 40px;
           padding: 0;
-          color: var(--ix-text);
         }
 
         .ix-shell .topbar .brand > span {
@@ -910,27 +763,26 @@ export default function Layout({ role }) {
 
         .ix-shell .topbar .btn.icon-btn:hover {
           background: #dcfce7;
-          transform: translateY(-1px);
         }
 
-        /* BACKDROP */
+        /* MOBILE OVERLAY */
 
         .ix-shell .scrim {
           position: fixed;
           z-index: 70;
           inset: 0;
-          background: rgba(5,30,21,.53);
+          background: rgba(5,30,21,.52);
           backdrop-filter: blur(3px);
           -webkit-backdrop-filter: blur(3px);
-          animation: ixScrimIn .22s ease-out both;
+          animation: ix-scrim-in .2s ease-out both;
         }
 
         /* ANIMATIONS */
 
-        @keyframes ixSidebarAppear {
+        @keyframes ix-sidebar-in {
           from {
-            opacity: .65;
-            transform: translateX(-9px);
+            opacity: .7;
+            transform: translateX(-7px);
           }
           to {
             opacity: 1;
@@ -938,10 +790,10 @@ export default function Layout({ role }) {
           }
         }
 
-        @keyframes ixNavEnter {
+        @keyframes ix-nav-in {
           from {
             opacity: 0;
-            transform: translateY(5px);
+            transform: translateY(4px);
           }
           to {
             opacity: 1;
@@ -949,10 +801,10 @@ export default function Layout({ role }) {
           }
         }
 
-        @keyframes ixContentEnter {
+        @keyframes ix-content-in {
           from {
-            opacity: .65;
-            transform: translateY(5px);
+            opacity: .7;
+            transform: translateY(4px);
           }
           to {
             opacity: 1;
@@ -960,23 +812,29 @@ export default function Layout({ role }) {
           }
         }
 
-        @keyframes ixBadgePop {
-          from {
-            opacity: 0;
-            transform: scale(.75);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1);
-          }
-        }
-
-        @keyframes ixScrimIn {
+        @keyframes ix-scrim-in {
           from { opacity: 0; }
           to { opacity: 1; }
         }
 
-        /* TABLET AND MOBILE */
+        /* TABLET */
+
+        @media (max-width: 1000px) and (min-width: 901px) {
+          .ix-shell {
+            --ix-sidebar-width: 238px;
+          }
+
+          .ix-shell .sidebar {
+            padding-right: 11px;
+            padding-left: 11px;
+          }
+
+          .ix-shell .content {
+            padding: 22px;
+          }
+        }
+
+        /* MOBILE */
 
         @media (max-width: 900px) {
           .ix-shell .sidebar {
@@ -998,28 +856,24 @@ export default function Layout({ role }) {
           }
 
           .ix-shell .content {
-            min-height: calc(100dvh - 65px);
-            padding: clamp(16px, 3vw, 26px);
-          }
-
-          .ix-shell .sidebar .brand {
-            padding-bottom: 24px;
+            min-height: calc(100dvh - 64px);
+            padding: clamp(16px, 3vw, 25px);
           }
         }
 
         @media (max-width: 480px) {
           .ix-shell .topbar {
-            min-height: 59px;
+            min-height: 58px;
             padding: 9px 12px;
           }
 
           .ix-shell .content {
-            min-height: calc(100dvh - 59px);
+            min-height: calc(100dvh - 58px);
             padding: 15px 12px 24px;
           }
 
           .ix-shell .sidebar {
-            padding: 18px 13px 12px;
+            padding: 18px 12px 12px;
           }
 
           .ix-shell .ix-nav-link {
@@ -1027,15 +881,15 @@ export default function Layout({ role }) {
           }
         }
 
-        /* REDUCED MOTION ACCESSIBILITY */
+        /* ACCESSIBILITY */
 
         @media (prefers-reduced-motion: reduce) {
           .ix-shell *,
           .ix-shell *::before,
           .ix-shell *::after {
             animation: none !important;
-            scroll-behavior: auto !important;
             transition: none !important;
+            scroll-behavior: auto !important;
           }
         }
       `}</style>
@@ -1056,15 +910,8 @@ export default function Layout({ role }) {
         id="insurex-sidebar"
         ref={sidebarRef}
         className={`sidebar ${open ? 'open' : ''}`}
-        aria-label={
-          isAdmin
-            ? 'Admin navigation'
-            : 'Customer navigation'
-        }
-        aria-hidden={undefined}
+        aria-label={isAdmin ? 'Admin navigation' : 'Customer navigation'}
       >
-        {/* BRAND */}
-
         <NavLink
           to={dashboardPath}
           className="brand"
@@ -1075,19 +922,12 @@ export default function Layout({ role }) {
           <span>
             InsureX
             <small>
-              {isAdmin
-                ? 'Admin console'
-                : 'Customer portal'}
+              {isAdmin ? 'Admin console' : 'Customer portal'}
             </small>
           </span>
         </NavLink>
 
-        {/* NAVIGATION */}
-
-        <nav
-          className="nav"
-          aria-label="Main navigation"
-        >
+        <nav className="nav" aria-label="Main navigation">
           {nav.map((group) => (
             <div key={group.group}>
               <div className="nav-group">
@@ -1099,21 +939,14 @@ export default function Layout({ role }) {
           ))}
         </nav>
 
-        {/* ACCOUNT FOOTER */}
-
         <div className="sidebar-foot">
           <div className="avatar" aria-hidden="true">
-            {displayInitials}
+            {initials(displayName)}
           </div>
 
           <div className="who">
-            <b title={displayName}>
-              {displayName}
-            </b>
-
-            <span>
-              {isAdmin ? 'Administrator' : 'Customer'}
-            </span>
+            <b title={displayName}>{displayName}</b>
+            <span>{isAdmin ? 'Administrator' : 'Customer'}</span>
           </div>
 
           <button
@@ -1123,20 +956,14 @@ export default function Layout({ role }) {
             title="Sign out"
             type="button"
           >
-            <LogOut
-              size={19}
-              strokeWidth={1.9}
-              aria-hidden="true"
-            />
+            <LogOut size={19} strokeWidth={1.9} aria-hidden="true" />
           </button>
         </div>
       </aside>
 
-      {/* MAIN CONTENT */}
+      {/* MAIN */}
 
       <div className="main">
-        {/* MOBILE TOPBAR */}
-
         <header className="topbar">
           <button
             ref={menuButtonRef}
@@ -1159,8 +986,6 @@ export default function Layout({ role }) {
             <span>InsureX</span>
           </NavLink>
         </header>
-
-        {/* PAGE CONTENT */}
 
         <main className="content" id="main-content">
           <Outlet />
