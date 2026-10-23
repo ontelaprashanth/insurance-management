@@ -649,6 +649,25 @@ public class ClaimsService {
         }
 
         // =====================================================
+        // VERIFY REFUND STATUS BEFORE APPROVAL
+        // Lock order remains policy first, then purchase.
+        // A refund in any state other than NOT_REFUNDED
+        // must prevent approval, even if policy state lags.
+        // =====================================================
+
+        PolicyPurchase approvalPurchase = policyPurchaseDao
+                .getPurchaseByPolicyNumberForUpdate(
+                        lockedPolicy.getPolicyNumber())
+                .orElse(null);
+
+        if (hasBlockingRefund(approvalPurchase)) {
+            throw new IllegalStateException(
+                    "Claim cannot be approved because a refund "
+                            + "has been requested or processed "
+                            + "for this policy.");
+        }
+
+        // =====================================================
         // VALIDATE APPROVED AMOUNT
         // =====================================================
 
