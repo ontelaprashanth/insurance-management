@@ -16,6 +16,10 @@ public interface SettlementRepository
     // GET SETTLEMENTS BY CLAIM NUMBER
     // =========================================================
 
+    /**
+     * Retrieves settlement records associated
+     * with the specified claim number.
+     */
     List<Settlement> findByClaim_ClaimNumber(
             Long claimNumber
     );
@@ -24,6 +28,12 @@ public interface SettlementRepository
     // CHECK WHETHER SETTLEMENT ALREADY EXISTS
     // =========================================================
 
+    /**
+     * Checks whether a settlement record already
+     * exists for the specified claim number.
+     *
+     * Used to prevent duplicate settlement creation.
+     */
     boolean existsByClaim_ClaimNumber(
             Long claimNumber
     );
