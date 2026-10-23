@@ -1,4 +1,3 @@
-
 package com.htc.insurance;
 
 import org.springframework.boot.SpringApplication;
