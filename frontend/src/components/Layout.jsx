@@ -43,9 +43,9 @@ import { Icon, Logo } from './ui'
 import { initials } from '../lib/format'
 
 /* =========================================================
-   INSUREX — REFINED APPLICATION LAYOUT
-   Consistent alignment • Responsive • Emerald theme
-   Existing navigation and authentication preserved
+   INSUREX — RESPONSIVE APPLICATION LAYOUT
+   Desktop sidebar • Mobile drawer • Emerald design
+   Existing API, navigation and logout behavior preserved
 ========================================================= */
 
 const USER_NAV = [
@@ -240,13 +240,13 @@ export default function Layout({ role }) {
   const nav = isAdmin ? ADMIN_NAV : USER_NAV
   const dashboardPath = isAdmin ? '/admin' : '/app'
 
-  /* Close the mobile menu after navigation. */
+  /* Close the drawer after navigation. */
 
   useEffect(() => {
     setOpen(false)
   }, [pathname, search])
 
-  /* Prevent background scrolling while mobile menu is open. */
+  /* Prevent background scrolling while drawer is open. */
 
   useEffect(() => {
     if (!open) return
@@ -259,7 +259,7 @@ export default function Layout({ role }) {
     }
   }, [open])
 
-  /* Keyboard support. */
+  /* Keyboard support for the mobile drawer. */
 
   useEffect(() => {
     if (!open) return
@@ -268,6 +268,31 @@ export default function Layout({ role }) {
       if (event.key === 'Escape') {
         setOpen(false)
         menuButtonRef.current?.focus()
+      }
+
+      if (event.key === 'Tab' && sidebarRef.current) {
+        const focusable = sidebarRef.current.querySelectorAll(
+          'a[href], button:not([disabled])'
+        )
+
+        if (!focusable.length) return
+
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+
+        if (
+          event.shiftKey &&
+          document.activeElement === first
+        ) {
+          event.preventDefault()
+          last.focus()
+        } else if (
+          !event.shiftKey &&
+          document.activeElement === last
+        ) {
+          event.preventDefault()
+          first.focus()
+        }
       }
     }
 
@@ -278,7 +303,7 @@ export default function Layout({ role }) {
     }
   }, [open])
 
-  /* Customer notification badge. */
+  /* Existing customer notification query. */
 
   const unread = useQuery({
     queryKey: ['notifications', 'unread'],
@@ -293,11 +318,10 @@ export default function Layout({ role }) {
 
   const unreadCount = getUnreadCount(unread.data)
 
-  /* Preserve existing logout flow. */
+  /* Existing logout behavior. */
 
   const handleLogout = useCallback(() => {
     setOpen(false)
-
     logout()
 
     navigate('/login', {
@@ -319,7 +343,7 @@ export default function Layout({ role }) {
     user?.email ||
     'InsureX user'
 
-  /* Navigation link with a consistent icon column. */
+  /* Navigation item. */
 
   const renderNavItem = (item) => {
     const NavIcon = item.icon
@@ -381,26 +405,27 @@ export default function Layout({ role }) {
           --ix-green: #047857;
           --ix-green-dark: #065f46;
           --ix-green-light: #10b981;
-          --ix-sidebar: #073f30;
           --ix-text: #172b23;
-          --ix-muted: #809087;
           --ix-border: #e5eee8;
           --ix-sidebar-width: 260px;
 
           display: flex;
           min-height: 100vh;
           min-height: 100dvh;
+          width: 100%;
           color: var(--ix-text);
           background: #f6f9f7;
           isolation: isolate;
         }
 
         .ix-shell,
-        .ix-shell * {
+        .ix-shell *,
+        .ix-shell *::before,
+        .ix-shell *::after {
           box-sizing: border-box;
         }
 
-        /* SIDEBAR */
+        /* DESKTOP SIDEBAR */
 
         .ix-shell .sidebar {
           position: fixed;
@@ -420,14 +445,19 @@ export default function Layout({ role }) {
               rgba(16,185,129,.13),
               transparent 38%
             ),
-            linear-gradient(165deg, #073f30, #064e3b 55%, #063b2e);
+            linear-gradient(
+              165deg,
+              #073f30 0%,
+              #064e3b 55%,
+              #063b2e 100%
+            );
           border-right: 1px solid rgba(255,255,255,.06);
           box-shadow: 5px 0 24px rgba(6,50,36,.05);
-          animation: ix-sidebar-in .45s ease-out both;
+          animation: ix-sidebar-in .4s ease-out both;
           transition: transform .28s ease;
         }
 
-        /* BRAND ALIGNMENT */
+        /* BRAND */
 
         .ix-shell .brand {
           position: relative;
@@ -435,6 +465,7 @@ export default function Layout({ role }) {
           flex: 0 0 auto;
           align-items: center;
           gap: 11px;
+          min-width: 0;
           min-height: 49px;
           padding: 0 8px;
           color: #fff;
@@ -466,7 +497,7 @@ export default function Layout({ role }) {
           outline-offset: 3px;
         }
 
-        /* NAVIGATION */
+        /* SCROLLABLE NAVIGATION */
 
         .ix-shell .nav {
           flex: 1 1 auto;
@@ -477,6 +508,7 @@ export default function Layout({ role }) {
           overflow-y: auto;
           scrollbar-width: thin;
           scrollbar-color: rgba(167,243,208,.2) transparent;
+          overscroll-behavior: contain;
         }
 
         .ix-shell .nav > div {
@@ -495,6 +527,8 @@ export default function Layout({ role }) {
           letter-spacing: .13em;
           text-transform: uppercase;
         }
+
+        /* GRID-ALIGNED NAV LINKS */
 
         .ix-shell .ix-nav-link {
           position: relative;
@@ -519,7 +553,6 @@ export default function Layout({ role }) {
             background .18s ease,
             border-color .18s ease,
             transform .18s ease;
-          animation: ix-nav-in .32s ease-out both;
         }
 
         .ix-shell .ix-nav-link::before {
@@ -570,9 +603,7 @@ export default function Layout({ role }) {
           place-items: center;
           color: #a7cdb8;
           border-radius: 8px;
-          transition:
-            color .18s ease,
-            background .18s ease;
+          transition: color .18s ease, background .18s ease;
         }
 
         .ix-shell .ix-nav-link:hover .ix-nav-icon-box {
@@ -674,6 +705,8 @@ export default function Layout({ role }) {
           line-height: 1.3;
         }
 
+        /* BUTTONS */
+
         .ix-shell .btn.icon-btn {
           display: inline-grid;
           align-items: center;
@@ -690,8 +723,7 @@ export default function Layout({ role }) {
           transition:
             color .18s ease,
             background .18s ease,
-            border-color .18s ease,
-            transform .18s ease;
+            border-color .18s ease;
         }
 
         .ix-shell .sidebar-foot .btn.icon-btn:hover {
@@ -705,7 +737,7 @@ export default function Layout({ role }) {
           outline-offset: 3px;
         }
 
-        /* MAIN CONTENT ALIGNMENT */
+        /* CONTENT AREA */
 
         .ix-shell .main {
           flex: 1 1 auto;
@@ -737,6 +769,7 @@ export default function Layout({ role }) {
           gap: 12px;
           min-height: 64px;
           padding: 10px 18px;
+          padding-top: max(10px, env(safe-area-inset-top));
           border-bottom: 1px solid #e5eee8;
           background: rgba(255,255,255,.94);
           box-shadow: 0 3px 16px rgba(15,45,30,.035);
@@ -765,7 +798,7 @@ export default function Layout({ role }) {
           background: #dcfce7;
         }
 
-        /* MOBILE OVERLAY */
+        /* DRAWER BACKDROP */
 
         .ix-shell .scrim {
           position: fixed;
@@ -790,17 +823,6 @@ export default function Layout({ role }) {
           }
         }
 
-        @keyframes ix-nav-in {
-          from {
-            opacity: 0;
-            transform: translateY(4px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-
         @keyframes ix-content-in {
           from {
             opacity: .7;
@@ -819,7 +841,7 @@ export default function Layout({ role }) {
 
         /* TABLET */
 
-        @media (max-width: 1000px) and (min-width: 901px) {
+        @media (max-width: 1100px) and (min-width: 901px) {
           .ix-shell {
             --ix-sidebar-width: 238px;
           }
@@ -834,21 +856,30 @@ export default function Layout({ role }) {
           }
         }
 
-        /* MOBILE */
+        /* TABLET AND MOBILE DRAWER */
 
         @media (max-width: 900px) {
           .ix-shell .sidebar {
-            width: min(290px, 86vw);
+            width: min(300px, 86vw);
             transform: translateX(-105%);
+            visibility: hidden;
+            pointer-events: none;
             box-shadow: 12px 0 40px rgba(0,0,0,.18);
+            animation: none;
+            transition:
+              transform .28s ease,
+              visibility .28s ease;
           }
 
           .ix-shell .sidebar.open {
+            visibility: visible;
+            pointer-events: auto;
             transform: translateX(0);
           }
 
           .ix-shell .main {
             margin-left: 0;
+            width: 100%;
           }
 
           .ix-shell .topbar {
@@ -859,29 +890,60 @@ export default function Layout({ role }) {
             min-height: calc(100dvh - 64px);
             padding: clamp(16px, 3vw, 25px);
           }
+
+          .ix-shell .nav {
+            margin-top: 20px;
+          }
         }
 
-        @media (max-width: 480px) {
+        /* PHONES */
+
+        @media (max-width: 600px) {
           .ix-shell .topbar {
-            min-height: 58px;
-            padding: 9px 12px;
+            min-height: 60px;
+            gap: 10px;
+            padding-right: 14px;
+            padding-left: 14px;
           }
 
           .ix-shell .content {
-            min-height: calc(100dvh - 58px);
-            padding: 15px 12px 24px;
+            min-height: calc(100dvh - 60px);
+            padding: 16px 13px 24px;
           }
 
           .ix-shell .sidebar {
-            padding: 18px 12px 12px;
+            padding: 17px 12px 12px;
           }
 
           .ix-shell .ix-nav-link {
-            min-height: 44px;
+            min-height: 45px;
+            font-size: .85rem;
+          }
+
+          .ix-shell .nav > div {
+            margin-bottom: 17px;
           }
         }
 
-        /* ACCESSIBILITY */
+        /* EXTRA SMALL PHONES */
+
+        @media (max-width: 360px) {
+          .ix-shell .topbar {
+            padding-right: 10px;
+            padding-left: 10px;
+          }
+
+          .ix-shell .content {
+            padding-right: 10px;
+            padding-left: 10px;
+          }
+
+          .ix-shell .sidebar {
+            width: 88vw;
+          }
+        }
+
+        /* REDUCED MOTION */
 
         @media (prefers-reduced-motion: reduce) {
           .ix-shell *,
@@ -911,6 +973,7 @@ export default function Layout({ role }) {
         ref={sidebarRef}
         className={`sidebar ${open ? 'open' : ''}`}
         aria-label={isAdmin ? 'Admin navigation' : 'Customer navigation'}
+        aria-hidden={!open && window.innerWidth <= 900}
       >
         <NavLink
           to={dashboardPath}
@@ -961,7 +1024,7 @@ export default function Layout({ role }) {
         </div>
       </aside>
 
-      {/* MAIN */}
+      {/* MAIN CONTENT */}
 
       <div className="main">
         <header className="topbar">
