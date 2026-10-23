@@ -1,47 +1,227 @@
+<?xml version="1.0" encoding="UTF-8"?>
 
-name: InsureX Backend Build
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-on:
-  push:
-    branches:
-      - main
+    <modelVersion>4.0.0</modelVersion>
 
-  pull_request:
-    branches:
-      - main
+    <!-- =====================================================
+         SPRING BOOT PARENT
+    ====================================================== -->
 
-  workflow_dispatch:
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.5.16</version>
+        <relativePath/>
+    </parent>
 
-jobs:
-  build:
-    name: Build InsureX Backend
-    runs-on: ubuntu-latest
+    <!-- =====================================================
+         PROJECT INFORMATION
+    ====================================================== -->
 
-    defaults:
-      run:
-        working-directory: backend
+    <groupId>com.htc</groupId>
+    <artifactId>insurance-management</artifactId>
+    <version>0.0.1-SNAPSHOT</version>
 
-    steps:
-      # Checkout project source code
-      - name: Checkout code
-        uses: actions/checkout@v4
+    <name>insurance-management</name>
+    <description>Insurance Management System</description>
 
-      # Configure Java 17
-      - name: Set up Java 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: '17'
-          cache: maven
-          cache-dependency-path: backend/pom.xml
+    <!-- =====================================================
+         VERSION CONFIGURATION
+    ====================================================== -->
 
-      # Verify Java and Maven
-      - name: Check Java version
-        run: java -version
+    <properties>
+        <java.version>17</java.version>
+        <maven.compiler.release>17</maven.compiler.release>
 
-      - name: Check Maven version
-        run: mvn -version
+        <lombok.version>1.18.38</lombok.version>
+        <org.mapstruct.version>1.6.3</org.mapstruct.version>
+        <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
+    </properties>
 
-      # Compile and package backend
-      - name: Build InsureX Backend
-        run: mvn -B clean package -DskipTests
+    <!-- =====================================================
+         DEPENDENCIES
+    ====================================================== -->
+
+    <dependencies>
+
+        <!-- Spring Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Spring Data JPA -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- Validation -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-validation</artifactId>
+        </dependency>
+
+        <!-- MySQL -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Lombok -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${lombok.version}</version>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- MapStruct API -->
+        <dependency>
+            <groupId>org.mapstruct</groupId>
+            <artifactId>mapstruct</artifactId>
+            <version>${org.mapstruct.version}</version>
+        </dependency>
+
+        <!-- Spring Security -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-security</artifactId>
+        </dependency>
+
+        <!-- JWT API -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-api</artifactId>
+            <version>0.12.6</version>
+        </dependency>
+
+        <!-- JWT Implementation -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-impl</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- JWT Jackson -->
+        <dependency>
+            <groupId>io.jsonwebtoken</groupId>
+            <artifactId>jjwt-jackson</artifactId>
+            <version>0.12.6</version>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- Swagger / OpenAPI -->
+        <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.8.17</version>
+        </dependency>
+
+        <!-- DevTools -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-devtools</artifactId>
+            <scope>runtime</scope>
+            <optional>true</optional>
+        </dependency>
+
+        <!-- Testing -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- Razorpay -->
+        <dependency>
+            <groupId>com.razorpay</groupId>
+            <artifactId>razorpay-java</artifactId>
+            <version>1.4.8</version>
+        </dependency>
+
+    </dependencies>
+
+    <!-- =====================================================
+         BUILD CONFIGURATION
+    ====================================================== -->
+
+    <build>
+        <plugins>
+
+            <!-- =============================================
+                 SPRING BOOT PACKAGING
+            ============================================== -->
+
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+
+                <configuration>
+                    <excludes>
+                        <exclude>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                        </exclude>
+                    </excludes>
+                </configuration>
+            </plugin>
+
+            <!-- =============================================
+                 JAVA 17 COMPILER
+                 LOMBOK + MAPSTRUCT PROCESSING
+            ============================================== -->
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.14.1</version>
+
+                <configuration>
+
+                    <!-- Compile using Java 17 -->
+                    <release>${java.version}</release>
+
+                    <!-- Source encoding -->
+                    <encoding>UTF-8</encoding>
+
+                    <!-- Explicit annotation processing -->
+                    <proc>full</proc>
+
+                    <annotationProcessorPaths>
+
+                        <!-- Lombok annotation processor -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${lombok.version}</version>
+                        </path>
+
+                        <!-- Lombok + MapStruct integration -->
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok-mapstruct-binding</artifactId>
+                            <version>${lombok-mapstruct-binding.version}</version>
+                        </path>
+
+                        <!-- MapStruct annotation processor -->
+                        <path>
+                            <groupId>org.mapstruct</groupId>
+                            <artifactId>mapstruct-processor</artifactId>
+                            <version>${org.mapstruct.version}</version>
+                        </path>
+
+                    </annotationProcessorPaths>
+
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
