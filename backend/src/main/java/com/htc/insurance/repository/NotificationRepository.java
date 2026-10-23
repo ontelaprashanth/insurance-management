@@ -1,3 +1,4 @@
+
 package com.htc.insurance.repository;
 
 import java.util.List;
@@ -11,25 +12,58 @@ import com.htc.insurance.entity.Notification;
 public interface NotificationRepository
         extends JpaRepository<Notification, Long> {
 
-    List<Notification>
-    findByUser_UserIdOrderByCreatedAtDesc(
-            Long userId);
+    // =========================================================
+    // CUSTOMER NOTIFICATIONS
+    // =========================================================
 
+    /**
+     * Retrieves all notifications belonging to a user.
+     *
+     * Newest notifications first.
+     */
+    List<Notification> findByUser_UserIdOrderByCreatedAtDesc(
+            Long userId
+    );
 
+    // =========================================================
+    // UNREAD NOTIFICATION COUNT
+    // =========================================================
+
+    /**
+     * Counts unread notifications for a user.
+     *
+     * Used for notification badges.
+     */
     long countByUser_UserIdAndIsReadFalse(
-            Long userId);
+            Long userId
+    );
 
+    // =========================================================
+    // UNREAD CUSTOMER NOTIFICATIONS
+    // =========================================================
 
-    List<Notification>
-    findByUser_UserIdAndIsReadFalseOrderByCreatedAtDesc(
-            Long userId);
-
+    /**
+     * Retrieves unread notifications belonging to a user.
+     *
+     * Newest notifications first.
+     */
+    List<Notification> findByUser_UserIdAndIsReadFalseOrderByCreatedAtDesc(
+            Long userId
+    );
 
     // =========================================================
     // ADMIN NOTIFICATIONS
     // =========================================================
 
-    List<Notification>
-    findBySourceOrderByCreatedAtDesc(
-            String source);
+    /**
+     * Retrieves notifications by their source.
+     *
+     * Example source:
+     * ADMIN or SYSTEM.
+     *
+     * Newest notifications first.
+     */
+    List<Notification> findBySourceOrderByCreatedAtDesc(
+            String source
+    );
 }
