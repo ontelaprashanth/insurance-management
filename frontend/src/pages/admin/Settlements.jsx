@@ -779,6 +779,8 @@ export default function Settlements() {
   const [pageError, setPageError] =
     useState('')
 
+  const [verifyingAction, setVerifyingAction] = useState(false)
+
   const [
     uncertainActions,
     setUncertainActions,
@@ -913,6 +915,11 @@ export default function Settlements() {
       pendingCount: 0,
       pendingAmount: 0,
 
+      processingCount: 0,
+      processingAmount: 0,
+      failedCount: 0,
+      failedAmount: 0,
+
       settledCount: 0,
       settledAmount: 0,
 
@@ -936,6 +943,16 @@ export default function Settlements() {
         case 'PENDING':
           result.pendingCount += 1
           result.pendingAmount += amount
+          break
+
+        case 'PROCESSING':
+          result.processingCount += 1
+          result.processingAmount += amount
+          break
+
+        case 'FAILED':
+          result.failedCount += 1
+          result.failedAmount += amount
           break
 
         case 'SETTLED':
@@ -1019,9 +1036,55 @@ export default function Settlements() {
   }
 
   function actionBlocked(action, id) {
-    return uncertainActions.has(
-      actionKey(action, id),
-    )
+    return uncertainActions.has(actionKey(action, id))
+  }
+
+  // A timeout or server error does not prove a financial action failed.
+  // Allow a deliberate retry only after a successful fresh server read
+  // verifies that the record is still in the expected source state.
+  async function verifyUncertainActions() {
+    if (verifyingAction || busy) return
+    setVerifyingAction(true)
+    setPageError('')
+    try {
+      const latest = normalizeRows(await settlements.getAll())
+      const remaining = new Set()
+      const messages = []
+      for (const key of uncertainActions) {
+        const separator = key.indexOf(':')
+        const action = key.slice(0, separator)
+        const id = key.slice(separator + 1)
+        const record = latest.find(item => String(item.settlementNumber) === id)
+        const currentStatus = normalizeStatus(record?.settlementStatus)
+        const expected = {
+          transfer: ['PENDING', 'FAILED'],
+          confirm: ['PROCESSING'],
+          fail: ['PROCESSING'],
+          reject: ['PENDING'],
+          delete: ['PENDING'],
+        }[action] || []
+        if (!record) {
+          remaining.add(key)
+          messages.push(`Settlement #${id} is no longer present. Verify its history before proceeding.`)
+        } else if (expected.includes(currentStatus)) {
+          // Fresh data shows the operation has not advanced its status.
+          // The admin may explicitly submit again if appropriate.
+        } else {
+          remaining.add(key)
+          messages.push(`Settlement #${id} is now ${currentStatus}. Review it before another action.`)
+        }
+      }
+      setUncertainActions(remaining)
+      await queryClient.invalidateQueries({ queryKey: ['a-settlements'] })
+      await queryClient.invalidateQueries({ queryKey: ['a-claims'] })
+      setActionError('')
+      setRejectError('')
+      setPageError(messages.length ? messages.join(' ') : 'Latest settlement states verified. Review the records before submitting another action.')
+    } catch (error) {
+      setPageError(errorMessage(error, 'Unable to verify the latest settlement states. Actions remain blocked.'))
+    } finally {
+      setVerifyingAction(false)
+    }
   }
 
      /* =======================================================
@@ -1029,7 +1092,24 @@ export default function Settlements() {
    ======================================================= */
 
    const bankAction = useMutation({
-     mutationFn: ({ action, id, body }) => {
+     mutationFn: async ({ action, id, body }) => {
+       const latest = await settlements.get(id)
+       const currentStatus = normalizeStatus(latest?.settlementStatus)
+       const allowed = {
+         transfer: ['PENDING', 'FAILED'],
+         confirm: ['PROCESSING'],
+         fail: ['PROCESSING'],
+       }[action] || []
+       if (!allowed.includes(currentStatus)) {
+         const error = new Error(`Settlement is now ${currentStatus || 'unavailable'}. Refresh and review before continuing.`)
+         error.insurexPreflightError = true
+         throw error
+       }
+       if (action === 'confirm' && (!latest.transactionReference || !latest.transferDate)) {
+         const error = new Error('Bank reference or transfer date is missing. Confirmation is blocked.')
+         error.insurexPreflightError = true
+         throw error
+       }
        if (action === 'transfer') return settlements.transfer(id, body)
        if (action === 'confirm') return settlements.confirm(id, body)
        if (action === 'fail') return settlements.fail(id, body.reason)
@@ -1054,7 +1134,7 @@ export default function Settlements() {
        }[variables.action])
      },
      onError: async (error, variables) => {
-       if (isUncertainError(error)) {
+       if (!error?.insurexPreflightError && isUncertainError(error)) {
          markUncertain(variables.action, variables.id)
          setActionError('The server response is uncertain. Check the refreshed settlement record before taking another action.')
          try { await refreshRelatedData() } catch { /* Keep warning. */ }
@@ -1380,6 +1460,11 @@ export default function Settlements() {
             ? 'Refreshing…'
             : 'Refresh'}
         </Button>
+        {uncertainActions.size > 0 && (
+          <Button type="button" disabled={verifyingAction || busy} onClick={verifyUncertainActions}>
+            {verifyingAction ? 'Verifying…' : 'Verify uncertain actions'}
+          </Button>
+        )}
       </PageHeader>
 
       {/* ===================================================
@@ -1428,6 +1513,18 @@ export default function Settlements() {
             {inr(summary.pendingAmount)}
             {' '}awaiting processing
           </div>
+        </div>
+
+        <div>
+          <div className="label">Processing</div>
+          <div className="value">{q.isPending ? '…' : summary.processingCount}</div>
+          <div className="sub">{inr(summary.processingAmount)} awaiting bank confirmation</div>
+        </div>
+
+        <div>
+          <div className="label">Failed</div>
+          <div className="value">{q.isPending ? '…' : summary.failedCount}</div>
+          <div className="sub">{inr(summary.failedAmount)} eligible for transfer retry</div>
         </div>
 
         <div>
@@ -1548,7 +1645,7 @@ export default function Settlements() {
 
         @media (max-width: 700px) {
           .ix-settlement-table table {
-            min-width: 940px;
+            min-width: 800px;
           }
 
           .ix-settlement-table th,
@@ -1589,6 +1686,14 @@ export default function Settlements() {
               {
                 value: 'PENDING',
                 label: 'Pending',
+              },
+              {
+                value: 'PROCESSING',
+                label: 'Processing',
+              },
+              {
+                value: 'FAILED',
+                label: 'Failed',
               },
               {
                 value: 'SETTLED',
@@ -1946,7 +2051,7 @@ export default function Settlements() {
               ...(
                 ['REJECTED', 'FAILED'].includes(viewed.settlementStatus)
                   ? [[
-                      'Rejection reason',
+                      viewed.settlementStatus === 'FAILED' ? 'Failure reason' : 'Rejection reason',
                       viewed.rejectionReason ||
                         'No rejection reason was provided.',
                     ]]
