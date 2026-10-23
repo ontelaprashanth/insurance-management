@@ -17,19 +17,19 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import lombok.RequiredArgsConstructor;
+
 @Component
+@RequiredArgsConstructor
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
+    // =========================================================
+    // DEPENDENCIES
+    // =========================================================
+
     private final JwtService jwtService;
+
     private final UserDetailsService userDetailsService;
-
-    public JwtAuthenticationFilter(
-            JwtService jwtService,
-            UserDetailsService userDetailsService) {
-
-        this.jwtService = jwtService;
-        this.userDetailsService = userDetailsService;
-    }
 
     // =========================================================
     // SKIP JWT PROCESSING FOR RAZORPAY WEBHOOK
@@ -50,7 +50,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
         return HttpMethod.POST.matches(request.getMethod())
                 && "/webhooks/razorpay".equals(
-                        request.getServletPath());
+                        request.getServletPath()
+                );
     }
 
     // =========================================================
