@@ -19,6 +19,7 @@ public class InsurancePlanSeeder implements ApplicationRunner {
 
     @Override
     public void run(ApplicationArguments args) {
-        insurancePlanService.seedDefaultPlans();
+        // Default plan seeding is temporarily disabled.
+        // Existing insurance plans remain in the database.
     }
 }
