@@ -1137,19 +1137,26 @@ export default function Refunds() {
           REQUESTED PURCHASE INFORMATION
       =================================================== */}
 
-      {requestedPurchaseId != null && (
-        <div className="alert info">
-          <Clock3 size={17} />
+      {requestedPurchaseId != null &&
+        !q.isPending &&
+        isActiveRefund(
+          allPurchases.find(
+            (purchase) =>
+              String(purchase.purchaseId) ===
+              String(requestedPurchaseId),
+          ),
+        ) && (
+          <div className="alert info">
+            <Clock3 size={17} />
 
-          <span>
-            Refund request submitted for
-            purchase #{requestedPurchaseId}.
-            The status shown below comes
-            from the backend and may take
-            time to update.
-          </span>
-        </div>
-      )}
+            <span>
+              Refund request submitted for purchase
+              #{requestedPurchaseId}. Its current status
+              is shown below and will update when the
+              backend confirms the result.
+            </span>
+          </div>
+        )}
 
       {/* ===================================================
           PAGE ERROR
