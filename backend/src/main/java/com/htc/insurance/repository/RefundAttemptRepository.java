@@ -24,33 +24,42 @@ public interface RefundAttemptRepository
     // =========================================================
 
     Optional<RefundAttempt> findByPurchaseId(
-            Long purchaseId);
+            Long purchaseId
+    );
 
     // =========================================================
     // FIND REFUND ATTEMPT BY RAZORPAY REFUND ID
     // =========================================================
 
     Optional<RefundAttempt> findByRazorpayRefundId(
-            String razorpayRefundId);
+            String razorpayRefundId
+    );
 
     // =========================================================
     // FIND UNFINISHED REFUND ATTEMPTS
     // =========================================================
 
     List<RefundAttempt> findByStatusInOrderByCreatedAtAsc(
-            List<RefundAttemptStatus> statuses);
+            List<RefundAttemptStatus> statuses
+    );
 
     // =========================================================
     // CHECK EXISTING REFUND ATTEMPT
     // =========================================================
 
     boolean existsByPurchaseId(
-            Long purchaseId);
+            Long purchaseId
+    );
 
     // =========================================================
     // LOCK REFUND ATTEMPT BY ID
     // =========================================================
 
+    /**
+     * Acquires a pessimistic write lock on the refund attempt.
+     *
+     * Must execute inside an active transaction.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
            SELECT r
@@ -58,12 +67,20 @@ public interface RefundAttemptRepository
            WHERE r.refundAttemptId = :attemptId
            """)
     Optional<RefundAttempt> findByIdForUpdate(
-            @Param("attemptId") Long attemptId);
+            @Param("attemptId") Long attemptId
+    );
 
     // =========================================================
     // LOCK REFUND ATTEMPT BY PURCHASE ID
     // =========================================================
 
+    /**
+     * Locks the refund attempt associated with a purchase.
+     *
+     * Used to coordinate refund status updates.
+     *
+     * Must execute inside an active transaction.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
            SELECT r
@@ -71,12 +88,20 @@ public interface RefundAttemptRepository
            WHERE r.purchaseId = :purchaseId
            """)
     Optional<RefundAttempt> findByPurchaseIdForUpdate(
-            @Param("purchaseId") Long purchaseId);
+            @Param("purchaseId") Long purchaseId
+    );
 
     // =========================================================
     // LOCK REFUND ATTEMPT BY RAZORPAY REFUND ID
     // =========================================================
 
+    /**
+     * Locks the refund attempt using its Razorpay refund ID.
+     *
+     * Useful during webhook processing and reconciliation.
+     *
+     * Must execute inside an active transaction.
+     */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
            SELECT r
@@ -84,5 +109,6 @@ public interface RefundAttemptRepository
            WHERE r.razorpayRefundId = :refundId
            """)
     Optional<RefundAttempt> findByRazorpayRefundIdForUpdate(
-            @Param("refundId") String refundId);
+            @Param("refundId") String refundId
+    );
 }
