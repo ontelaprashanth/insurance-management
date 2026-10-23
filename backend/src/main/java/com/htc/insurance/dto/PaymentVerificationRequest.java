@@ -1,37 +1,30 @@
+
 package com.htc.insurance.dto;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
 public class PaymentVerificationRequest {
+
+    // =====================================================
+    // RAZORPAY ORDER ID
+    // =====================================================
 
     private String razorpayOrderId;
 
+    // =====================================================
+    // RAZORPAY PAYMENT ID
+    // =====================================================
+
     private String razorpayPaymentId;
 
+    // =====================================================
+    // RAZORPAY SIGNATURE
+    // =====================================================
+
     private String razorpaySignature;
-
-    public PaymentVerificationRequest() {
-    }
-
-    public String getRazorpayOrderId() {
-        return razorpayOrderId;
-    }
-
-    public void setRazorpayOrderId(String razorpayOrderId) {
-        this.razorpayOrderId = razorpayOrderId;
-    }
-
-    public String getRazorpayPaymentId() {
-        return razorpayPaymentId;
-    }
-
-    public void setRazorpayPaymentId(String razorpayPaymentId) {
-        this.razorpayPaymentId = razorpayPaymentId;
-    }
-
-    public String getRazorpaySignature() {
-        return razorpaySignature;
-    }
-
-    public void setRazorpaySignature(String razorpaySignature) {
-        this.razorpaySignature = razorpaySignature;
-    }
 }
