@@ -1,3 +1,4 @@
+
 package com.htc.insurance.repository;
 
 import java.util.Optional;
@@ -9,17 +10,59 @@ import com.htc.insurance.entity.User;
 public interface UserRepository
         extends JpaRepository<User, Long> {
 
-    Optional<User> findByUsername(String username);
+    // =========================================================
+    // FIND USER BY USERNAME
+    // =========================================================
 
-    Optional<User> findByEmail(String email);
+    Optional<User> findByUsername(
+            String username
+    );
 
-    Optional<User> findByContactNumber(String contactNumber);
+    // =========================================================
+    // FIND USER BY EMAIL
+    // =========================================================
 
-    boolean existsByUsername(String username);
+    Optional<User> findByEmail(
+            String email
+    );
 
-    boolean existsByEmail(String email);
+    // =========================================================
+    // FIND USER BY MOBILE NUMBER
+    // =========================================================
 
-    boolean existsByContactNumber(String contactNumber);
+    Optional<User> findByContactNumber(
+            String contactNumber
+    );
 
-    boolean existsByRole(String role);
+    // =========================================================
+    // CHECK EXISTING USERNAME
+    // =========================================================
+
+    boolean existsByUsername(
+            String username
+    );
+
+    // =========================================================
+    // CHECK EXISTING EMAIL
+    // =========================================================
+
+    boolean existsByEmail(
+            String email
+    );
+
+    // =========================================================
+    // CHECK EXISTING MOBILE NUMBER
+    // =========================================================
+
+    boolean existsByContactNumber(
+            String contactNumber
+    );
+
+    // =========================================================
+    // CHECK USER ROLE
+    // =========================================================
+
+    boolean existsByRole(
+            String role
+    );
 }
