@@ -17,6 +17,10 @@ import jakarta.persistence.Table;
 import jakarta.persistence.UniqueConstraint;
 import jakarta.persistence.Version;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(
     name = "refund_attempt",
@@ -31,6 +35,9 @@ import jakarta.persistence.Version;
         )
     }
 )
+@Getter
+@Setter
+@NoArgsConstructor
 public class RefundAttempt {
 
     // =========================================================
@@ -148,105 +155,5 @@ public class RefundAttempt {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    // =========================================================
-    // GETTERS AND SETTERS
-    // =========================================================
-
-    public Long getRefundAttemptId() {
-        return refundAttemptId;
-    }
-
-    public void setRefundAttemptId(Long refundAttemptId) {
-        this.refundAttemptId = refundAttemptId;
-    }
-
-    public Long getPurchaseId() {
-        return purchaseId;
-    }
-
-    public void setPurchaseId(Long purchaseId) {
-        this.purchaseId = purchaseId;
-    }
-
-    public String getRazorpayPaymentId() {
-        return razorpayPaymentId;
-    }
-
-    public void setRazorpayPaymentId(String razorpayPaymentId) {
-        this.razorpayPaymentId = razorpayPaymentId;
-    }
-
-    public String getRazorpayRefundId() {
-        return razorpayRefundId;
-    }
-
-    public void setRazorpayRefundId(String razorpayRefundId) {
-        this.razorpayRefundId = razorpayRefundId;
-    }
-
-    public BigDecimal getRefundAmount() {
-        return refundAmount;
-    }
-
-    public void setRefundAmount(BigDecimal refundAmount) {
-        this.refundAmount = refundAmount;
-    }
-
-    public String getRefundReason() {
-        return refundReason;
-    }
-
-    public void setRefundReason(String refundReason) {
-        this.refundReason = refundReason;
-    }
-
-    public RefundAttemptStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(RefundAttemptStatus status) {
-        this.status = status;
-    }
-
-    public String getRequestedBy() {
-        return requestedBy;
-    }
-
-    public void setRequestedBy(String requestedBy) {
-        this.requestedBy = requestedBy;
-    }
-
-    public String getFailureReason() {
-        return failureReason;
-    }
-
-    public void setFailureReason(String failureReason) {
-        this.failureReason = failureReason;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public void setUpdatedAt(LocalDateTime updatedAt) {
-        this.updatedAt = updatedAt;
-    }
-
-    public Long getVersion() {
-        return version;
-    }
-
-    public void setVersion(Long version) {
-        this.version = version;
     }
 }
