@@ -7,6 +7,10 @@
 
     <modelVersion>4.0.0</modelVersion>
 
+    <!-- =====================================================
+         SPRING BOOT PARENT
+    ====================================================== -->
+
     <parent>
         <groupId>org.springframework.boot</groupId>
         <artifactId>spring-boot-starter-parent</artifactId>
@@ -14,12 +18,20 @@
         <relativePath/>
     </parent>
 
+    <!-- =====================================================
+         PROJECT INFORMATION
+    ====================================================== -->
+
     <groupId>com.htc</groupId>
     <artifactId>insurance-management</artifactId>
     <version>0.0.1-SNAPSHOT</version>
 
     <name>insurance-management</name>
     <description>Insurance Management System</description>
+
+    <!-- =====================================================
+         VERSION CONFIGURATION
+    ====================================================== -->
 
     <properties>
         <java.version>17</java.version>
@@ -29,6 +41,10 @@
         <org.mapstruct.version>1.6.3</org.mapstruct.version>
         <lombok-mapstruct-binding.version>0.2.0</lombok-mapstruct-binding.version>
     </properties>
+
+    <!-- =====================================================
+         DEPENDENCIES
+    ====================================================== -->
 
     <dependencies>
 
@@ -132,13 +148,21 @@
 
     </dependencies>
 
+    <!-- =====================================================
+         BUILD CONFIGURATION
+    ====================================================== -->
+
     <build>
         <plugins>
 
-            <!-- Spring Boot packaging -->
+            <!-- =============================================
+                 SPRING BOOT PACKAGING
+            ============================================== -->
+
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+
                 <configuration>
                     <excludes>
                         <exclude>
@@ -149,33 +173,44 @@
                 </configuration>
             </plugin>
 
-            <!-- Java 17 compiler and annotation processors -->
+            <!-- =============================================
+                 JAVA 17 COMPILER
+                 LOMBOK + MAPSTRUCT PROCESSING
+            ============================================== -->
+
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.14.1</version>
 
                 <configuration>
+
+                    <!-- Compile using Java 17 -->
                     <release>${java.version}</release>
+
+                    <!-- Source encoding -->
                     <encoding>UTF-8</encoding>
+
+                    <!-- Explicit annotation processing -->
+                    <proc>full</proc>
 
                     <annotationProcessorPaths>
 
-                        <!-- Lombok generates getters, setters and constructors -->
+                        <!-- Lombok annotation processor -->
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok</artifactId>
                             <version>${lombok.version}</version>
                         </path>
 
-                        <!-- Coordinates Lombok processing with MapStruct -->
+                        <!-- Lombok + MapStruct integration -->
                         <path>
                             <groupId>org.projectlombok</groupId>
                             <artifactId>lombok-mapstruct-binding</artifactId>
                             <version>${lombok-mapstruct-binding.version}</version>
                         </path>
 
-                        <!-- Generates MapStruct mapper implementations -->
+                        <!-- MapStruct annotation processor -->
                         <path>
                             <groupId>org.mapstruct</groupId>
                             <artifactId>mapstruct-processor</artifactId>
@@ -183,6 +218,7 @@
                         </path>
 
                     </annotationProcessorPaths>
+
                 </configuration>
             </plugin>
 
