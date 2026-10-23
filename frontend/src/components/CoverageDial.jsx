@@ -1,3 +1,4 @@
+
 import React, { useId, useMemo } from 'react'
 import {
   COVERAGE_MAX,
@@ -27,6 +28,10 @@ export default function CoverageDial({
   durationMax = MAX_YEARS,
 }) {
   const id = useId()
+
+  // FIX: Define unique IDs for both slider labels and inputs.
+  const coverageId = `${id}-coverage`
+  const yearsId = `${id}-years`
 
   const selectedPlan =
     PLANS.find((item) => item.key === planKey) || PLANS[0]
