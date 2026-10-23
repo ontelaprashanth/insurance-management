@@ -1,3 +1,4 @@
+
 package com.htc.insurance.dto;
 
 import java.time.LocalDateTime;
@@ -8,10 +9,12 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import lombok.Data;
 
-@Data
 public class UserDto {
+
+    // =========================================================
+    // USER ID
+    // =========================================================
 
     private Long userId;
 
@@ -42,16 +45,6 @@ public class UserDto {
     // PASSWORD
     // =========================================================
 
-    /*
-     * Password is optional during profile updates.
-     *
-     * Password changes should use:
-     * PUT /user/me/password
-     *
-     * If a password is supplied here, it must satisfy
-     * the same password complexity rules used by
-     * ChangePasswordRequest.
-     */
     @Pattern(
         regexp = "^$|^(?=.*[A-Z])(?=.*[a-z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$",
         message = "Password must contain uppercase, lowercase, digit, special character and be at least 8 characters long"
@@ -71,7 +64,7 @@ public class UserDto {
     private LocalDateTime expiryDate;
 
     // =========================================================
-    // CONTACT
+    // CONTACT NUMBER
     // =========================================================
 
     @NotBlank(message = "Contact number is required")
@@ -116,7 +109,7 @@ public class UserDto {
     private String aadharNumber;
 
     // =========================================================
-    // BANK
+    // BANK NAME
     // =========================================================
 
     @NotBlank(message = "Bank name is required")
@@ -138,7 +131,7 @@ public class UserDto {
     private String accountNumber;
 
     // =========================================================
-    // IFSC
+    // IFSC CODE
     // =========================================================
 
     @NotBlank(message = "IFSC code is required")
@@ -147,4 +140,135 @@ public class UserDto {
         message = "Invalid IFSC code"
     )
     private String ifscCode;
+
+    // =========================================================
+    // DEFAULT CONSTRUCTOR
+    // =========================================================
+
+    public UserDto() {
+    }
+
+    // =========================================================
+    // GETTERS AND SETTERS
+    // =========================================================
+
+    public Long getUserId() {
+        return userId;
+    }
+
+    public void setUserId(Long userId) {
+        this.userId = userId;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getEmail() {
+        return email;
+    }
+
+    public void setEmail(String email) {
+        this.email = email;
+    }
+
+    public String getPassword() {
+        return password;
+    }
+
+    public void setPassword(String password) {
+        this.password = password;
+    }
+
+    public String getRole() {
+        return role;
+    }
+
+    public void setRole(String role) {
+        this.role = role;
+    }
+
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
+    public LocalDateTime getCreatedAt() {
+        return createdAt;
+    }
+
+    public void setCreatedAt(LocalDateTime createdAt) {
+        this.createdAt = createdAt;
+    }
+
+    public LocalDateTime getExpiryDate() {
+        return expiryDate;
+    }
+
+    public void setExpiryDate(LocalDateTime expiryDate) {
+        this.expiryDate = expiryDate;
+    }
+
+    public String getContactNumber() {
+        return contactNumber;
+    }
+
+    public void setContactNumber(String contactNumber) {
+        this.contactNumber = contactNumber;
+    }
+
+    public String getOccupation() {
+        return occupation;
+    }
+
+    public void setOccupation(String occupation) {
+        this.occupation = occupation;
+    }
+
+    public Double getIncome() {
+        return income;
+    }
+
+    public void setIncome(Double income) {
+        this.income = income;
+    }
+
+    public String getAadharNumber() {
+        return aadharNumber;
+    }
+
+    public void setAadharNumber(String aadharNumber) {
+        this.aadharNumber = aadharNumber;
+    }
+
+    public String getBankName() {
+        return bankName;
+    }
+
+    public void setBankName(String bankName) {
+        this.bankName = bankName;
+    }
+
+    public String getAccountNumber() {
+        return accountNumber;
+    }
+
+    public void setAccountNumber(String accountNumber) {
+        this.accountNumber = accountNumber;
+    }
+
+    public String getIfscCode() {
+        return ifscCode;
+    }
+
+    public void setIfscCode(String ifscCode) {
+        this.ifscCode = ifscCode;
+    }
 }
