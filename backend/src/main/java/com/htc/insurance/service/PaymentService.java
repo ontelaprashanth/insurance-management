@@ -16,6 +16,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
 
@@ -36,6 +38,7 @@ import com.razorpay.Payment;
 import com.razorpay.RazorpayClient;
 
 @Service
+@RequiredArgsConstructor
 public class PaymentService {
 
     // =========================================================
@@ -81,24 +84,6 @@ public class PaymentService {
 
     @Value("${razorpay.currency:INR}")
     private String currency;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public PaymentService(
-            InsurancePlanRepository insurancePlanRepository,
-            PaymentAttemptService paymentAttemptService,
-            PolicyDao policyDao,
-            PolicyPurchaseDao policyPurchaseDao,
-            PolicyPurchaseRepository policyPurchaseRepository) {
-
-        this.insurancePlanRepository = insurancePlanRepository;
-        this.paymentAttemptService = paymentAttemptService;
-        this.policyDao = policyDao;
-        this.policyPurchaseDao = policyPurchaseDao;
-        this.policyPurchaseRepository = policyPurchaseRepository;
-    }
 
     // =========================================================
     // CREATE NORMAL PURCHASE ORDER
