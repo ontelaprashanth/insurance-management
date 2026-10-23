@@ -11,25 +11,23 @@ import org.springframework.web.bind.annotation.RestController;
 import com.htc.insurance.entity.InsurancePlan;
 import com.htc.insurance.service.InsurancePlanService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/plans")
+@RequiredArgsConstructor
 public class InsurancePlanController {
 
     private final InsurancePlanService insurancePlanService;
 
-    public InsurancePlanController(
-            InsurancePlanService insurancePlanService) {
-        this.insurancePlanService = insurancePlanService;
-    }
+    // =========================================================
+    // GET ALL AVAILABLE INSURANCE PLANS
+    // =========================================================
 
-    /**
-     * Returns all active insurance catalogue plans.
-     *
-     * GET /api/plans/available
-     */
     @GetMapping("/available")
     public ResponseEntity<List<InsurancePlan>> getAvailablePlans() {
         return ResponseEntity.ok(
-                insurancePlanService.getAvailablePlans());
+                insurancePlanService.getAvailablePlans()
+        );
     }
 }
