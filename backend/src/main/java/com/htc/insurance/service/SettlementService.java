@@ -72,6 +72,11 @@ public class SettlementService {
         Claims claim = getClaimWithLockedPolicy(
                 dto.getClaimNumber());
 
+        // OPTION 1: An approved claim remains payable.
+        // Premium refund requests must be blocked by RefundPreparationService
+        // once a claim is APPROVED or SETTLED. Do not block settlement here
+        // merely because a separate refund record exists: historical conflicts
+        // require reconciliation, not automatic cancellation of claim payment.
         if (claim.getStatus() != ClaimStatus.APPROVED) {
             throw new IllegalStateException(
                     "Settlement can be created only "
@@ -672,6 +677,11 @@ public class SettlementService {
         if (dto.getSettlementDate() == null) {
             throw new IllegalArgumentException(
                     "Settlement date is required.");
+        }
+
+        if (dto.getSettlementDate().isAfter(LocalDate.now())) {
+            throw new IllegalArgumentException(
+                    "Settlement date cannot be in the future.");
         }
     }
 
