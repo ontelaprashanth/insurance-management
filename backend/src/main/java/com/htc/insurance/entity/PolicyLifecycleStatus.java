@@ -1,3 +1,4 @@
+
 package com.htc.insurance.entity;
 
 public enum PolicyLifecycleStatus {
