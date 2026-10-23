@@ -468,7 +468,8 @@ public class SettlementService {
         // Any pending, approved, settled, or unknown
         // claim status blocks restoration.
         List<Claims> existingClaims =
-                claimsDao.getAllClaims();
+                claimsDao.getClaimsByPolicyNumber(
+                        policy.getPolicyNumber());
 
         for (Claims existing : existingClaims) {
 
