@@ -9,6 +9,8 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import lombok.RequiredArgsConstructor;
+
 import com.htc.insurance.dao.PolicyHolderDao;
 import com.htc.insurance.dao.UserDao;
 import com.htc.insurance.dto.ChangePasswordRequest;
@@ -18,24 +20,13 @@ import com.htc.insurance.entity.User;
 import com.htc.insurance.mapper.UserMapper;
 
 @Service
+@RequiredArgsConstructor
 public class UserService {
 
     private final UserDao userDao;
     private final UserMapper mapper;
     private final PasswordEncoder passwordEncoder;
     private final PolicyHolderDao policyHolderDao;
-
-    public UserService(
-            UserDao userDao,
-            UserMapper mapper,
-            PasswordEncoder passwordEncoder,
-            PolicyHolderDao policyHolderDao) {
-
-        this.userDao = userDao;
-        this.mapper = mapper;
-        this.passwordEncoder = passwordEncoder;
-        this.policyHolderDao = policyHolderDao;
-    }
 
     // =========================================================
     // SAVE USER
