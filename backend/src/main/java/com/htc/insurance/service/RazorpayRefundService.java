@@ -9,6 +9,8 @@ import org.json.JSONObject;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
+import lombok.RequiredArgsConstructor;
+
 import com.htc.insurance.dao.PolicyPurchaseDao;
 import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.RefundAttempt;
@@ -17,6 +19,7 @@ import com.razorpay.RazorpayClient;
 import com.razorpay.Refund;
 
 @Service
+@RequiredArgsConstructor
 public class RazorpayRefundService {
 
     private final PolicyPurchaseDao purchaseDao;
@@ -31,15 +34,6 @@ public class RazorpayRefundService {
 
     @Value("${razorpay.currency:INR}")
     private String currency;
-
-    public RazorpayRefundService(
-            PolicyPurchaseDao purchaseDao,
-            RefundAttemptPersistenceService persistenceService,
-            RefundPreparationService preparationService) {
-        this.purchaseDao = purchaseDao;
-        this.persistenceService = persistenceService;
-        this.preparationService = preparationService;
-    }
 
     /*
      * IMPORTANT:
