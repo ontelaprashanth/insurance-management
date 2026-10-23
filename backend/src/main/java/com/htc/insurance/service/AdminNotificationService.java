@@ -1,3 +1,4 @@
+
 package com.htc.insurance.service;
 
 import java.util.ArrayList;
@@ -17,25 +18,20 @@ import com.htc.insurance.entity.Notification;
 import com.htc.insurance.entity.User;
 import com.htc.insurance.repository.NotificationRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class AdminNotificationService {
+
+    // =========================================================
+    // DEPENDENCIES
+    // =========================================================
 
     private final UserDao userDao;
     private final NotificationDao notificationDao;
     private final NotificationRepository notificationRepository;
     private final NotificationService notificationService;
-
-    public AdminNotificationService(
-            UserDao userDao,
-            NotificationDao notificationDao,
-            NotificationRepository notificationRepository,
-            NotificationService notificationService) {
-
-        this.userDao = userDao;
-        this.notificationDao = notificationDao;
-        this.notificationRepository = notificationRepository;
-        this.notificationService = notificationService;
-    }
 
     // =========================================================
     // GET CUSTOMERS FOR ADMIN BROADCAST
@@ -77,6 +73,10 @@ public class AdminNotificationService {
         String type = stringValue(request.get("type"));
         String recipientType = stringValue(request.get("recipientType"));
 
+        // =====================================================
+        // VALIDATE TITLE
+        // =====================================================
+
         if (title == null || title.isBlank()) {
             throw new IllegalArgumentException(
                     "Notification title is required.");
@@ -87,10 +87,18 @@ public class AdminNotificationService {
                     "Notification title cannot exceed 100 characters.");
         }
 
+        // =====================================================
+        // VALIDATE MESSAGE
+        // =====================================================
+
         if (message == null || message.isBlank()) {
             throw new IllegalArgumentException(
                     "Notification message is required.");
         }
+
+        // =====================================================
+        // VALIDATE NOTIFICATION TYPE
+        // =====================================================
 
         if (type == null || type.isBlank()) {
             type = "GENERAL";
@@ -110,6 +118,10 @@ public class AdminNotificationService {
                     "Unsupported notification type.");
         }
 
+        // =====================================================
+        // VALIDATE RECIPIENT TYPE
+        // =====================================================
+
         if (recipientType == null || recipientType.isBlank()) {
             recipientType = "ALL";
         }
@@ -117,6 +129,10 @@ public class AdminNotificationService {
         recipientType = recipientType.trim().toUpperCase();
 
         int recipientCount = 0;
+
+        // =====================================================
+        // SEND TO ALL ACTIVE CUSTOMERS
+        // =====================================================
 
         if ("ALL".equals(recipientType)) {
 
@@ -131,14 +147,20 @@ public class AdminNotificationService {
             }
 
             for (User customer : customers) {
+
                 notificationService.createAdminNotification(
                         customer,
                         title,
                         message,
-                        type);
+                        type
+                );
 
                 recipientCount++;
             }
+
+        // =====================================================
+        // SEND TO A SPECIFIC CUSTOMER
+        // =====================================================
 
         } else if ("USER".equals(recipientType)) {
 
@@ -171,7 +193,8 @@ public class AdminNotificationService {
                     customer,
                     title,
                     message,
-                    type);
+                    type
+            );
 
             recipientCount = 1;
 
@@ -180,7 +203,12 @@ public class AdminNotificationService {
                     "Recipient type must be ALL or USER.");
         }
 
+        // =====================================================
+        // SUCCESS RESPONSE
+        // =====================================================
+
         Map<String, Object> response = new HashMap<>();
+
         response.put("message", "Notification sent successfully.");
         response.put("recipientCount", recipientCount);
 
