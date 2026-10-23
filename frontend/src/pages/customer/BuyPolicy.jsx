@@ -47,6 +47,7 @@ import {
 } from '../../components/ui'
 
 import { planFor } from '../../lib/premium'
+import CoverageDial from '../../components/CoverageDial'
 
 import {
   dateTime,
@@ -425,6 +426,42 @@ const BUY_GREEN_STYLES = `
 @media(max-width:900px){.ix-buy-page .wizard{grid-template-columns:minmax(0,1fr)}}
 @media(max-width:640px){.ix-buy-page .steps{gap:6px}.ix-buy-page .steps .step{font-size:11px;gap:5px;padding:11px 5px;flex-direction:column;text-align:center}.ix-buy-page .steps .step .n{width:25px;height:25px}.ix-buy-page .wizard .kv{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.ix-buy-page .ix-checkout-actions>*{flex:1 1 130px}.ix-buy-success{padding:16px;margin:8px}}
 @media(prefers-reduced-motion:reduce){.ix-buy-page *, .ix-buy-success *{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
+
+/* Reusable CoverageDial styling — matches the InsureX emerald checkout */
+.ix-buy-page .ix-coverage-dial{padding:0;overflow:hidden}
+.ix-buy-page .ix-coverage-dial .dial{padding:22px;background:#fff;color:#163c2d;min-width:0}
+.ix-buy-page .ix-coverage-dial .dial-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:20px}
+.ix-buy-page .ix-coverage-dial .dial-eyebrow{display:block;color:#17814f;font-size:10px;font-weight:800;letter-spacing:.12em;margin-bottom:6px}
+.ix-buy-page .ix-coverage-dial .dial-heading h3{font-size:21px;line-height:1.25;margin:0 0 6px;color:#103e2d}
+.ix-buy-page .ix-coverage-dial .dial-heading p{font-size:12px;line-height:1.5;margin:0;color:#547563}
+.ix-buy-page .ix-coverage-dial .dial-shield{display:grid;place-items:center;flex:none;width:44px;height:44px;border-radius:14px;background:#eaf8ef;color:#17814f}
+.ix-buy-page .ix-coverage-dial .dial-label{display:block;color:#426654;font-size:12px;font-weight:650}
+.ix-buy-page .ix-coverage-dial .dial-premium{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:16px;margin-bottom:22px;border:1px solid #cce9d9;border-radius:14px;background:linear-gradient(145deg,#f4fbf7,#e5f7ec)}
+.ix-buy-page .ix-coverage-dial .dial-price{font-size:26px;font-weight:850;line-height:1.2;color:#17814f;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.ix-buy-page .ix-coverage-dial .dial-price-caption{display:block;font-size:11px;color:#547563;margin-top:5px}
+.ix-buy-page .ix-coverage-dial .dial-price-tag{min-width:0;text-align:right}
+.ix-buy-page .ix-coverage-dial .dial-price-tag span{display:block;font-size:10px;color:#547563;margin-bottom:4px}
+.ix-buy-page .ix-coverage-dial .dial-price-tag strong{display:block;font-size:13px;color:#103e2d;overflow-wrap:anywhere}
+.ix-buy-page .ix-coverage-dial .dial-control{margin:0 0 22px}
+.ix-buy-page .ix-coverage-dial .dial-control-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+.ix-buy-page .ix-coverage-dial .dial-control-value{font-size:16px;color:#17814f;font-variant-numeric:tabular-nums;text-align:right}
+.ix-buy-page .ix-coverage-dial .dial-range{display:block;width:100%;margin:0;accent-color:#17814f;cursor:pointer}
+.ix-buy-page .ix-coverage-dial .dial-range-labels{display:flex;justify-content:space-between;gap:12px;margin-top:8px;color:#547563;font-size:10px}
+.ix-buy-page .ix-coverage-dial .dial-duration-options{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:12px}
+.ix-buy-page .ix-coverage-dial .dial-duration-chip{min-width:0;padding:8px 2px;border:1px solid #cce9d9;border-radius:9px;background:#fff;color:#145c3e;font-size:12px;font-weight:750;cursor:pointer;transition:transform .2s ease,background .2s ease,border-color .2s ease}
+.ix-buy-page .ix-coverage-dial .dial-duration-chip.active{border:2px solid #17814f;padding:7px 1px;background:#d9f5e6;box-shadow:0 4px 12px rgba(23,129,79,.13)}
+.ix-buy-page .ix-coverage-dial .dial-duration-chip:not(:disabled):hover{transform:translateY(-2px);background:#eaf8ef}
+.ix-buy-page .ix-coverage-dial .dial-breakdown{padding-top:12px;border-top:1px solid #d6eadf}
+.ix-buy-page .ix-coverage-dial .dial-breakdown-row{display:flex;justify-content:space-between;gap:12px;padding:8px 0;font-size:12px}
+.ix-buy-page .ix-coverage-dial .dial-breakdown-row span{color:#426654}
+.ix-buy-page .ix-coverage-dial .dial-breakdown-row strong{text-align:right;color:#103e2d;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.ix-buy-page .ix-coverage-dial .dial-breakdown-row.dial-discount strong{color:#17814f}
+.ix-buy-page .ix-coverage-dial .dial-breakdown-total{margin-top:8px;padding:13px;border:1px solid #b8dfc8;border-radius:11px;background:#eaf8ef;font-weight:800}
+.ix-buy-page .ix-coverage-dial .dial-breakdown-total strong:last-child{font-size:19px;color:#17814f}
+.ix-buy-page .ix-coverage-dial .dial-disclaimer{margin:12px 0 0;color:#547563;font-size:10px;line-height:1.5}
+@media(max-width:480px){.ix-buy-page .ix-coverage-dial .dial{padding:16px}.ix-buy-page .ix-coverage-dial .dial-premium{padding:12px}.ix-buy-page .ix-coverage-dial .dial-price{font-size:22px}.ix-buy-page .ix-coverage-dial .dial-duration-options{gap:4px}}
+@media(prefers-reduced-motion:reduce){.ix-buy-page .ix-coverage-dial .dial-duration-chip{transition:none!important}.ix-buy-page .ix-coverage-dial .dial-duration-chip:not(:disabled):hover{transform:none}}
+
 `
 
 /* =========================================================
@@ -965,8 +1002,8 @@ export default function BuyPolicy() {
     setPaying(true)
 
     let razorpayResponse = null
+    let orderCreated = false
     let checkoutCompleted = false
-    let paymentStage = 'creating_order'
 
     try {
       // Refresh renewal records before creating another order.
@@ -1003,7 +1040,7 @@ export default function BuyPolicy() {
             currency: 'INR',
           })
 
-      paymentStage = 'validating_order'
+      orderCreated = true
 
       const order = normalizeOrder(rawOrder)
 
@@ -1029,7 +1066,6 @@ export default function BuyPolicy() {
         )
       }
 
-      paymentStage = 'razorpay_checkout'
       razorpayResponse = await openCheckout(order)
 
       checkoutCompleted = true
@@ -1060,7 +1096,6 @@ export default function BuyPolicy() {
           razorpayResponse.razorpay_payment_id,
       })
 
-      paymentStage = 'verifying_payment'
       // Backend verification is mandatory.
       const saved = isRenewal
         ? await renewals.confirm(
@@ -1142,38 +1177,31 @@ export default function BuyPolicy() {
           'Do not pay again. Check Payments or contact InsureX support.',
         )
       } else {
-        // Order creation is NOT a payment. A timeout or HTTP 5xx here
-        // may leave an unused Razorpay order, but no checkout payment
-        // has been confirmed. Do not permanently lock the Pay button.
-        // Only a successful Razorpay callback followed by failed backend
-        // verification is treated as an uncertain completed payment.
+        const networkUncertain =
+          paymentError?.code === 'ERR_NETWORK' ||
+          paymentError?.code === 'ECONNABORTED' ||
+          paymentError?.code === 'ETIMEDOUT' ||
+          (
+            paymentError?.response &&
+            paymentError.response.status >= 500
+          )
+
+        // If order creation itself was uncertain,
+        // another order should not be created blindly.
         if (
-          paymentStage === 'creating_order' ||
-          paymentStage === 'validating_order'
+          !orderCreated &&
+          networkUncertain
         ) {
-          setPaymentUncertain(false)
-          setPaymentReference(null)
-          setError(
-            `${errorMessage(paymentError, 'Could not create the payment order.')} ` +
-            'Razorpay payment was not started. Check your connection or backend status, then try again.',
-          )
-        } else {
-          // Checkout closed or failed before the success callback.
-          // A bank debit can still require investigation, so never
-          // claim that no money was charged.
-          setPaymentUncertain(false)
-          setError(
-            `${errorMessage(paymentError, 'Razorpay checkout did not complete.')} ` +
-            'If your bank shows a debit, verify the payment in Razorpay or with support before retrying.',
-          )
+          setPaymentUncertain(true)
         }
+
+        setError(
+          errorMessage(
+            paymentError,
+            'Unable to start or complete checkout.',
+          ),
+        )
       }
-      console.error('InsureX checkout failed:', {
-        stage: paymentStage,
-        code: paymentError?.code,
-        status: paymentError?.response?.status,
-        message: paymentError?.message,
-      })
     } finally {
       paymentLock.current = false
       setPaying(false)
@@ -1602,9 +1630,9 @@ export default function BuyPolicy() {
                               {' '}of cover, per year
                             </dd>
 
-                            <dt>Multi-year pricing</dt>
+                            <dt>Multi-year discount</dt>
                             <dd>
-                              Annual premium × selected years
+                              5% off for 2 years or more
                             </dd>
 
                             <dt>GST</dt>
@@ -1850,81 +1878,49 @@ export default function BuyPolicy() {
                   </div>
                 </div>
 
-                {/* ORIGINAL SIDE-PANEL LAYOUT — SELECTED PLAN PRICING */}
-                {!isRenewal && (
-                  <aside className="ix-original-side" aria-label="Plan and premium calculator">
-                    <div className="ix-side-top">
-                      <div className="ix-side-topline">
-                        <div>
-                          <h3>{planName}</h3>
-                          <p>{coveredType} insurance</p>
-                        </div>
-                        <ShieldCheck size={30} aria-hidden="true" />
-                      </div>
-                      <div className="ix-side-price">
-                        {inr(Number(policy.basePremium) * (effectiveCoverage / Number(policy.baseCoverage)))}
-                        <span> / year</span>
-                      </div>
-                      <p>Covers you for {inrShort(effectiveCoverage)} over {effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</p>
-                    </div>
-
-                    <div className="ix-side-body">
-                      <div className="ix-side-row"><span>Coverage amount</span><strong>{inrShort(effectiveCoverage)}</strong></div>
-                      <div className="ix-side-row"><span>Policy term</span><strong>{effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</strong></div>
-                      <div className="ix-side-divider" />
-                      <div className="ix-side-row"><span>Base premium / year</span><strong>{inr(Number(policy.basePremium) * (effectiveCoverage / Number(policy.baseCoverage)))}</strong></div>
-                      <div className="ix-side-row"><span>Premium × {effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}</span><strong>{est ? inr(est.base) : '—'}</strong></div>
-                      <div className="ix-side-row"><span>GST (0%)</span><strong>{inr(0)}</strong></div>
-                      <div className="ix-side-total"><strong>Total payable</strong><strong>{est ? inr(est.total) : '—'}</strong></div>
-                      <p className="ix-side-note">Estimate based on the selected plan. The backend determines the final Razorpay amount.</p>
-                    </div>
-
-                    <div className="ix-side-controls">
-                      <h4>Coverage amount</h4>
-                      <p>Choose the coverage you want</p>
-                      <div className="ix-slider-value">{inrShort(effectiveCoverage)}</div>
-                      <input
-                        aria-label="Coverage amount"
-                        type="range"
-                        min={Math.max(100000, Math.floor(Number(policy.baseCoverage) / 100000) * 100000)}
-                        max={Math.max(5000000, Number(policy.baseCoverage) * 2)}
-                        step={100000}
-                        value={effectiveCoverage}
-                        onChange={(event) => setVal((current) => ({ ...current, coverage: Number(event.target.value) }))}
-                        disabled={paying || paymentUncertain}
-                      />
-                      <div className="ix-slider-labels"><span>{inrShort(Math.max(100000, Math.floor(Number(policy.baseCoverage) / 100000) * 100000))}</span><span>{inrShort(Math.max(5000000, Number(policy.baseCoverage) * 2))}</span></div>
-                      <h4 style={{marginTop:16}}>Policy term</h4>
-                      <p>Slide or tap a year to update the total</p>
-                      <div className="ix-year-value" key={effectiveYears}>
-                        {effectiveYears} {effectiveYears === 1 ? 'year' : 'years'}
-                      </div>
-                      <input
-                        className="ix-year-range"
-                        aria-label="Policy term in years"
-                        type="range"
-                        min="1"
-                        max="5"
-                        step="1"
-                        value={effectiveYears}
-                        onChange={(event) => setVal((current) => ({ ...current, years: Number(event.target.value) }))}
-                        disabled={paying || paymentUncertain}
-                      />
-                      <div className="ix-term-choices ix-term-compact">
-                        {[1, 2, 3, 4, 5].map((years) => (
-                          <button
-                            key={years}
-                            type="button"
-                            aria-pressed={effectiveYears === years}
-                            className={`ix-term-choice ${effectiveYears === years ? 'selected' : ''}`}
-                            onClick={() => setVal((current) => ({ ...current, years }))}
-                            disabled={paying || paymentUncertain}
-                          >
-                            {years} yr
-                          </button>
-                        ))}
-                      </div>
-                    </div>
+                {/* REUSABLE COVERAGE AND PREMIUM CALCULATOR */}
+                {!isRenewal && policy && est && (
+                  <aside
+                    className="ix-original-side ix-coverage-dial"
+                    aria-label="Plan and premium calculator"
+                  >
+                    <CoverageDial
+                      value={{
+                        coverage: effectiveCoverage,
+                        years: effectiveYears,
+                      }}
+                      onChange={(next) => {
+                        setVal((current) => ({
+                          ...current,
+                          planId: String(policy.planId),
+                          coverage: Number(next.coverage),
+                          years: Number(next.years),
+                        }))
+                      }}
+                      planKey={planDetails?.key}
+                      planLabel={planName}
+                      showPlans={false}
+                      lockedPlan
+                      coverageMin={Math.max(
+                        100000,
+                        Math.floor(
+                          Number(policy.baseCoverage) / 100000,
+                        ) * 100000,
+                      )}
+                      coverageMax={Math.max(
+                        5000000,
+                        Number(policy.baseCoverage) * 2,
+                      )}
+                      coverageStep={100000}
+                      durationMax={5}
+                      premiumEstimate={{
+                        ...est,
+                        perYear:
+                          Number(est.total) /
+                          Math.max(1, effectiveYears),
+                        gstRate: 0,
+                      }}
+                    />
                   </aside>
                 )}
               </div>
