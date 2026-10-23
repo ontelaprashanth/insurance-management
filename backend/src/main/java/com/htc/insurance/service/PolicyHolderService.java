@@ -1,9 +1,9 @@
+
 package com.htc.insurance.service;
 
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.htc.insurance.dao.PolicyHolderDao;
@@ -11,14 +11,18 @@ import com.htc.insurance.dto.PolicyHolderDto;
 import com.htc.insurance.entity.PolicyHolder;
 import com.htc.insurance.mapper.PolicyHolderMapper;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class PolicyHolderService {
 
-    @Autowired
-    private PolicyHolderDao policyHolderDao;
+    // ==========================================
+    // DEPENDENCIES - LOMBOK CONSTRUCTOR INJECTION
+    // ==========================================
 
-    @Autowired
-    private PolicyHolderMapper mapper;
+    private final PolicyHolderDao policyHolderDao;
+    private final PolicyHolderMapper mapper;
 
     // ==========================================
     // SAVE POLICY HOLDER
@@ -28,7 +32,8 @@ public class PolicyHolderService {
             PolicyHolderDto policyHolderDto) {
 
         if (policyHolderDto == null) {
-            throw new RuntimeException("Policy holder data is required.");
+            throw new RuntimeException(
+                    "Policy holder data is required.");
         }
 
         PolicyHolder policyHolder =
