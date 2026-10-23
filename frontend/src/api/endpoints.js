@@ -2,22 +2,6 @@
 /* =========================================================
    INSUREX — CENTRAL API ENDPOINTS
    File: src/api/endpoints.js
-
-   Authentication
-   Users
-   Insurance Plans
-   Policies
-   Purchases & Refunds
-   Razorpay Payments
-   Policy Renewals
-   Policy Holders
-   Claims
-   Settlements — Manual Bank Transfers
-   Reviews
-   Notifications
-   Admin Broadcast
-
-   Existing backend routes preserved.
 ========================================================= */
 
 import { api } from './client'
@@ -39,9 +23,7 @@ function positiveId(value, label = 'ID') {
     !Number.isSafeInteger(number) ||
     number <= 0
   ) {
-    throw new Error(
-      `A valid ${label} is required.`
-    )
+    throw new Error(`A valid ${label} is required.`)
   }
 
   return number
@@ -51,9 +33,7 @@ function requiredText(value, label) {
   const text = String(value ?? '').trim()
 
   if (!text) {
-    throw new Error(
-      `${label} is required.`
-    )
+    throw new Error(`${label} is required.`)
   }
 
   return text
@@ -71,12 +51,10 @@ function paymentConfirmation(body) {
       body.razorpayOrderId,
       'Razorpay order ID'
     ),
-
     razorpayPaymentId: requiredText(
       body.razorpayPaymentId,
       'Razorpay payment ID'
     ),
-
     razorpaySignature: requiredText(
       body.razorpaySignature,
       'Razorpay signature'
@@ -89,40 +67,23 @@ function paymentConfirmation(body) {
 ========================================================= */
 
 export const auth = {
-
   login: (body) =>
-    d(
-      api.post('/api/auth/login', body)
-    ),
+    d(api.post('/api/auth/login', body)),
 
   sendOtp: (identifier) =>
-    d(
-      api.post('/api/auth/send-otp', {
-        identifier,
-      })
-    ),
+    d(api.post('/api/auth/send-otp', { identifier })),
 
   verifyOtp: (body) =>
-    d(
-      api.post('/api/auth/verify-otp', body)
-    ),
+    d(api.post('/api/auth/verify-otp', body)),
 
   forgotPassword: (identifier) =>
-    d(
-      api.post('/api/auth/forgot-password', {
-        identifier,
-      })
-    ),
+    d(api.post('/api/auth/forgot-password', { identifier })),
 
   resetPassword: (body) =>
-    d(
-      api.post('/api/auth/reset-password', body)
-    ),
+    d(api.post('/api/auth/reset-password', body)),
 
   session: () =>
-    d(
-      api.get('/api/session')
-    ),
+    d(api.get('/api/session')),
 }
 
 /* =========================================================
@@ -130,67 +91,35 @@ export const auth = {
 ========================================================= */
 
 export const users = {
-
   register: (body) =>
-    d(
-      api.post('/user/save', body)
-    ),
+    d(api.post('/user/save', body)),
 
   me: () =>
-    d(
-      api.get('/user/me')
-    ),
+    d(api.get('/user/me')),
 
   updateMe: (body) =>
-    d(
-      api.put('/user/me', body)
-    ),
+    d(api.put('/user/me', body)),
 
   changePassword: (body) =>
-    d(
-      api.put('/user/me/password', body)
-    ),
+    d(api.put('/user/me/password', body)),
 
   getAll: () =>
-    d(
-      api.get('/user/getAll')
-    ),
+    d(api.get('/user/getAll')),
 
   get: (userId) =>
-    d(
-      api.get(
-        `/user/get/${id(userId)}`
-      )
-    ),
+    d(api.get(`/user/get/${id(userId)}`)),
 
   update: (userId, body) =>
-    d(
-      api.put(
-        `/user/update/${id(userId)}`,
-        body
-      )
-    ),
+    d(api.put(`/user/update/${id(userId)}`, body)),
 
   activate: (userId) =>
-    d(
-      api.put(
-        `/user/activate/${id(userId)}`
-      )
-    ),
+    d(api.put(`/user/activate/${id(userId)}`)),
 
   deactivate: (userId) =>
-    d(
-      api.put(
-        `/user/deactivate/${id(userId)}`
-      )
-    ),
+    d(api.put(`/user/deactivate/${id(userId)}`)),
 
   remove: (userId) =>
-    d(
-      api.delete(
-        `/user/delete/${id(userId)}`
-      )
-    ),
+    d(api.delete(`/user/delete/${id(userId)}`)),
 }
 
 /* =========================================================
@@ -198,18 +127,11 @@ export const users = {
 ========================================================= */
 
 export const plans = {
-
   available: () =>
-    d(
-      api.get('/api/plans/available')
-    ),
+    d(api.get('/api/plans/available')),
 
   get: (planId) =>
-    d(
-      api.get(
-        `/api/plans/${id(planId)}`
-      )
-    ),
+    d(api.get(`/api/plans/${id(planId)}`)),
 }
 
 /* =========================================================
@@ -217,33 +139,20 @@ export const plans = {
 ========================================================= */
 
 export const policies = {
-
   available: () =>
-    d(
-      api.get('/policy/available')
-    ),
+    d(api.get('/policy/available')),
 
   mine: () =>
-    d(
-      api.get('/policy/my-policies')
-    ),
+    d(api.get('/policy/my-policies')),
 
   getAll: () =>
-    d(
-      api.get('/policy/getAll')
-    ),
+    d(api.get('/policy/getAll')),
 
   get: (policyNumber) =>
-    d(
-      api.get(
-        `/policy/get/${id(policyNumber)}`
-      )
-    ),
+    d(api.get(`/policy/get/${id(policyNumber)}`)),
 
   save: (body) =>
-    d(
-      api.post('/policy/save', body)
-    ),
+    d(api.post('/policy/save', body)),
 
   update: (policyNumber, body) =>
     d(
@@ -254,25 +163,13 @@ export const policies = {
     ),
 
   remove: (policyNumber) =>
-    d(
-      api.delete(
-        `/policy/delete/${id(policyNumber)}`
-      )
-    ),
+    d(api.delete(`/policy/delete/${id(policyNumber)}`)),
 
   activate: (policyNumber) =>
-    d(
-      api.put(
-        `/policy/activate/${id(policyNumber)}`
-      )
-    ),
+    d(api.put(`/policy/activate/${id(policyNumber)}`)),
 
   deactivate: (policyNumber) =>
-    d(
-      api.put(
-        `/policy/deactivate/${id(policyNumber)}`
-      )
-    ),
+    d(api.put(`/policy/deactivate/${id(policyNumber)}`)),
 }
 
 /* =========================================================
@@ -280,28 +177,19 @@ export const policies = {
 ========================================================= */
 
 export const purchases = {
-
-  // Backend verifies Razorpay payment details
-  // before creating an insurance purchase.
-
   purchase: (body) =>
-    d(
-      api.post('/policy/purchase', body)
-    ),
+    d(api.post('/policy/purchase', body)),
 
   mine: () =>
-    d(
-      api.get('/policy/my-purchases')
-    ),
+    d(api.get('/policy/my-purchases')),
 
   getAll: () =>
-    d(
-      api.get('/policy/purchases')
-    ),
+    d(api.get('/policy/purchases')),
 
-  // Refund request:
-  // Backend validates eligibility and handles
-  // Razorpay refund processing and reconciliation.
+  // Matches PolicyPurchaseController:
+  // POST /policy/purchases/{purchaseId}/refund
+  //
+  // Never automatically retry a financial mutation.
 
   refund: (purchaseId, body) => {
     try {
@@ -322,12 +210,14 @@ export const purchases = {
       }
 
       return d(
-        api.post('/refund/request', {
-          purchaseId: parsedPurchaseId,
-          refundReason,
-        })
+        api.post(
+          `/policy/purchases/${id(parsedPurchaseId)}/refund`,
+          {
+            purchaseId: parsedPurchaseId,
+            refundReason,
+          }
+        )
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
@@ -339,9 +229,6 @@ export const purchases = {
 ========================================================= */
 
 export const payment = {
-
-  // Backend determines the payable amount.
-
   createOrder: (body) => {
     try {
       if (!body || typeof body !== 'object') {
@@ -390,13 +277,10 @@ export const payment = {
           currency: 'INR',
         })
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
   },
-
-  // Backend must validate Razorpay signature.
 
   verify: (body) => {
     try {
@@ -406,7 +290,6 @@ export const payment = {
           paymentConfirmation(body)
         )
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
@@ -415,24 +298,9 @@ export const payment = {
 
 /* =========================================================
    POLICY RENEWALS — RAZORPAY
-
-   POST /api/policy-renewals/{policyNumber}/order
-   POST /api/policy-renewals/{policyNumber}/confirm
-
-   Backend determines:
-   - Original policy and purchase
-   - Renewal eligibility
-   - Coverage amount
-   - Duration
-   - Payable premium
-   - Payment confirmation
-   - New policy creation
-
-   Frontend never supplies renewal pricing.
 ========================================================= */
 
 export const renewals = {
-
   createOrder: (originalPolicyNumber) => {
     try {
       const policyNumber = positiveId(
@@ -445,7 +313,6 @@ export const renewals = {
           `/api/policy-renewals/${id(policyNumber)}/order`
         )
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
@@ -464,7 +331,6 @@ export const renewals = {
           paymentConfirmation(body)
         )
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
@@ -476,23 +342,14 @@ export const renewals = {
 ========================================================= */
 
 export const policyHolders = {
-
   getAll: () =>
-    d(
-      api.get('/policyholder/getAll')
-    ),
+    d(api.get('/policyholder/getAll')),
 
   get: (policyHolderId) =>
-    d(
-      api.get(
-        `/policyholder/get/${id(policyHolderId)}`
-      )
-    ),
+    d(api.get(`/policyholder/get/${id(policyHolderId)}`)),
 
   save: (body) =>
-    d(
-      api.post('/policyholder/save', body)
-    ),
+    d(api.post('/policyholder/save', body)),
 
   update: (policyHolderId, body) =>
     d(
@@ -515,28 +372,17 @@ export const policyHolders = {
 ========================================================= */
 
 export const claims = {
-
   save: (body) =>
-    d(
-      api.post('/claims/save', body)
-    ),
+    d(api.post('/claims/save', body)),
 
   mine: () =>
-    d(
-      api.get('/claims/my-claims')
-    ),
+    d(api.get('/claims/my-claims')),
 
   getAll: () =>
-    d(
-      api.get('/claims/getAll')
-    ),
+    d(api.get('/claims/getAll')),
 
   get: (claimNumber) =>
-    d(
-      api.get(
-        `/claims/get/${id(claimNumber)}`
-      )
-    ),
+    d(api.get(`/claims/get/${id(claimNumber)}`)),
 
   update: (claimNumber, body) =>
     d(
@@ -572,47 +418,11 @@ export const claims = {
 
 /* =========================================================
    SETTLEMENTS — MANUAL BANK TRANSFER
-
-   WORKFLOW:
-
-   Claim APPROVED
-       |
-       v
-   Settlement PENDING
-       |
-       v
-   Bank Transfer PROCESSING
-       |
-       +----> FAILED
-       |        |
-       |        +----> Retry transfer
-       |
-       v
-   Admin confirms payment
-       |
-       v
-   Settlement SETTLED
-   Claim SETTLED
-
-   IMPORTANT:
-   Recording a transfer does not mean the
-   customer has received the payment.
 ========================================================= */
 
 export const settlements = {
-
-  // ==========================================
-  // GET ALL SETTLEMENTS
-  // ==========================================
-
   getAll: () =>
-    d(
-      api.get('/settlement/getAll')
-    ),
-
-  // ==========================================
-  // GET SETTLEMENT BY ID
-  // ==========================================
+    d(api.get('/settlement/getAll')),
 
   get: (settlementNumber) =>
     d(
@@ -621,10 +431,6 @@ export const settlements = {
       )
     ),
 
-  // ==========================================
-  // GET SETTLEMENTS BY CLAIM
-  // ==========================================
-
   byClaim: (claimNumber) =>
     d(
       api.get(
@@ -632,18 +438,8 @@ export const settlements = {
       )
     ),
 
-  // ==========================================
-  // CREATE SETTLEMENT
-  // ==========================================
-
   save: (body) =>
-    d(
-      api.post('/settlement/save', body)
-    ),
-
-  // ==========================================
-  // UPDATE PENDING SETTLEMENT
-  // ==========================================
+    d(api.post('/settlement/save', body)),
 
   update: (settlementNumber, body) =>
     d(
@@ -652,12 +448,6 @@ export const settlements = {
         body
       )
     ),
-
-  // ==========================================
-  // RECORD MANUAL BANK TRANSFER
-  // ==========================================
-  // PENDING / FAILED -> PROCESSING
-  // Claim remains APPROVED.
 
   transfer: (settlementNumber, body) => {
     try {
@@ -710,20 +500,10 @@ export const settlements = {
           }
         )
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
   },
-
-  // ==========================================
-  // CONFIRM SUCCESSFUL BANK PAYMENT
-  // ==========================================
-  // PROCESSING -> SETTLED
-  // Claim APPROVED -> SETTLED
-  //
-  // Admin must verify bank records first.
-  // Frontend confirmation alone is not proof.
 
   confirm: (settlementNumber, body) => {
     try {
@@ -758,19 +538,10 @@ export const settlements = {
           }
         )
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
   },
-
-  // ==========================================
-  // RECORD FAILED BANK TRANSFER
-  // ==========================================
-  // PROCESSING -> FAILED
-  // Claim remains APPROVED.
-  //
-  // Admin may retry after resolving the issue.
 
   fail: (settlementNumber, reason) => {
     try {
@@ -798,33 +569,18 @@ export const settlements = {
           }
         )
       )
-
     } catch (error) {
       return Promise.reject(error)
     }
   },
 
-  // ==========================================
-  // LEGACY PROCESS ENDPOINT
-  // ==========================================
   // Preserved for compatibility.
-  //
-  // Backend must NOT use this endpoint to
-  // finalize a bank transfer or settle a claim.
-  //
-  // Use transfer() and confirm() instead.
-
   process: (settlementNumber) =>
     d(
       api.put(
         `/settlement/process/${id(settlementNumber)}`
       )
     ),
-
-  // ==========================================
-  // REJECT PENDING SETTLEMENT
-  // ==========================================
-  // Different from a failed bank transfer.
 
   reject: (settlementNumber, rejectionReason) =>
     d(
@@ -835,10 +591,6 @@ export const settlements = {
         }
       )
     ),
-
-  // ==========================================
-  // DELETE PENDING SETTLEMENT
-  // ==========================================
 
   remove: (settlementNumber) =>
     d(
@@ -853,28 +605,17 @@ export const settlements = {
 ========================================================= */
 
 export const reviews = {
-
   save: (body) =>
-    d(
-      api.post('/reviewer/save', body)
-    ),
+    d(api.post('/reviewer/save', body)),
 
   mine: () =>
-    d(
-      api.get('/reviewer/my-reviews')
-    ),
+    d(api.get('/reviewer/my-reviews')),
 
   getAll: () =>
-    d(
-      api.get('/reviewer/getAll')
-    ),
+    d(api.get('/reviewer/getAll')),
 
   get: (reviewId) =>
-    d(
-      api.get(
-        `/reviewer/get/${id(reviewId)}`
-      )
-    ),
+    d(api.get(`/reviewer/get/${id(reviewId)}`)),
 
   update: (reviewId, body) =>
     d(
@@ -905,11 +646,8 @@ export const reviews = {
 ========================================================= */
 
 export const notifications = {
-
   mine: () =>
-    d(
-      api.get('/api/notifications/my')
-    ),
+    d(api.get('/api/notifications/my')),
 
   unread: () =>
     d(
@@ -924,9 +662,7 @@ export const notifications = {
     ),
 
   readAll: () =>
-    d(
-      api.put('/api/notifications/read-all')
-    ),
+    d(api.put('/api/notifications/read-all')),
 
   remove: (notificationId) =>
     d(
@@ -941,7 +677,6 @@ export const notifications = {
 ========================================================= */
 
 export const broadcast = {
-
   send: (body) =>
     d(
       api.post(
