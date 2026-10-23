@@ -3,7 +3,6 @@ package com.htc.insurance.service;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -20,23 +19,21 @@ import com.htc.insurance.entity.Reviewer;
 import com.htc.insurance.entity.User;
 import com.htc.insurance.mapper.ReviewerMapper;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class ReviewerService {
 
-    @Autowired
-    private ReviewerDao reviewerDao;
+    private final ReviewerDao reviewerDao;
 
-    @Autowired
-    private UserDao userDao;
+    private final UserDao userDao;
 
-    @Autowired
-    private ClaimsDao claimsDao;
+    private final ClaimsDao claimsDao;
 
-    @Autowired
-    private ReviewerMapper mapper;
+    private final ReviewerMapper mapper;
 
-    @Autowired
-    private NotificationService notificationService;
+    private final NotificationService notificationService;
 
 
     // =========================================================
