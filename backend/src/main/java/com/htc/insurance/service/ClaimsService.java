@@ -280,24 +280,19 @@ public class ClaimsService {
 
     private void ensureClaimSlotAvailable(Long policyNumber) {
 
-        for (Claims existing : claimsDao.getAllClaims()) {
-
-            if (existing == null
-                    || existing.getPolicy() == null
-                    || !policyNumber.equals(
-                            existing.getPolicy().getPolicyNumber())) {
-                continue;
-            }
-
-            ClaimStatus status = existing.getStatus();
+        // Query only this policy's claims rather than scanning
+        // every claim belonging to every customer.
+        for (Claims existing :
+                claimsDao.getClaimsByPolicyNumber(policyNumber)) {
 
             // Historical rejected claims do not block retries.
-            if (status == ClaimStatus.REJECTED) {
+            if (existing != null
+                    && existing.getStatus() == ClaimStatus.REJECTED) {
                 continue;
             }
 
-            // PENDING, APPROVED, SETTLED, and unknown states
-            // all block another claim.
+            // PENDING, APPROVED, SETTLED and unknown/null
+            // statuses all block another claim.
             throw new IllegalStateException(
                     "This policy already has an unresolved "
                             + "or successful claim. "
