@@ -9,24 +9,19 @@ import org.springframework.stereotype.Repository;
 import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.repository.PolicyPurchaseRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Repository
+@RequiredArgsConstructor
 public class PolicyPurchaseDao {
 
     private final PolicyPurchaseRepository repository;
-
-    public PolicyPurchaseDao(
-            PolicyPurchaseRepository repository) {
-
-        this.repository = repository;
-    }
 
     // =========================================================
     // SAVE PURCHASE
     // =========================================================
 
-    public PolicyPurchase savePurchase(
-            PolicyPurchase purchase) {
-
+    public PolicyPurchase savePurchase(PolicyPurchase purchase) {
         return repository.save(purchase);
     }
 
@@ -34,9 +29,7 @@ public class PolicyPurchaseDao {
     // GET PURCHASE BY ID
     // =========================================================
 
-    public PolicyPurchase getPurchaseById(
-            Long purchaseId) {
-
+    public PolicyPurchase getPurchaseById(Long purchaseId) {
         return repository.findById(purchaseId)
                 .orElse(null);
     }
@@ -50,11 +43,11 @@ public class PolicyPurchaseDao {
 
         if (purchaseId == null) {
             throw new IllegalArgumentException(
-                    "Purchase ID is required.");
+                    "Purchase ID is required."
+            );
         }
 
-        return repository.findByIdForUpdate(
-                purchaseId);
+        return repository.findByIdForUpdate(purchaseId);
     }
 
     // =========================================================
@@ -64,8 +57,7 @@ public class PolicyPurchaseDao {
     public PolicyPurchase getPurchaseByPolicyNumber(
             Long policyNumber) {
 
-        return repository
-                .findByPolicyPolicyNumber(policyNumber)
+        return repository.findByPolicyPolicyNumber(policyNumber)
                 .orElse(null);
     }
 
@@ -74,22 +66,20 @@ public class PolicyPurchaseDao {
     // =========================================================
 
     /**
-     * Used to coordinate claim submission and refund
-     * preparation for the same purchased policy.
+     * Coordinates claim submission and refund preparation.
      *
      * Must be called inside an active transaction.
      */
-    public Optional<PolicyPurchase>
-    getPurchaseByPolicyNumberForUpdate(
+    public Optional<PolicyPurchase> getPurchaseByPolicyNumberForUpdate(
             Long policyNumber) {
 
         if (policyNumber == null) {
             throw new IllegalArgumentException(
-                    "Policy number is required.");
+                    "Policy number is required."
+            );
         }
 
-        return repository
-                .findByPolicyNumberForUpdate(policyNumber);
+        return repository.findByPolicyNumberForUpdate(policyNumber);
     }
 
     // =========================================================
@@ -99,8 +89,8 @@ public class PolicyPurchaseDao {
     public PolicyPurchase getPurchaseByTransactionId(
             String transactionId) {
 
-        return repository.findByTransactionId(
-                transactionId).orElse(null);
+        return repository.findByTransactionId(transactionId)
+                .orElse(null);
     }
 
     // =========================================================
@@ -110,107 +100,84 @@ public class PolicyPurchaseDao {
     public PolicyPurchase getPurchaseByRazorpayOrderId(
             String razorpayOrderId) {
 
-        return repository.findByRazorpayOrderId(
-                razorpayOrderId).orElse(null);
+        return repository.findByRazorpayOrderId(razorpayOrderId)
+                .orElse(null);
     }
 
     // =========================================================
-    // GET ALL PURCHASES - ADMIN
+    // GET ALL PURCHASES
     // =========================================================
 
     public List<PolicyPurchase> getAllPurchases() {
-
         return repository.findAll();
     }
 
     // =========================================================
-    // GET PURCHASES BY USERNAME - USER
+    // GET PURCHASES BY USERNAME
     // =========================================================
 
     public List<PolicyPurchase> getPurchasesByUsername(
             String username) {
 
-        return repository
-                .findByPolicyPolicyHolderUserUsername(
-                        username);
+        return repository.findByPolicyPolicyHolderUserUsername(
+                username
+        );
     }
 
     // =========================================================
-    // POLICY RENEWAL - NEW METHODS
+    // FIND RENEWAL BY ORIGINAL PURCHASE
     // =========================================================
 
-    /**
-     * Finds the successful renewal purchase associated
-     * with an original purchase.
-     *
-     * Returns null if the original purchase has not
-     * been renewed.
-     *
-     * Only one completed renewal purchase can reference
-     * the same original purchase.
-     */
     public PolicyPurchase getRenewalByOriginalPurchaseId(
             Long originalPurchaseId) {
 
-        if (originalPurchaseId == null
-                || originalPurchaseId <= 0) {
+        validateOriginalPurchaseId(originalPurchaseId);
 
-            throw new IllegalArgumentException(
-                    "A valid original purchase ID is required.");
-        }
-
-        return repository
-                .findByRenewedFromPurchasePurchaseId(
-                        originalPurchaseId)
-                .orElse(null);
+        return repository.findByRenewedFromPurchasePurchaseId(
+                originalPurchaseId
+        ).orElse(null);
     }
 
-    /**
-     * Checks whether an original purchase already
-     * has a successfully saved renewal purchase.
-     *
-     * This is an advisory check.
-     * Transaction locking and the database unique
-     * constraint must also protect confirmation.
-     */
+    // =========================================================
+    // CHECK WHETHER PURCHASE WAS RENEWED
+    // =========================================================
+
     public boolean existsRenewalByOriginalPurchaseId(
             Long originalPurchaseId) {
 
-        if (originalPurchaseId == null
-                || originalPurchaseId <= 0) {
+        validateOriginalPurchaseId(originalPurchaseId);
 
-            throw new IllegalArgumentException(
-                    "A valid original purchase ID is required.");
-        }
-
-        return repository
-                .existsByRenewedFromPurchasePurchaseId(
-                        originalPurchaseId);
+        return repository.existsByRenewedFromPurchasePurchaseId(
+                originalPurchaseId
+        );
     }
 
-    /**
-     * Returns all purchases created through renewal.
-     *
-     * Useful for admin reporting and renewal history.
-     */
-    public List<PolicyPurchase> getAllRenewalPurchases() {
+    // =========================================================
+    // GET ALL RENEWAL PURCHASES
+    // =========================================================
 
-        return repository
-                .findByRenewedFromPurchaseIsNotNull();
+    public List<PolicyPurchase> getAllRenewalPurchases() {
+        return repository.findByRenewedFromPurchaseIsNotNull();
     }
 
     // =========================================================
     // GET PURCHASES WITH UNFINISHED REFUNDS
     // =========================================================
 
-    /**
-     * Used by refund reconciliation to find purchases
-     * that still have an unfinished refund status.
-     *
-     * Does not modify database records.
-     */
     public List<PolicyPurchase> getPurchasesWithUnfinishedRefunds() {
-
         return repository.findPurchasesWithUnfinishedRefunds();
+    }
+
+    // =========================================================
+    // COMMON RENEWAL ID VALIDATION
+    // =========================================================
+
+    private void validateOriginalPurchaseId(Long originalPurchaseId) {
+
+        if (originalPurchaseId == null || originalPurchaseId <= 0) {
+            throw new IllegalArgumentException(
+                    "A valid original purchase ID is required."
+            );
+        }
     }
 }
