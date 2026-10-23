@@ -1,3 +1,4 @@
+
 package com.htc.insurance.config;
 
 import org.springframework.context.annotation.Bean;
@@ -12,34 +13,29 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 @Configuration
 public class OpenAPIConfig {
 
+    private static final String SECURITY_SCHEME = "bearerAuth";
+
     @Bean
     public OpenAPI customOpenAPI() {
 
         return new OpenAPI()
-
                 .info(new Info()
-                        .title("Insurance Management API")
+                        .title("InsureX Insurance Management API")
                         .version("1.0")
                         .description(
-                                "Insurance Management System Devloped by Prashanth Reddy"
-                        )
-                )
-
-                .components(
-                        new Components()
-                                .addSecuritySchemes(
-                                        "bearerAuth",
-                                        new SecurityScheme()
-                                                .name("Authorization")
-                                                .type(SecurityScheme.Type.HTTP)
-                                                .scheme("bearer")
-                                                .bearerFormat("JWT")
-                                )
-                )
-
+                                "InsureX Insurance Management Platform - Developed by Prashanth Reddy"
+                        ))
+                .components(new Components()
+                        .addSecuritySchemes(
+                                SECURITY_SCHEME,
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                        ))
                 .addSecurityItem(
                         new SecurityRequirement()
-                                .addList("bearerAuth")
+                                .addList(SECURITY_SCHEME)
                 );
     }
 }
