@@ -20,17 +20,18 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import lombok.RequiredArgsConstructor;
+
 @Configuration
 @EnableMethodSecurity
+@RequiredArgsConstructor
 public class SecurityConfig {
 
+    // =========================================================
+    // DEPENDENCIES
+    // =========================================================
+
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
-
-    public SecurityConfig(
-            JwtAuthenticationFilter jwtAuthenticationFilter) {
-
-        this.jwtAuthenticationFilter = jwtAuthenticationFilter;
-    }
 
     // =========================================================
     // SPRING SECURITY FILTER CHAIN
@@ -47,7 +48,8 @@ public class SecurityConfig {
 
             .sessionManagement(session ->
                 session.sessionCreationPolicy(
-                    SessionCreationPolicy.STATELESS)
+                    SessionCreationPolicy.STATELESS
+                )
             )
 
             .authorizeHttpRequests(auth -> auth
@@ -121,13 +123,10 @@ public class SecurityConfig {
                 // =================================================
 
                 /*
-                 * Razorpay does not send the customer's JWT.
+                 * Razorpay does not send a customer JWT.
                  *
-                 * This endpoint is public at the Spring Security
-                 * authorization layer.
-                 *
-                 * RazorpayWebhookController independently verifies
-                 * the HMAC-SHA256 webhook signature.
+                 * The webhook controller must independently
+                 * verify the Razorpay signature.
                  */
                 .requestMatchers(
                     HttpMethod.POST,
