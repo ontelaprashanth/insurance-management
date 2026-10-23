@@ -1,3 +1,4 @@
+
 package com.htc.insurance.exception;
 
 import java.util.HashMap;
@@ -14,9 +15,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
-    // ==============================
+    // =========================================================
     // VALIDATION ERRORS
-    // ==============================
+    // =========================================================
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, String>> handleValidationErrors(
@@ -38,10 +39,9 @@ public class GlobalExceptionHandler {
                 .body(errors);
     }
 
-
-    // ==============================
+    // =========================================================
     // ACCESS DENIED
-    // ==============================
+    // =========================================================
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<Map<String, String>> handleAccessDenied(
@@ -49,20 +49,16 @@ public class GlobalExceptionHandler {
 
         Map<String, String> error = new HashMap<>();
 
-        error.put(
-                "error",
-                "Access Denied"
-        );
+        error.put("error", "Access Denied");
 
         return ResponseEntity
                 .status(HttpStatus.FORBIDDEN)
                 .body(error);
     }
 
-
-    // ==============================
+    // =========================================================
     // AUTHENTICATION ERROR
-    // ==============================
+    // =========================================================
 
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<Map<String, String>> handleAuthenticationException(
@@ -70,20 +66,16 @@ public class GlobalExceptionHandler {
 
         Map<String, String> error = new HashMap<>();
 
-        error.put(
-                "error",
-                "Authentication failed"
-        );
+        error.put("error", "Authentication failed");
 
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(error);
     }
 
-
-    // ==============================
+    // =========================================================
     // GENERAL EXCEPTION
-    // ==============================
+    // =========================================================
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneralException(
@@ -91,10 +83,7 @@ public class GlobalExceptionHandler {
 
         Map<String, String> error = new HashMap<>();
 
-        error.put(
-                "error",
-                exception.getMessage()
-        );
+        error.put("error", exception.getMessage());
 
         return ResponseEntity
                 .status(HttpStatus.INTERNAL_SERVER_ERROR)
