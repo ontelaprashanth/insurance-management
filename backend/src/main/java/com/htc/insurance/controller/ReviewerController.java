@@ -1,31 +1,25 @@
+
 package com.htc.insurance.controller;
 
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.ReviewerDto;
 import com.htc.insurance.service.ReviewerService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/reviewer")
+@RequiredArgsConstructor
 public class ReviewerController {
 
-    @Autowired
-    private ReviewerService reviewerService;
-
+    private final ReviewerService reviewerService;
 
     // =========================================================
     // USER - SUBMIT REVIEW
@@ -37,35 +31,17 @@ public class ReviewerController {
             @RequestBody ReviewerDto reviewerDto) {
 
         try {
-
-            ReviewerDto savedReviewer =
+            ReviewerDto saved =
                     reviewerService.saveReviewer(reviewerDto);
 
-            if (savedReviewer == null) {
-
-                return ResponseEntity.badRequest().body(
-                        Map.of(
-                                "success", false,
-                                "message", "Unable to save review."
-                        )
-                );
-            }
-
-            return ResponseEntity.status(HttpStatus.CREATED).body(
-                    savedReviewer
-            );
+            return saved == null
+                    ? error(HttpStatus.BAD_REQUEST, "Unable to save review.")
+                    : ResponseEntity.status(HttpStatus.CREATED).body(saved);
 
         } catch (RuntimeException e) {
-
-            return ResponseEntity.badRequest().body(
-                    Map.of(
-                            "success", false,
-                            "message", e.getMessage()
-                    )
-            );
+            return error(HttpStatus.BAD_REQUEST, safeMessage(e));
         }
     }
-
 
     // =========================================================
     // USER - VIEW MY REVIEWS
@@ -75,12 +51,8 @@ public class ReviewerController {
     @PreAuthorize("hasRole('USER')")
     public ResponseEntity<List<ReviewerDto>> getMyReviews() {
 
-        List<ReviewerDto> myReviews =
-                reviewerService.getMyReviews();
-
-        return ResponseEntity.ok(myReviews);
+        return ResponseEntity.ok(reviewerService.getMyReviews());
     }
-
 
     // =========================================================
     // ADMIN - VIEW ALL REVIEWS
@@ -90,12 +62,8 @@ public class ReviewerController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ReviewerDto>> getAllReviewers() {
 
-        List<ReviewerDto> reviewers =
-                reviewerService.getAllReviewers();
-
-        return ResponseEntity.ok(reviewers);
+        return ResponseEntity.ok(reviewerService.getAllReviewers());
     }
-
 
     // =========================================================
     // ADMIN - VIEW REVIEW BY ID
@@ -106,24 +74,10 @@ public class ReviewerController {
     public ResponseEntity<?> getReviewerById(
             @PathVariable Long reviewerId) {
 
-        ReviewerDto reviewer =
-                reviewerService.getReviewerById(reviewerId);
-
-        if (reviewer == null) {
-
-            return ResponseEntity.status(
-                    HttpStatus.NOT_FOUND
-            ).body(
-                    Map.of(
-                            "success", false,
-                            "message", "Reviewer not found."
-                    )
-            );
-        }
-
-        return ResponseEntity.ok(reviewer);
+        return reviewerResponse(
+                reviewerService.getReviewerById(reviewerId)
+        );
     }
-
 
     // =========================================================
     // ADMIN - UPDATE REVIEW
@@ -136,38 +90,17 @@ public class ReviewerController {
             @RequestBody ReviewerDto reviewerDto) {
 
         try {
-
-            ReviewerDto updatedReviewer =
+            return reviewerResponse(
                     reviewerService.updateReviewer(
                             reviewerId,
                             reviewerDto
-                    );
-
-            if (updatedReviewer == null) {
-
-                return ResponseEntity.status(
-                        HttpStatus.NOT_FOUND
-                ).body(
-                        Map.of(
-                                "success", false,
-                                "message", "Reviewer not found."
-                        )
-                );
-            }
-
-            return ResponseEntity.ok(updatedReviewer);
-
-        } catch (RuntimeException e) {
-
-            return ResponseEntity.badRequest().body(
-                    Map.of(
-                            "success", false,
-                            "message", e.getMessage()
                     )
             );
+
+        } catch (RuntimeException e) {
+            return error(HttpStatus.BAD_REQUEST, safeMessage(e));
         }
     }
-
 
     // =========================================================
     // ADMIN - REPLY TO REVIEW
@@ -180,52 +113,27 @@ public class ReviewerController {
             @RequestBody ReviewerDto reviewerDto) {
 
         try {
-
             if (reviewerDto == null
                     || reviewerDto.getAdminReply() == null
-                    || reviewerDto.getAdminReply()
-                            .trim()
-                            .isEmpty()) {
+                    || reviewerDto.getAdminReply().isBlank()) {
 
-                return ResponseEntity.badRequest().body(
-                        Map.of(
-                                "success", false,
-                                "message", "Admin reply is required."
-                        )
+                return error(
+                        HttpStatus.BAD_REQUEST,
+                        "Admin reply is required."
                 );
             }
 
-            ReviewerDto updatedReviewer =
+            return reviewerResponse(
                     reviewerService.replyToReviewer(
                             reviewerId,
                             reviewerDto.getAdminReply()
-                    );
-
-            if (updatedReviewer == null) {
-
-                return ResponseEntity.status(
-                        HttpStatus.NOT_FOUND
-                ).body(
-                        Map.of(
-                                "success", false,
-                                "message", "Reviewer not found."
-                        )
-                );
-            }
-
-            return ResponseEntity.ok(updatedReviewer);
-
-        } catch (RuntimeException e) {
-
-            return ResponseEntity.badRequest().body(
-                    Map.of(
-                            "success", false,
-                            "message", e.getMessage()
                     )
             );
+
+        } catch (RuntimeException e) {
+            return error(HttpStatus.BAD_REQUEST, safeMessage(e));
         }
     }
-
 
     // =========================================================
     // ADMIN - DELETE REVIEW
@@ -237,7 +145,6 @@ public class ReviewerController {
             @PathVariable Long reviewerId) {
 
         try {
-
             reviewerService.deleteReviewer(reviewerId);
 
             return ResponseEntity.ok(
@@ -248,15 +155,47 @@ public class ReviewerController {
             );
 
         } catch (RuntimeException e) {
-
-            return ResponseEntity.status(
-                    HttpStatus.NOT_FOUND
-            ).body(
-                    Map.of(
-                            "success", false,
-                            "message", e.getMessage()
-                    )
-            );
+            return error(HttpStatus.NOT_FOUND, safeMessage(e));
         }
+    }
+
+    // =========================================================
+    // SHARED REVIEW RESPONSE
+    // =========================================================
+
+    private ResponseEntity<?> reviewerResponse(ReviewerDto reviewer) {
+
+        return reviewer == null
+                ? error(HttpStatus.NOT_FOUND, "Reviewer not found.")
+                : ResponseEntity.ok(reviewer);
+    }
+
+    // =========================================================
+    // SHARED ERROR RESPONSE
+    // =========================================================
+
+    private ResponseEntity<?> error(
+            HttpStatus status,
+            String message) {
+
+        return ResponseEntity.status(status).body(
+                Map.of(
+                        "success", false,
+                        "message", message
+                )
+        );
+    }
+
+    // =========================================================
+    // SAFE ERROR MESSAGE
+    // =========================================================
+
+    private String safeMessage(RuntimeException exception) {
+
+        String message = exception.getMessage();
+
+        return message == null || message.isBlank()
+                ? "Unable to process review request."
+                : message;
     }
 }
