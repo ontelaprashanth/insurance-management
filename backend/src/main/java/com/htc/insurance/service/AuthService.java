@@ -19,33 +19,31 @@ import com.htc.insurance.dto.VerifyOtpRequest;
 import com.htc.insurance.entity.User;
 import com.htc.insurance.security.JwtService;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class AuthService {
+
+    // =========================================================
+    // CONSTANTS
+    // =========================================================
 
     private static final String GENERAL = "GENERAL";
     private static final String PASSWORD_RESET = "PASSWORD_RESET";
+
     private static final String INVALID_CREDENTIALS =
             "Invalid username or password";
+
+    // =========================================================
+    // DEPENDENCIES
+    // =========================================================
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
     private final UserDao userDao;
     private final OtpService otpService;
     private final PasswordEncoder passwordEncoder;
-
-    public AuthService(
-            AuthenticationManager authenticationManager,
-            JwtService jwtService,
-            UserDao userDao,
-            OtpService otpService,
-            PasswordEncoder passwordEncoder) {
-
-        this.authenticationManager = authenticationManager;
-        this.jwtService = jwtService;
-        this.userDao = userDao;
-        this.otpService = otpService;
-        this.passwordEncoder = passwordEncoder;
-    }
 
     // =========================================================
     // LOGIN
