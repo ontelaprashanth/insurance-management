@@ -108,7 +108,10 @@ export default function CoverageDial({
   }
 
   return (
-    <section className="dial ix-dial-animated" aria-label="Coverage and premium calculator">
+    <section
+      className="dial ix-dial-animated"
+      aria-label="Coverage and premium calculator"
+    >
       <style>{`
         .ix-dial-animated {
           --dial-green: #047857;
@@ -364,72 +367,6 @@ export default function CoverageDial({
           font-weight: 600;
         }
 
-        .ix-dial-animated .dial-duration-options {
-          display: grid;
-          grid-template-columns: repeat(auto-fit, minmax(42px, 1fr));
-          gap: 8px;
-          margin-top: 17px;
-        }
-
-        .ix-dial-animated .dial-duration-chip,
-        .ix-dial-animated .dial-plan-chip {
-          min-height: 39px;
-          padding: 8px 10px;
-          border: 1px solid #dce9e2;
-          border-radius: 11px;
-          color: #4b6257;
-          background: #ffffff;
-          font: inherit;
-          font-size: .82rem;
-          font-weight: 750;
-          cursor: pointer;
-          transition:
-            color .2s ease,
-            background .2s ease,
-            border-color .2s ease,
-            box-shadow .2s ease,
-            transform .2s ease;
-        }
-
-        .ix-dial-animated .dial-duration-chip:hover,
-        .ix-dial-animated .dial-plan-chip:hover {
-          color: #047857;
-          border-color: #6ee7b7;
-          transform: translateY(-2px);
-          box-shadow: 0 4px 12px rgba(6,95,70,.08);
-        }
-
-        .ix-dial-animated .dial-duration-chip.active,
-        .ix-dial-animated .dial-plan-chip.active {
-          color: #ffffff;
-          border-color: #047857;
-          background: linear-gradient(135deg, #047857, #059669);
-          box-shadow: 0 4px 12px rgba(4,120,87,.2);
-        }
-
-        .ix-dial-animated .dial-duration-chip:active,
-        .ix-dial-animated .dial-plan-chip:active {
-          transform: scale(.96);
-        }
-
-        .ix-dial-animated .dial-duration-chip:focus-visible,
-        .ix-dial-animated .dial-plan-chip:focus-visible {
-          outline: 3px solid rgba(16,185,129,.3);
-          outline-offset: 3px;
-        }
-
-        .ix-dial-animated .dial-plans {
-          margin-top: 20px;
-          animation: ixDialItemEnter .55s ease-out .1s both;
-        }
-
-        .ix-dial-animated .dial-plan-options {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 10px;
-        }
-
         .ix-dial-animated .dial-disclaimer {
           margin: 24px 0 0;
           padding-top: 15px;
@@ -509,14 +446,6 @@ export default function CoverageDial({
             width: 40px;
             height: 40px;
             border-radius: 13px;
-          }
-
-          .ix-dial-animated .dial-duration-options {
-            gap: 6px;
-          }
-
-          .ix-dial-animated .dial-duration-chip {
-            padding: 7px 5px;
           }
         }
 
@@ -648,23 +577,6 @@ export default function CoverageDial({
           onChange={(event) => updateYears(event.target.value)}
           aria-label="Policy duration in years"
         />
-
-        <div className="dial-duration-options">
-          {Array.from(
-            { length: maxDuration },
-            (_, index) => index + 1,
-          ).map((duration) => (
-            <button
-              key={duration}
-              type="button"
-              className={`dial-duration-chip${years === duration ? ' active' : ''}`}
-              onClick={() => updateYears(duration)}
-              aria-pressed={years === duration}
-            >
-              {duration}Y
-            </button>
-          ))}
-        </div>
       </div>
 
       <p className="dial-disclaimer">
