@@ -1,48 +1,34 @@
-
 package com.htc.insurance.config;
 
 import java.time.LocalDateTime;
 
 import org.springframework.boot.CommandLineRunner;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import com.htc.insurance.entity.User;
 import com.htc.insurance.repository.UserRepository;
 
-import lombok.RequiredArgsConstructor;
-
 @Component
-@RequiredArgsConstructor
 public class DefaultAdminInitializer implements CommandLineRunner {
 
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
 
-    @Value("${insurex.admin.username:}")
-    private String adminUsername;
+    public DefaultAdminInitializer(
+            UserRepository userRepository,
+            PasswordEncoder passwordEncoder) {
 
-    @Value("${insurex.admin.email:}")
-    private String adminEmail;
-
-    @Value("${insurex.admin.password:}")
-    private String adminPassword;
+        this.userRepository = userRepository;
+        this.passwordEncoder = passwordEncoder;
+    }
 
     @Override
     public void run(String... args) {
 
+        // If an ADMIN already exists, do nothing
         if (userRepository.existsByRole("ADMIN")) {
-            return;
-        }
-
-        if (adminUsername.isBlank()
-                || adminEmail.isBlank()
-                || adminPassword.isBlank()) {
-
-            System.out.println(
-                "Default admin creation skipped: credentials not configured."
-            );
+            System.out.println("DEFAULT ADMIN CHECK: Admin already exists.");
             return;
         }
 
@@ -50,9 +36,9 @@ public class DefaultAdminInitializer implements CommandLineRunner {
 
         User admin = new User();
 
-        admin.setUsername(adminUsername);
-        admin.setEmail(adminEmail);
-        admin.setPassword(passwordEncoder.encode(adminPassword));
+        admin.setUsername("prashanth reddy");
+        admin.setEmail("prashanth.reddy@insurex.com");
+        admin.setPassword(passwordEncoder.encode("Admin@123"));
 
         admin.setRole("ADMIN");
         admin.setIsActive(true);
@@ -71,6 +57,11 @@ public class DefaultAdminInitializer implements CommandLineRunner {
 
         userRepository.save(admin);
 
-        System.out.println("Default admin account created successfully.");
+        System.out.println("==========================================");
+        System.out.println("DEFAULT ADMIN CREATED");
+        System.out.println("Username : prashanth reddy");
+        System.out.println("Password : Admin@123");
+        System.out.println("Role     : ADMIN");
+        System.out.println("==========================================");
     }
 }
