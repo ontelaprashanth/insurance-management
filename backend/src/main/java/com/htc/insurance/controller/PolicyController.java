@@ -6,27 +6,19 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.PolicyDto;
 import com.htc.insurance.service.PolicyService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/policy")
+@RequiredArgsConstructor
 public class PolicyController {
 
     private final PolicyService policyService;
-
-    public PolicyController(PolicyService policyService) {
-        this.policyService = policyService;
-    }
 
     // =========================================================
     // USER - GET AVAILABLE POLICIES
@@ -34,8 +26,7 @@ public class PolicyController {
 
     @GetMapping("/available")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<PolicyDto>>
-    getAvailablePolicies() {
+    public ResponseEntity<List<PolicyDto>> getAvailablePolicies() {
 
         return ResponseEntity.ok(
                 policyService.getAvailablePolicies()
@@ -43,13 +34,13 @@ public class PolicyController {
     }
 
     // =========================================================
-    // USER - GET MY ACTIVE POLICIES
+    // USER - GET MY POLICIES
     // =========================================================
 
     @GetMapping("/my-policies")
     @PreAuthorize("hasRole('USER')")
-    public ResponseEntity<List<PolicyDto>>
-    getMyPolicies(Authentication authentication) {
+    public ResponseEntity<List<PolicyDto>> getMyPolicies(
+            Authentication authentication) {
 
         if (authentication == null
                 || !authentication.isAuthenticated()
@@ -67,13 +58,13 @@ public class PolicyController {
     }
 
     // =========================================================
-    // ADMIN - SAVE POLICY
+    // ADMIN - CREATE POLICY
     // =========================================================
 
     @PostMapping("/save")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PolicyDto>
-    savePolicy(@RequestBody PolicyDto policyDto) {
+    public ResponseEntity<PolicyDto> savePolicy(
+            @RequestBody PolicyDto policyDto) {
 
         return ResponseEntity.ok(
                 policyService.savePolicy(policyDto)
@@ -86,8 +77,7 @@ public class PolicyController {
 
     @GetMapping("/getAll")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<List<PolicyDto>>
-    getAllPolicies() {
+    public ResponseEntity<List<PolicyDto>> getAllPolicies() {
 
         return ResponseEntity.ok(
                 policyService.getAllPolicies()
@@ -100,17 +90,12 @@ public class PolicyController {
 
     @GetMapping("/get/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PolicyDto>
-    getPolicyById(@PathVariable Long policyNumber) {
+    public ResponseEntity<PolicyDto> getPolicyById(
+            @PathVariable Long policyNumber) {
 
-        PolicyDto policy =
-                policyService.getPolicyById(policyNumber);
-
-        if (policy == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(policy);
+        return respond(
+                policyService.getPolicyById(policyNumber)
+        );
     }
 
     // =========================================================
@@ -119,22 +104,16 @@ public class PolicyController {
 
     @PutMapping("/update/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PolicyDto>
-    updatePolicy(
+    public ResponseEntity<PolicyDto> updatePolicy(
             @PathVariable Long policyNumber,
             @RequestBody PolicyDto policyDto) {
 
-        PolicyDto updated =
+        return respond(
                 policyService.updatePolicy(
                         policyNumber,
                         policyDto
-                );
-
-        if (updated == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(updated);
+                )
+        );
     }
 
     // =========================================================
@@ -143,8 +122,8 @@ public class PolicyController {
 
     @DeleteMapping("/delete/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<String>
-    deletePolicy(@PathVariable Long policyNumber) {
+    public ResponseEntity<String> deletePolicy(
+            @PathVariable Long policyNumber) {
 
         policyService.deletePolicy(policyNumber);
 
@@ -159,8 +138,8 @@ public class PolicyController {
 
     @PutMapping("/activate/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PolicyDto>
-    activatePolicy(@PathVariable Long policyNumber) {
+    public ResponseEntity<PolicyDto> activatePolicy(
+            @PathVariable Long policyNumber) {
 
         return ResponseEntity.ok(
                 policyService.activatePolicy(policyNumber)
@@ -173,11 +152,22 @@ public class PolicyController {
 
     @PutMapping("/deactivate/{policyNumber}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<PolicyDto>
-    deactivatePolicy(@PathVariable Long policyNumber) {
+    public ResponseEntity<PolicyDto> deactivatePolicy(
+            @PathVariable Long policyNumber) {
 
         return ResponseEntity.ok(
                 policyService.deactivatePolicy(policyNumber)
         );
+    }
+
+    // =========================================================
+    // SHARED RESPONSE HELPER
+    // =========================================================
+
+    private ResponseEntity<PolicyDto> respond(PolicyDto policy) {
+
+        return policy == null
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(policy);
     }
 }
