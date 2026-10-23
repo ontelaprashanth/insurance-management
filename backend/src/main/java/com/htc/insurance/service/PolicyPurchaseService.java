@@ -18,6 +18,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import lombok.RequiredArgsConstructor;
+
 import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyHolderDao;
@@ -39,6 +41,7 @@ import com.htc.insurance.repository.InsurancePlanRepository;
 import com.htc.insurance.repository.RefundAttemptRepository;
 
 @Service
+@RequiredArgsConstructor
 public class PolicyPurchaseService {
 
     private static final Logger log =
@@ -61,32 +64,6 @@ public class PolicyPurchaseService {
     private final PaymentService paymentService;
     private final PaymentAttemptService paymentAttemptService;
     private final InsurancePlanRepository insurancePlanRepository;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public PolicyPurchaseService(
-            PolicyDao policyDao,
-            ClaimsDao claimsDao,
-            RefundAttemptRepository refundAttemptRepository,
-            PolicyHolderDao policyHolderDao,
-            UserDao userDao,
-            PolicyPurchaseDao policyPurchaseDao,
-            PaymentService paymentService,
-            PaymentAttemptService paymentAttemptService,
-            InsurancePlanRepository insurancePlanRepository) {
-
-        this.policyDao = policyDao;
-        this.claimsDao = claimsDao;
-        this.refundAttemptRepository = refundAttemptRepository;
-        this.policyHolderDao = policyHolderDao;
-        this.userDao = userDao;
-        this.policyPurchaseDao = policyPurchaseDao;
-        this.paymentService = paymentService;
-        this.paymentAttemptService = paymentAttemptService;
-        this.insurancePlanRepository = insurancePlanRepository;
-    }
 
     // =========================================================
     // USER - PURCHASE INSURANCE POLICY
