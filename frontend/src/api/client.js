@@ -47,19 +47,10 @@ export const API_URL = normalizeApiUrl(
 
 /* =========================================================
    TIMEOUT CONFIGURATION
-
-   Render Free can require additional startup time.
-
-   Important:
-   A longer timeout does not guarantee a request succeeded.
-   Payment, purchase, renewal and refund requests must
-   never be automatically repeated after uncertain results.
 ========================================================= */
 
 const DEFAULT_TIMEOUT = 90000
-
 const PAYMENT_TIMEOUT = 120000
-
 const READ_TIMEOUT = 90000
 
 /* =========================================================
@@ -76,17 +67,6 @@ const safely = (callback, fallback = null) => {
 
 /* =========================================================
    SESSION STORAGE
-
-   sessionStorage:
-   - Survives page refresh
-   - Survives navigation
-   - Normally lasts for the browser tab session
-
-   No token is stored in localStorage by this client.
-
-   Note:
-   sessionStorage is not a replacement for backend
-   authorization and does not eliminate XSS risk.
 ========================================================= */
 
 export const tokenStore = {
@@ -128,15 +108,12 @@ export const tokenStore = {
 
 export const api = axios.create({
   baseURL: API_URL,
-
   timeout: DEFAULT_TIMEOUT,
 
   headers: {
     Accept: 'application/json',
   },
 
-  // Do not send browser cookies automatically.
-  // JWT is sent through the Authorization header.
   withCredentials: false,
 })
 
@@ -170,12 +147,40 @@ function requestPath(url = '') {
   const raw = String(url || '')
 
   try {
-    return new URL(
-      raw,
-      API_URL || 'http://localhost',
-    ).pathname.replace(/\/+$/, '') || '/'
+    return (
+      new URL(
+        raw,
+        API_URL || 'http://localhost',
+      ).pathname.replace(/\/+$/, '') || '/'
+    )
   } catch {
-    return raw.split('?')[0]
+    return raw.split('?')[0].replace(/\/+$/, '') || '/'
+  }
+}
+
+/**
+ * Only trust requests targeting the configured API origin.
+ * This prevents the JWT from being attached to an external
+ * absolute URL passed accidentally to this Axios instance.
+ */
+function isTrustedApiRequest(config) {
+  try {
+    const base = config?.baseURL || API_URL
+
+    if (!base) return false
+
+    const baseUrl = new URL(base)
+    const requestUrl = new URL(
+      config?.url || '',
+      baseUrl,
+    )
+
+    return (
+      requestUrl.origin === baseUrl.origin &&
+      requestUrl.protocol === baseUrl.protocol
+    )
+  } catch {
+    return false
   }
 }
 
@@ -204,8 +209,7 @@ function isPaymentEndpoint(url = '') {
 
 function isMutationRequest(config) {
   return MUTATION_METHODS.has(
-    String(config?.method || '')
-      .toLowerCase(),
+    String(config?.method || '').toLowerCase(),
   )
 }
 
@@ -238,35 +242,45 @@ api.interceptors.request.use(
 
     config.headers = config.headers || {}
 
+    const trustedRequest =
+      isTrustedApiRequest(config)
+
     const publicRequest =
       isPublicAuthEndpoint(config.url)
 
-    // Attach JWT only to protected requests.
-    if (token && !publicRequest) {
-      config.headers.Authorization =
-        `Bearer ${token}`
+    /*
+     * Attach JWT only to trusted, protected API requests.
+     */
+    if (
+      trustedRequest &&
+      token &&
+      !publicRequest
+    ) {
+      config.headers.Authorization = `Bearer ${token}`
 
-      // Record the session that sent this request.
-      // Prevent an old 401 response from logging out
-      // a newer session.
+      // Remember the exact token used by this request.
       config._insurexRequestToken = token
     } else {
       delete config.headers.Authorization
-
       config._insurexRequestToken = null
     }
 
-    // Mark operations whose outcomes may be uncertain.
-    // This metadata is local to Axios; it is not sent
-    // to the backend.
+    config._insurexTrustedApiRequest =
+      trustedRequest
+
+    config._insurexAuthenticationRequest =
+      publicRequest
+
     config._insurexPaymentRequest =
       isPaymentEndpoint(config.url)
 
     config._insurexMutationRequest =
       isMutationRequest(config)
 
-    // Payment endpoints may need more time on Render.
-    // Do not override an explicitly configured timeout.
+    /*
+     * Payment and refund requests get additional time.
+     * Existing explicit custom timeouts are preserved.
+     */
     if (
       config._insurexPaymentRequest &&
       (
@@ -297,10 +311,11 @@ api.interceptors.request.use(
 /* =========================================================
    RESPONSE INTERCEPTOR
 
-   - Handle expired JWT sessions
-   - Ignore stale-session 401 responses
-   - Do not automatically retry mutations
-   - Preserve original Axios errors
+   - Only a 401 can trigger global session expiration.
+   - A 403 is an authorization failure and does not
+     automatically clear the JWT.
+   - Stale-session 401 responses are ignored.
+   - Mutations are never automatically retried here.
 ========================================================= */
 
 api.interceptors.response.use(
@@ -308,22 +323,26 @@ api.interceptors.response.use(
 
   (error) => {
     const config = error.config || {}
-
     const status = error.response?.status
 
     const authenticationRequest =
+      config._insurexAuthenticationRequest ??
       isPublicAuthEndpoint(config.url)
 
+    const trustedRequest =
+      config._insurexTrustedApiRequest ??
+      isTrustedApiRequest(config)
+
     /* =====================================================
-       SESSION EXPIRED
+       HANDLE EXPIRED JWT
     ===================================================== */
 
     if (
       status === 401 &&
+      trustedRequest &&
       !authenticationRequest
     ) {
       const currentToken = tokenStore.get()
-
       const requestToken =
         config._insurexRequestToken
 
@@ -333,6 +352,10 @@ api.interceptors.response.use(
         currentToken === requestToken
 
       if (sameSession) {
+        /*
+         * Clear only when the rejected request used the
+         * currently active session's token.
+         */
         tokenStore.clear()
 
         if (!unauthorizedHandled) {
@@ -353,9 +376,8 @@ api.interceptors.response.use(
     /* =====================================================
        UNCERTAIN PAYMENT / REFUND OUTCOME
 
-       These flags help the UI show appropriate warnings.
-
-       No automatic retry is performed.
+       Never automatically repeat a payment, purchase,
+       renewal, or refund mutation after an uncertain result.
     ===================================================== */
 
     const networkFailure =
@@ -380,7 +402,6 @@ api.interceptors.response.use(
       uncertainOutcome
     ) {
       error.insurexPaymentOutcomeUncertain = true
-
       error.insurexDoNotRetryAutomatically = true
     }
 
@@ -502,7 +523,6 @@ export function errorMessage(
   }
 
   const status = error.response?.status
-
   const data = error.response?.data
 
   /* =======================================================
@@ -562,7 +582,11 @@ export function errorMessage(
     )
   }
 
-  if (status === 502 || status === 503 || status === 504) {
+  if (
+    status === 502 ||
+    status === 503 ||
+    status === 504
+  ) {
     return (
       'The InsureX backend is temporarily unavailable ' +
       'or starting up. Please check again shortly.'
