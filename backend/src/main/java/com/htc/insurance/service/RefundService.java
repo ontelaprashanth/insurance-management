@@ -1,28 +1,25 @@
-
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
 import java.util.Locale;
 
 import org.json.JSONObject;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.htc.insurance.dao.PolicyPurchaseDao;
-
 import com.htc.insurance.dto.RefundRequestDto;
-
 import com.htc.insurance.entity.PolicyPurchase;
 import com.htc.insurance.entity.RefundAttempt;
-
 import com.razorpay.RazorpayClient;
 import com.razorpay.Refund;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class RefundService {
 
     private static final Logger log =
@@ -50,29 +47,6 @@ public class RefundService {
 
     @Value("${razorpay.key.secret}")
     private String razorpayKeySecret;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public RefundService(
-            RefundPreparationService refundPreparationService,
-            RefundPersistenceService refundPersistenceService,
-            RefundAttemptPersistenceService refundAttemptPersistenceService,
-            PolicyPurchaseDao policyPurchaseDao) {
-
-        this.refundPreparationService =
-                refundPreparationService;
-
-        this.refundPersistenceService =
-                refundPersistenceService;
-
-        this.refundAttemptPersistenceService =
-                refundAttemptPersistenceService;
-
-        this.policyPurchaseDao =
-                policyPurchaseDao;
-    }
 
     // =========================================================
     // REFUND PURCHASE
