@@ -1,30 +1,28 @@
 
-package com.htc.insurance.config;
+package com.htc.insurance.service;
 
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
-import org.springframework.stereotype.Component;
+import java.util.List;
 
-@Component
-public class InsurancePlanSeeder implements ApplicationRunner {
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.htc.insurance.dao.InsurancePlanDao;
+import com.htc.insurance.entity.InsurancePlan;
+
+import lombok.RequiredArgsConstructor;
+
+@Service
+@RequiredArgsConstructor
+public class InsurancePlanService {
+
+    private final InsurancePlanDao insurancePlanDao;
 
     // =========================================================
-    // APPLICATION STARTUP
+    // GET ALL AVAILABLE INSURANCE PLANS
     // =========================================================
 
-    @Override
-    public void run(ApplicationArguments args) {
-
-        /*
-         * Default insurance plan seeding is disabled.
-         *
-         * Existing insurance plans in MySQL remain unchanged.
-         *
-         * InsurancePlanService continues to provide
-         * the active insurance plan catalogue.
-         *
-         * Restore seeding only when default plan
-         * definitions and persistence rules are ready.
-         */
+    @Transactional(readOnly = true)
+    public List<InsurancePlan> getAvailablePlans() {
+        return insurancePlanDao.findByActiveTrue();
     }
 }
