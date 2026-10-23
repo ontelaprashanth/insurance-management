@@ -1,39 +1,32 @@
+
 package com.htc.insurance.dto;
 
 import java.math.BigDecimal;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@Setter
+@NoArgsConstructor
 public class ClaimDecisionDto {
+
+    // =====================================================
+    // APPROVED AMOUNT
+    // =====================================================
 
     private BigDecimal approvedAmount;
 
+    // =====================================================
+    // ADMIN REMARKS
+    // =====================================================
+
     private String adminRemarks;
 
+    // =====================================================
+    // REJECTION REASON
+    // =====================================================
+
     private String rejectionReason;
-
-    public ClaimDecisionDto() {
-    }
-
-    public BigDecimal getApprovedAmount() {
-        return approvedAmount;
-    }
-
-    public void setApprovedAmount(BigDecimal approvedAmount) {
-        this.approvedAmount = approvedAmount;
-    }
-
-    public String getAdminRemarks() {
-        return adminRemarks;
-    }
-
-    public void setAdminRemarks(String adminRemarks) {
-        this.adminRemarks = adminRemarks;
-    }
-
-    public String getRejectionReason() {
-        return rejectionReason;
-    }
-
-    public void setRejectionReason(String rejectionReason) {
-        this.rejectionReason = rejectionReason;
-    }
 }
