@@ -23,6 +23,7 @@ public class InsurancePlanService {
 
     @Transactional(readOnly = true)
     public List<InsurancePlan> getAvailablePlans() {
-        return insurancePlanDao.findByActiveTrue();
+
+        return insurancePlanDao.findAvailablePlans();
     }
 }
