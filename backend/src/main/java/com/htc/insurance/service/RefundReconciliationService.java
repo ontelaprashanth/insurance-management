@@ -26,7 +26,10 @@ import com.htc.insurance.repository.RefundAttemptRepository;
 import com.razorpay.RazorpayClient;
 import com.razorpay.Refund;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class RefundReconciliationService {
 
     private static final Logger log =
@@ -60,29 +63,11 @@ public class RefundReconciliationService {
 
     private final PolicyPurchaseDao policyPurchaseDao;
 
-    private final String keyId;
+    @Value("${razorpay.key.id}")
+    private String keyId;
 
-    private final String keySecret;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public RefundReconciliationService(
-            RefundAttemptRepository attemptRepository,
-            RefundAttemptPersistenceService persistenceService,
-            RefundPersistenceService refundPersistenceService,
-            PolicyPurchaseDao policyPurchaseDao,
-            @Value("${razorpay.key.id}") String keyId,
-            @Value("${razorpay.key.secret}") String keySecret) {
-
-        this.attemptRepository = attemptRepository;
-        this.persistenceService = persistenceService;
-        this.refundPersistenceService = refundPersistenceService;
-        this.policyPurchaseDao = policyPurchaseDao;
-        this.keyId = keyId;
-        this.keySecret = keySecret;
-    }
+    @Value("${razorpay.key.secret}")
+    private String keySecret;
 
     // =========================================================
     // AUTOMATIC REFUND RECONCILIATION
