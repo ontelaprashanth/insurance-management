@@ -5,14 +5,8 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.core.AuthenticationException;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
-
-import jakarta.validation.Valid;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.ForgotPasswordRequest;
 import com.htc.insurance.dto.LoginRequest;
@@ -22,15 +16,17 @@ import com.htc.insurance.dto.ResetPasswordRequest;
 import com.htc.insurance.dto.VerifyOtpRequest;
 import com.htc.insurance.service.AuthService;
 
+import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/auth")
 public class AuthController {
 
     private final AuthService authService;
-
-    public AuthController(AuthService authService) {
-        this.authService = authService;
-    }
 
     // =========================================================
     // LOGIN
@@ -44,50 +40,20 @@ public class AuthController {
             LoginResponse response = authService.login(request);
             return ResponseEntity.ok(response);
 
-        } catch (BadCredentialsException e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(
-                            "success", false,
-                            "message", "Invalid username or password"
-                    ));
-
         } catch (AuthenticationException e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(
-                            "success", false,
-                            "message", "Invalid username or password"
-                    ));
+            return unauthorized("Invalid username or password");
 
         } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(Map.of(
-                            "success", false,
-                            "message", getMessage(e)
-                    ));
+            return unauthorized(safeMessage(e));
 
         } catch (Exception e) {
-
-            // Log the actual error on the server, not in the response.
-            System.err.println("Login failed due to an unexpected error:");
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "success", false,
-                            "message", "Unable to process login request"
-                    ));
+            log.error("Unexpected login error", e);
+            return serverError("Unable to process login request");
         }
     }
 
     // =========================================================
-    // SEND GENERAL OTP
+    // SEND OTP
     // =========================================================
 
     @PostMapping("/send-otp")
@@ -96,32 +62,14 @@ public class AuthController {
 
         try {
             authService.sendOtp(request);
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "OTP sent successfully."
-            ));
+            return success("OTP sent successfully.");
 
         } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body(Map.of(
-                            "success", false,
-                            "message", getMessage(e)
-                    ));
+            return badRequest(safeMessage(e));
 
         } catch (Exception e) {
-
-            System.err.println("Send OTP failed:");
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "success", false,
-                            "message", "Unable to send OTP"
-                    ));
+            log.error("Failed to send OTP", e);
+            return serverError("Unable to send OTP");
         }
     }
 
@@ -134,42 +82,18 @@ public class AuthController {
             @Valid @RequestBody VerifyOtpRequest request) {
 
         try {
-            boolean verified = authService.verifyOtp(request);
-
-            if (!verified) {
-                return ResponseEntity
-                        .badRequest()
-                        .body(Map.of(
-                                "success", false,
-                                "message", "Invalid or expired OTP."
-                        ));
+            if (!authService.verifyOtp(request)) {
+                return badRequest("Invalid or expired OTP.");
             }
 
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "OTP verified successfully."
-            ));
+            return success("OTP verified successfully.");
 
         } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body(Map.of(
-                            "success", false,
-                            "message", getMessage(e)
-                    ));
+            return badRequest(safeMessage(e));
 
         } catch (Exception e) {
-
-            System.err.println("Verify OTP failed:");
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "success", false,
-                            "message", "Unable to verify OTP"
-                    ));
+            log.error("Failed to verify OTP", e);
+            return serverError("Unable to verify OTP");
         }
     }
 
@@ -183,32 +107,14 @@ public class AuthController {
 
         try {
             authService.forgotPassword(request);
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Password reset OTP sent successfully."
-            ));
+            return success("Password reset OTP sent successfully.");
 
         } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body(Map.of(
-                            "success", false,
-                            "message", getMessage(e)
-                    ));
+            return badRequest(safeMessage(e));
 
         } catch (Exception e) {
-
-            System.err.println("Forgot password failed:");
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "success", false,
-                            "message", "Unable to send password reset OTP"
-                    ));
+            log.error("Forgot password request failed", e);
+            return serverError("Unable to send password reset OTP");
         }
     }
 
@@ -222,45 +128,59 @@ public class AuthController {
 
         try {
             authService.resetPassword(request);
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "message", "Password reset successfully."
-            ));
+            return success("Password reset successfully.");
 
         } catch (IllegalArgumentException e) {
-
-            return ResponseEntity
-                    .badRequest()
-                    .body(Map.of(
-                            "success", false,
-                            "message", getMessage(e)
-                    ));
+            return badRequest(safeMessage(e));
 
         } catch (Exception e) {
-
-            System.err.println("Reset password failed:");
-            e.printStackTrace();
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body(Map.of(
-                            "success", false,
-                            "message", "Unable to reset password"
-                    ));
+            log.error("Password reset failed", e);
+            return serverError("Unable to reset password");
         }
     }
 
     // =========================================================
-    // SAFE ERROR MESSAGE
+    // RESPONSE HELPERS
     // =========================================================
 
-    private String getMessage(Exception e) {
+    private ResponseEntity<?> success(String message) {
+        return response(HttpStatus.OK, true, message);
+    }
 
-        if (e.getMessage() == null || e.getMessage().isBlank()) {
-            return "Request could not be processed";
-        }
+    private ResponseEntity<?> badRequest(String message) {
+        return response(HttpStatus.BAD_REQUEST, false, message);
+    }
 
-        return e.getMessage();
+    private ResponseEntity<?> unauthorized(String message) {
+        return response(HttpStatus.UNAUTHORIZED, false, message);
+    }
+
+    private ResponseEntity<?> serverError(String message) {
+        return response(
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                false,
+                message
+        );
+    }
+
+    private ResponseEntity<?> response(
+            HttpStatus status,
+            boolean success,
+            String message) {
+
+        return ResponseEntity.status(status).body(
+                Map.of(
+                        "success", success,
+                        "message", message
+                )
+        );
+    }
+
+    private String safeMessage(Exception exception) {
+        String message = exception.getMessage();
+
+        return message == null || message.isBlank()
+                ? "Request could not be processed"
+                : message;
     }
 }
