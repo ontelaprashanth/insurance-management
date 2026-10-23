@@ -8,14 +8,13 @@ import org.springframework.stereotype.Repository;
 import com.htc.insurance.entity.Policy;
 import com.htc.insurance.repository.PolicyRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Repository
+@RequiredArgsConstructor
 public class PolicyDao {
 
     private final PolicyRepository repository;
-
-    public PolicyDao(PolicyRepository repository) {
-        this.repository = repository;
-    }
 
     // =========================================================
     // SAVE POLICY
@@ -57,12 +56,12 @@ public class PolicyDao {
      *
      * The lock remains held until the transaction ends.
      */
-    public Policy getPolicyByIdForUpdate(
-            Long policyNumber) {
+    public Policy getPolicyByIdForUpdate(Long policyNumber) {
 
         if (policyNumber == null || policyNumber <= 0) {
             throw new IllegalArgumentException(
-                    "A valid policy number is required.");
+                    "A valid policy number is required."
+            );
         }
 
         return repository
