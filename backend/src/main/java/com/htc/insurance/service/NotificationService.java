@@ -1,10 +1,10 @@
+
 package com.htc.insurance.service;
 
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -15,15 +15,18 @@ import com.htc.insurance.dto.NotificationDto;
 import com.htc.insurance.entity.Notification;
 import com.htc.insurance.entity.User;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class NotificationService {
 
-    @Autowired
-    private NotificationDao notificationDao;
+    // =========================================================
+    // DEPENDENCIES
+    // =========================================================
 
-    @Autowired
-    private UserDao userDao;
-
+    private final NotificationDao notificationDao;
+    private final UserDao userDao;
 
     // =========================================================
     // SYSTEM - CREATE NOTIFICATION
@@ -80,13 +83,11 @@ public class NotificationService {
 
         notification.setSource("SYSTEM");
 
-
         Notification saved =
                 notificationDao.save(notification);
 
         return mapToDto(saved);
     }
-
 
     // =========================================================
     // ADMIN - CREATE NOTIFICATION
@@ -123,7 +124,6 @@ public class NotificationService {
                     "Notification message is required.");
         }
 
-
         Notification notification =
                 new Notification();
 
@@ -145,20 +145,17 @@ public class NotificationService {
         notification.setCreatedAt(
                 LocalDateTime.now());
 
-
         // =====================================================
         // ADMIN PUSHED NOTIFICATION
         // =====================================================
 
         notification.setSource("ADMIN");
 
-
         Notification saved =
                 notificationDao.save(notification);
 
         return mapToDto(saved);
     }
-
 
     // =========================================================
     // USER - GET MY NOTIFICATIONS
@@ -178,7 +175,6 @@ public class NotificationService {
                 .collect(Collectors.toList());
     }
 
-
     // =========================================================
     // USER - GET UNREAD COUNT
     // =========================================================
@@ -192,7 +188,6 @@ public class NotificationService {
         return notificationDao
                 .countUnread(user.getUserId());
     }
-
 
     // =========================================================
     // USER - MARK ONE AS READ
@@ -231,7 +226,6 @@ public class NotificationService {
         return mapToDto(updated);
     }
 
-
     // =========================================================
     // USER - MARK ALL AS READ
     // =========================================================
@@ -255,7 +249,6 @@ public class NotificationService {
             notificationDao.save(notification);
         }
     }
-
 
     // =========================================================
     // USER - DELETE NOTIFICATION
@@ -289,7 +282,6 @@ public class NotificationService {
         notificationDao.delete(notification);
     }
 
-
     // =========================================================
     // AUTHENTICATED USER
     // =========================================================
@@ -317,7 +309,6 @@ public class NotificationService {
         return user;
     }
 
-
     // =========================================================
     // OWNERSHIP CHECK
     // =========================================================
@@ -339,7 +330,6 @@ public class NotificationService {
         }
     }
 
-
     // =========================================================
     // ENTITY -> DTO
     // =========================================================
@@ -353,14 +343,12 @@ public class NotificationService {
         dto.setNotificationId(
                 notification.getNotificationId());
 
-
         if (notification.getUser() != null) {
 
             dto.setUserId(
                     notification.getUser()
                             .getUserId());
         }
-
 
         dto.setTitle(
                 notification.getTitle());
@@ -377,14 +365,12 @@ public class NotificationService {
         dto.setCreatedAt(
                 notification.getCreatedAt());
 
-
         // =====================================================
         // SOURCE
         // =====================================================
 
         dto.setSource(
                 notification.getSource());
-
 
         return dto;
     }
