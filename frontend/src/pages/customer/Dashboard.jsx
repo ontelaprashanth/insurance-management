@@ -28,10 +28,6 @@ function renewalSourceOf(row) {
     row?.renewedFromPurchase?.policy?.policyNumber ?? null
 }
 
-/*
- * Resolve the actual settlement amount when the claims API exposes it.
- * Supports common settlement DTO field names and nested settlement records.
- */
 function settlementAmountOf(claim) {
   const directAmount =
     claim?.settlementAmount ??
@@ -52,45 +48,30 @@ function settlementAmountOf(claim) {
       : []
 
   const completedSettlements = settlements.filter((settlement) =>
-    [
-      'SETTLED',
-      'COMPLETED',
-      'SUCCESS',
-      'SUCCESSFUL',
-      'PAID',
-    ].includes(normalize(settlement?.status))
+    ['SETTLED', 'COMPLETED', 'SUCCESS', 'SUCCESSFUL', 'PAID']
+      .includes(normalize(settlement?.status))
   )
 
   if (completedSettlements.length > 0) {
     return completedSettlements.reduce((total, settlement) => {
       const amount = Number(settlement?.amount)
-      return total + (Number.isFinite(amount) && amount > 0 ? amount : 0)
+      return total + (
+        Number.isFinite(amount) && amount > 0 ? amount : 0
+      )
     }, 0)
   }
 
   return null
 }
 
-/*
- * Amount displayed in Recent claims:
- * 1. Settled claim with a settlement amount -> actual settlement amount.
- * 2. Approved claim -> approved amount.
- * 3. Otherwise -> requested claim amount.
- *
- * A requested claim amount must not be mistaken for the settlement amount.
- */
 function claimAmountOf(claim) {
   const status = normalize(claim?.status)
   const settlementAmount = settlementAmountOf(claim)
 
   if (
     settlementAmount != null &&
-    [
-      'SETTLED',
-      'SETTLEMENT_COMPLETED',
-      'COMPLETED',
-      'PAID',
-    ].includes(status)
+    ['SETTLED', 'SETTLEMENT_COMPLETED', 'COMPLETED', 'PAID']
+      .includes(status)
   ) {
     return settlementAmount
   }
@@ -145,7 +126,6 @@ function effectiveStatus(policy, relatedClaims, relatedPurchase, renewedSources)
     lifecycle === 'REFUND_FAILED'
   ) return 'REFUND_FAILED'
 
-  // A completed renewal changes the original policy's display status.
   if (
     renewedSources.has(number) ||
     status === 'RENEWED' ||
@@ -198,6 +178,464 @@ function effectiveStatus(policy, relatedClaims, relatedPurchase, renewedSources)
     ? 'ACTIVE'
     : 'INACTIVE'
 }
+
+const settledStatuses = [
+  'SETTLED',
+  'SETTLEMENT_COMPLETED',
+  'COMPLETED',
+  'PAID',
+]
+
+const dashboardStyles = `
+  @keyframes ixDashReveal {
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes ixDashShimmer {
+    from { transform: translateX(-140%); }
+    to { transform: translateX(140%); }
+  }
+
+  @keyframes ixDashIcon {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-2px); }
+  }
+
+  .ix-dash {
+    --ix-deep: #103e2d;
+    --ix-green: #17814f;
+    --ix-line: #d5e8dc;
+    --ix-muted: #587165;
+    width: 100%;
+    min-width: 0;
+    color: var(--ix-deep);
+  }
+
+  .ix-dash,
+  .ix-dash * {
+    box-sizing: border-box;
+  }
+
+  .ix-dash a {
+    color: #126b42;
+    text-decoration: none;
+    font-weight: 700;
+    text-underline-offset: 3px;
+  }
+
+  .ix-dash a:hover {
+    color: #0b5030;
+    text-decoration: underline;
+  }
+
+  .ix-dash .ix-dash-stats {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 0 16px;
+  }
+
+  .ix-dash .ix-dash-stat {
+    min-width: 0;
+    position: relative;
+    isolation: isolate;
+    overflow: hidden;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 36px;
+    align-items: start;
+    column-gap: 10px;
+    row-gap: 7px;
+    padding: 15px 16px;
+    border: 1px solid var(--ix-line);
+    border-radius: 14px;
+    background: linear-gradient(140deg, #fff 40%, #f1faf4);
+    box-shadow: 0 3px 12px rgba(16, 62, 45, .045);
+    animation: ixDashReveal .45s ease both;
+    transition: transform .22s ease, box-shadow .22s ease,
+      border-color .22s ease;
+  }
+
+  .ix-dash .ix-dash-stat:nth-child(2) { animation-delay: 60ms; }
+  .ix-dash .ix-dash-stat:nth-child(3) { animation-delay: 120ms; }
+  .ix-dash .ix-dash-stat:nth-child(4) { animation-delay: 180ms; }
+
+  .ix-dash .ix-dash-stat::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    z-index: -1;
+    width: 40%;
+    background: linear-gradient(
+      100deg,
+      transparent,
+      rgba(53, 179, 103, .08),
+      transparent
+    );
+    transform: translateX(-140%);
+    pointer-events: none;
+  }
+
+  .ix-dash .ix-dash-stat:hover::after {
+    animation: ixDashShimmer .8s ease;
+  }
+
+  .ix-dash .ix-dash-stat:hover {
+    transform: translateY(-3px);
+    border-color: #8bcaa4;
+    box-shadow: 0 9px 22px rgba(16, 62, 45, .09);
+  }
+
+  .ix-dash-stat-label {
+    align-self: center;
+    min-width: 0;
+    color: var(--ix-muted);
+    font-size: 12.5px;
+    line-height: 1.4;
+    font-weight: 650;
+  }
+
+  .ix-dash-stat-icon,
+  .ix-dash-item-icon {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    color: #137346;
+    background: #e4f6eb;
+    border: 1px solid #d0ecda;
+    border-radius: 10px;
+  }
+
+  .ix-dash-stat-icon {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+    animation: ixDashIcon 4s ease-in-out infinite;
+  }
+
+  .ix-dash-stat-value {
+    grid-column: 1;
+    min-width: 0;
+    color: var(--ix-deep);
+    font-size: clamp(23px, 2vw, 30px);
+    line-height: 1.15;
+    letter-spacing: -.035em;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-dash-stat-sub {
+    grid-column: 1 / -1;
+    min-width: 0;
+    color: var(--ix-muted);
+    font-size: 11.5px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-dash .ix-dash-sections {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: start;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+
+  .ix-dash .ix-dash-section {
+    min-width: 0;
+    padding: 15px;
+    border: 1px solid var(--ix-line);
+    border-radius: 15px;
+    background: #fff;
+    box-shadow: 0 3px 13px rgba(16, 62, 45, .045);
+    animation: ixDashReveal .5s ease both;
+    transition: border-color .22s ease, box-shadow .22s ease;
+  }
+
+  .ix-dash .ix-dash-section:hover {
+    border-color: #b6dac4;
+    box-shadow: 0 7px 19px rgba(16, 62, 45, .065);
+  }
+
+  .ix-dash .ix-dash-section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin: 0 0 12px;
+    padding: 0 0 10px;
+    border-bottom: 1px solid #e7f0ea;
+  }
+
+  .ix-dash .ix-dash-section-head h2 {
+    min-width: 0;
+    margin: 0;
+    color: var(--ix-deep);
+    font-size: 16px;
+    line-height: 1.35;
+    font-weight: 800;
+  }
+
+  .ix-dash .ix-dash-section-head .btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+
+  .ix-dash .ix-dash-list {
+    display: grid;
+    gap: 8px;
+  }
+
+  .ix-dash .ix-dash-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid #e0ede4;
+    border-radius: 11px;
+    background: #f8fcf9;
+    animation: ixDashReveal .4s ease both;
+    transition: background .2s ease, border-color .2s ease,
+      transform .2s ease;
+  }
+
+  .ix-dash .ix-dash-item:hover {
+    transform: translateY(-2px);
+    border-color: #b6dec4;
+    background: #f0faf3;
+  }
+
+  .ix-dash .ix-dash-item-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 9px;
+  }
+
+  .ix-dash .ix-dash-item-main {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .ix-dash .ix-dash-item-title {
+    margin: 1px 0 4px;
+    color: var(--ix-deep);
+    font-size: 12.5px;
+    line-height: 1.45;
+    font-weight: 750;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-dash .ix-dash-item-meta {
+    color: var(--ix-muted);
+    font-size: 11.5px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-dash .ix-dash-item-right {
+    display: flex;
+    flex: 0 0 auto;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 6px;
+    max-width: 42%;
+    text-align: right;
+  }
+
+  .ix-dash .ix-dash-amount {
+    color: var(--ix-deep);
+    font-size: 12px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-dash .ix-dash-policies {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .ix-dash .ix-dash-policy {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid #d8e9dd;
+    border-radius: 12px;
+    background: linear-gradient(145deg, #fff, #f5fbf7);
+    animation: ixDashReveal .45s ease both;
+    transition: transform .22s ease, border-color .22s ease,
+      box-shadow .22s ease;
+  }
+
+  .ix-dash .ix-dash-policy:hover {
+    transform: translateY(-3px);
+    border-color: #92cba6;
+    box-shadow: 0 8px 19px rgba(16, 62, 45, .08);
+  }
+
+  .ix-dash .ix-dash-policy-head {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+  }
+
+  .ix-dash .ix-dash-policy-number {
+    color: var(--ix-deep);
+    font-size: 13px;
+    font-weight: 800;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-dash .ix-dash-policy-cover {
+    color: #36594a;
+    font-size: 12px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-dash .ix-dash-policy-foot {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 7px;
+    padding-top: 9px;
+    border-top: 1px solid #e0ece4;
+    color: var(--ix-muted);
+    font-size: 11px;
+  }
+
+  .ix-dash .ix-dash-policy-foot a {
+    font-size: 11px;
+  }
+
+  .ix-dash .btn {
+    transition: transform .2s ease, box-shadow .2s ease;
+  }
+
+  .ix-dash .btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 11px rgba(16, 62, 45, .10);
+  }
+
+  .ix-dash a:focus-visible,
+  .ix-dash button:focus-visible {
+    outline: 3px solid #83cda0;
+    outline-offset: 3px;
+  }
+
+  @media (max-width: 1200px) {
+    .ix-dash .ix-dash-policies {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+
+  @media (max-width: 900px) {
+    .ix-dash .ix-dash-stats {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .ix-dash .ix-dash-sections {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (max-width: 520px) {
+    .ix-dash .ix-dash-stats {
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .ix-dash .ix-dash-stat {
+      grid-template-columns: minmax(0, 1fr) 30px;
+      padding: 11px;
+      column-gap: 7px;
+      row-gap: 6px;
+      border-radius: 12px;
+    }
+
+    .ix-dash .ix-dash-stat-icon {
+      width: 30px;
+      height: 30px;
+    }
+
+    .ix-dash .ix-dash-stat-label {
+      font-size: 11px;
+    }
+
+    .ix-dash .ix-dash-stat-value {
+      font-size: clamp(20px, 6vw, 27px);
+    }
+
+    .ix-dash .ix-dash-stat-sub {
+      font-size: 10.5px;
+    }
+
+    .ix-dash .ix-dash-section {
+      padding: 12px;
+      border-radius: 13px;
+    }
+
+    .ix-dash .ix-dash-section-head h2 {
+      font-size: 15px;
+    }
+
+    .ix-dash .ix-dash-item {
+      gap: 8px;
+      padding: 9px;
+    }
+
+    .ix-dash .ix-dash-item-icon {
+      width: 29px;
+      height: 29px;
+    }
+
+    .ix-dash .ix-dash-item-title {
+      font-size: 12px;
+    }
+
+    .ix-dash .ix-dash-item-meta {
+      font-size: 11px;
+    }
+
+    .ix-dash .ix-dash-policies {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+
+  @media (hover: none) {
+    .ix-dash .ix-dash-stat:hover,
+    .ix-dash .ix-dash-section:hover,
+    .ix-dash .ix-dash-item:hover,
+    .ix-dash .ix-dash-policy:hover {
+      transform: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .ix-dash *,
+    .ix-dash *::before,
+    .ix-dash *::after {
+      animation: none !important;
+      transition: none !important;
+      transform: none !important;
+    }
+  }
+`
 
 export default function Dashboard() {
   const { user } = useAuth()
@@ -268,10 +706,7 @@ export default function Dashboard() {
           String(policy.policyNumber)
         )
 
-        if (
-          childPurchase &&
-          normalize(childPurchase.paymentStatus) === 'PAID'
-        ) {
+        if (childPurchase && normalize(childPurchase.paymentStatus) === 'PAID') {
           renewedSources.add(String(source))
         }
       }
@@ -299,24 +734,30 @@ export default function Dashboard() {
   }, [policyRows, purchaseRows, claimRows])
 
   const active = displayedPolicies.filter(
-    (p) => p.displayStatus === 'ACTIVE'
+    (policy) => policy.displayStatus === 'ACTIVE'
   ).length
 
   const totalCover = purchaseRows
-    .filter(
-      (p) =>
-        normalize(p.paymentStatus) === 'PAID' &&
-        !['REFUNDED', 'FULLY_REFUNDED', 'PROCESSED'].includes(
-          normalize(p.refundStatus)
-        )
+    .filter((purchase) =>
+      normalize(purchase.paymentStatus) === 'PAID' &&
+      !['REFUNDED', 'FULLY_REFUNDED', 'PROCESSED'].includes(
+        normalize(purchase.refundStatus)
+      )
     )
-    .reduce((sum, p) => sum + Number(p.coverageAmount || 0), 0)
+    .reduce(
+      (sum, purchase) => sum + Number(purchase.coverageAmount || 0),
+      0
+    )
 
-  const open = claimRows.filter((c) =>
-    ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(normalize(c.status))
+  const open = claimRows.filter((claim) =>
+    ['PENDING', 'SUBMITTED', 'UNDER_REVIEW'].includes(
+      normalize(claim.status)
+    )
   ).length
 
-  const unread = notificationRows.filter((n) => !n.isRead).length
+  const unread = notificationRows.filter(
+    (notification) => !notification.isRead
+  ).length
 
   const recentClaims = claimRows
     .slice()
@@ -351,98 +792,15 @@ export default function Dashboard() {
         </Link>
       </PageHeader>
 
-      <style>{`
-        .ix-dash { --ix-line:#cfe6d9; --ix-soft:#f2fbf5; --ix-deep:#103e2d; --ix-green:#17814f; --ix-muted:#48665a; color:var(--ix-deep); }
-        .ix-dash * { box-sizing:border-box; }
-        .ix-dash-stats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:20px; }
-        .ix-dash-stat { display:flex; flex-direction:column; gap:10px; min-width:0; padding:20px; border:1px solid var(--ix-line); border-radius:20px; background:linear-gradient(145deg,#fff 30%,#f0faf4 100%); box-shadow:0 7px 22px rgba(16,62,45,.055); }
-        .ix-dash-stat-head { display:flex; align-items:center; justify-content:space-between; gap:12px; }
-        .ix-dash-stat-label { color:var(--ix-muted); font-size:14px; font-weight:600; }
-        .ix-dash-stat-icon,.ix-dash-item-icon { width:38px; height:38px; flex:0 0 38px; display:grid; place-items:center; border-radius:12px; background:linear-gradient(145deg,#d6f5e3,#e9fbf0); color:#137344; border:1px solid #c3e8d1; }
-        .ix-dash-stat-value { color:var(--ix-deep); font-size:clamp(26px,2.2vw,35px); font-weight:800; letter-spacing:-.04em; line-height:1.15; overflow-wrap:anywhere; font-variant-numeric:tabular-nums; }
-        .ix-dash-stat-sub { color:var(--ix-muted); font-size:12.5px; line-height:1.5; }
-        .ix-dash-stat-sub a,.ix-dash a { color:#116a40; font-weight:700; text-decoration:none; text-underline-offset:3px; }
-        .ix-dash-sections { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:18px; margin-bottom:20px; align-items:start; }
-        .ix-dash-section { min-width:0; padding:18px; border:1px solid var(--ix-line); border-radius:18px; background:#fff; box-shadow:0 7px 22px rgba(16,62,45,.055); }
-        .ix-dash-section-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:15px; }
-        .ix-dash-section-head h2 { margin:0; color:var(--ix-deep); font-size:18px; font-weight:800; }
-        .ix-dash-section-head .btn { white-space:nowrap; }
-        .ix-dash-list { display:grid; gap:10px; }
-        .ix-dash-item { display:flex; align-items:flex-start; gap:12px; min-width:0; padding:14px; border:1px solid #dbece1; border-radius:13px; background:#f5fbf7; }
-        .ix-dash-item-icon { width:36px; height:36px; flex:0 0 36px; border-radius:11px; }
-        .ix-dash-item-main { flex:1; min-width:0; }
-        .ix-dash-item-title { margin:0 0 4px; color:var(--ix-deep); font-size:14px; font-weight:750; overflow-wrap:anywhere; }
-        .ix-dash-item-meta { color:var(--ix-muted); font-size:12.5px; line-height:1.5; overflow-wrap:anywhere; }
-        .ix-dash-item-right { display:flex; align-items:flex-end; flex-direction:column; gap:6px; text-align:right; flex-shrink:0; }
-        .ix-dash-amount { color:var(--ix-deep); font-weight:750; font-size:13px; font-variant-numeric:tabular-nums; }
-        .ix-dash-policies { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-        .ix-dash-policy { display:flex; flex-direction:column; gap:14px; min-width:0; border:1px solid #cfe6d9; border-radius:15px; padding:16px; background:linear-gradient(135deg,#fff,#f1fbf5); }
-        .ix-dash-policy-head { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; }
-        .ix-dash-policy-number { font-size:17px; font-weight:800; color:var(--ix-deep); }
-        .ix-dash-policy-cover { font-size:14px; font-weight:650; color:#2a4947; overflow-wrap:anywhere; }
-        .ix-dash-policy-foot { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; padding-top:11px; border-top:1px solid #dfe9e6; font-size:12.5px; color:var(--ix-muted); }
-        @keyframes ixDashReveal { from { opacity:0; transform:translateY(20px) scale(.974); filter:blur(3px); } to { opacity:1; transform:translateY(0) scale(1); filter:blur(0); } }
-        @keyframes ixDashIconFloat { 0%,100% { transform:translateY(0) rotate(0); } 50% { transform:translateY(-4px) rotate(-5deg); } }
-        .ix-dash-stat,.ix-dash-section,.ix-dash-item,.ix-dash-policy { position:relative; isolation:isolate; overflow:hidden; transition:transform .32s cubic-bezier(.2,.8,.2,1),box-shadow .32s,border-color .32s,background .32s; animation:ixDashReveal .65s cubic-bezier(.2,.8,.2,1) both; }
-        .ix-dash-stat:nth-child(1) { animation-delay:50ms; }
-        .ix-dash-stat:nth-child(2) { animation-delay:125ms; }
-        .ix-dash-stat:nth-child(3) { animation-delay:200ms; }
-        .ix-dash-stat:nth-child(4) { animation-delay:275ms; }
-        .ix-dash-sections > .ix-dash-section:nth-child(1) { animation-delay:320ms; }
-        .ix-dash-sections > .ix-dash-section:nth-child(2) { animation-delay:400ms; }
-        .ix-dash > .ix-dash-section { animation-delay:460ms; }
-        .ix-dash-item:nth-child(1),.ix-dash-policy:nth-child(1) { animation-delay:90ms; }
-        .ix-dash-item:nth-child(2),.ix-dash-policy:nth-child(2) { animation-delay:150ms; }
-        .ix-dash-item:nth-child(3),.ix-dash-policy:nth-child(3) { animation-delay:210ms; }
-        .ix-dash-item:nth-child(4),.ix-dash-policy:nth-child(4) { animation-delay:270ms; }
-        .ix-dash-item:nth-child(5) { animation-delay:330ms; }
-        .ix-dash-stat::before,.ix-dash-section::before,.ix-dash-policy::before { content:''; position:absolute; z-index:-1; pointer-events:none; inset:0; background:linear-gradient(105deg,transparent 25%,rgba(71,199,124,.095) 49%,transparent 72%); transform:translateX(-130%); transition:transform .75s ease; }
-        .ix-dash-stat:hover::before,.ix-dash-section:hover::before,.ix-dash-policy:hover::before { transform:translateX(130%); }
-        .ix-dash-stat:hover,.ix-dash-section:hover,.ix-dash-policy:hover { transform:translateY(-5px); border-color:#79c89a; box-shadow:0 18px 38px rgba(15,91,49,.15); }
-        .ix-dash-item:hover { transform:translateY(-3px) translateX(2px); background:#e9f8ee; border-color:#a5d8b8; box-shadow:0 10px 22px rgba(16,62,45,.09); }
-        .ix-dash-stat-icon,.ix-dash-item-icon { animation:ixDashIconFloat 4s ease-in-out infinite; }
-        .ix-dash-stat:nth-child(2) .ix-dash-stat-icon { animation-delay:.6s; }
-        .ix-dash-stat:nth-child(3) .ix-dash-stat-icon { animation-delay:1.2s; }
-        .ix-dash-stat:nth-child(4) .ix-dash-stat-icon { animation-delay:1.8s; }
-        .ix-dash-stat:hover .ix-dash-stat-icon,.ix-dash-item:hover .ix-dash-item-icon { animation-play-state:paused; transform:rotate(-8deg) scale(1.1); }
-        .ix-dash .btn { transition:transform .23s,box-shadow .23s,background .23s,border-color .23s; }
-        .ix-dash .btn:hover { transform:translateY(-2px); box-shadow:0 7px 16px rgba(19,110,62,.14); }
-        .ix-dash .btn:active { transform:scale(.97); }
-        .ix-dash .btn:focus-visible,.ix-dash a:focus-visible { outline:3px solid #7dd4a3; outline-offset:3px; }
-        @media(max-width:1150px) { .ix-dash-stats { grid-template-columns:repeat(2,minmax(0,1fr)); } }
-        @media(max-width:850px) { .ix-dash-sections { grid-template-columns:minmax(0,1fr); } }
-        @media(max-width:640px) {
-          .ix-dash-stats { gap:10px; }
-          .ix-dash-stat { padding:14px; gap:9px; }
-          .ix-dash-stat-icon { width:32px; height:32px; flex-basis:32px; }
-          .ix-dash-stat-label { font-size:12px; }
-          .ix-dash-stat-value { font-size:clamp(21px,6vw,29px); }
-          .ix-dash-stat-sub { font-size:11.5px; }
-          .ix-dash-section { padding:13px; }
-          .ix-dash-policies { grid-template-columns:minmax(0,1fr); }
-          .ix-dash-item { padding:11px; gap:9px; }
-          .ix-dash-item-icon { width:30px; height:30px; flex-basis:30px; }
-          .ix-dash-item-right { max-width:43%; }
-        }
-        @media(max-width:360px) { .ix-dash-stats { grid-template-columns:minmax(0,1fr); } }
-        @media(hover:none) { .ix-dash-stat:hover,.ix-dash-section:hover,.ix-dash-item:hover,.ix-dash-policy:hover { transform:none; } }
-        @media(prefers-reduced-motion:reduce) {
-          .ix-dash *, .ix-dash *::before,.ix-dash *::after {
-            animation:none !important;
-            transition:none !important;
-            transform:none !important;
-            filter:none !important;
-          }
-        }
-      `}</style>
+      <style>{dashboardStyles}</style>
 
       <div className="ix-dash">
         <div className="ix-dash-stats">
           <div className="ix-dash-stat">
-            <div className="ix-dash-stat-head">
-              <span className="ix-dash-stat-label">Active policies</span>
-              <span className="ix-dash-stat-icon"><Icon name="claim" /></span>
-            </div>
+            <span className="ix-dash-stat-label">Active policies</span>
+            <span className="ix-dash-stat-icon">
+              <Icon name="claim" />
+            </span>
             <div className="ix-dash-stat-value">
               {pol.isLoading || pur.isLoading || clm.isLoading ? '…' : active}
             </div>
@@ -452,10 +810,10 @@ export default function Dashboard() {
           </div>
 
           <div className="ix-dash-stat">
-            <div className="ix-dash-stat-head">
-              <span className="ix-dash-stat-label">Total cover</span>
-              <span className="ix-dash-stat-icon"><Icon name="claim" /></span>
-            </div>
+            <span className="ix-dash-stat-label">Total cover</span>
+            <span className="ix-dash-stat-icon">
+              <Icon name="claim" />
+            </span>
             <div className="ix-dash-stat-value">
               {pur.isLoading ? '…' : inrShort(totalCover)}
             </div>
@@ -465,10 +823,10 @@ export default function Dashboard() {
           </div>
 
           <div className="ix-dash-stat">
-            <div className="ix-dash-stat-head">
-              <span className="ix-dash-stat-label">Claims in review</span>
-              <span className="ix-dash-stat-icon"><Icon name="claim" /></span>
-            </div>
+            <span className="ix-dash-stat-label">Claims in review</span>
+            <span className="ix-dash-stat-icon">
+              <Icon name="claim" />
+            </span>
             <div className="ix-dash-stat-value">
               {clm.isLoading ? '…' : open}
             </div>
@@ -478,10 +836,10 @@ export default function Dashboard() {
           </div>
 
           <div className="ix-dash-stat">
-            <div className="ix-dash-stat-head">
-              <span className="ix-dash-stat-label">Unread alerts</span>
-              <span className="ix-dash-stat-icon"><Icon name="bell" /></span>
-            </div>
+            <span className="ix-dash-stat-label">Unread alerts</span>
+            <span className="ix-dash-stat-icon">
+              <Icon name="bell" />
+            </span>
             <div className="ix-dash-stat-value">
               {ntf.isLoading ? '…' : unread}
             </div>
@@ -512,28 +870,23 @@ export default function Dashboard() {
             >
               {() => (
                 <div className="ix-dash-list">
-                  {recentClaims.map((c) => {
-                    const status = normalize(c.status)
-                    const amount = claimAmountOf(c)
-                    const settled = [
-                      'SETTLED',
-                      'SETTLEMENT_COMPLETED',
-                      'COMPLETED',
-                      'PAID',
-                    ].includes(status)
+                  {recentClaims.map((claim) => {
+                    const status = normalize(claim.status)
+                    const amount = claimAmountOf(claim)
+                    const settled = settledStatuses.includes(status)
 
                     return (
-                      <div className="ix-dash-item" key={c.claimNumber}>
+                      <div className="ix-dash-item" key={claim.claimNumber}>
                         <span className="ix-dash-item-icon">
                           <Icon name="claim" />
                         </span>
 
                         <div className="ix-dash-item-main">
                           <div className="ix-dash-item-title">
-                            Claim #{c.claimNumber} · {c.claimType || 'Insurance claim'}
+                            Claim #{claim.claimNumber} · {claim.claimType || 'Insurance claim'}
                           </div>
                           <div className="ix-dash-item-meta">
-                            Policy #{policyNumberOf(c) ?? '—'} · Filed {date(c.claimDate)}
+                            Policy #{policyNumberOf(claim) ?? '—'} · Filed {date(claim.claimDate)}
                           </div>
                           {settled && (
                             <div className="ix-dash-item-meta">
@@ -548,10 +901,8 @@ export default function Dashboard() {
                         </div>
 
                         <div className="ix-dash-item-right">
-                          <StatusBadge value={c.status} />
-                          <span className="ix-dash-amount">
-                            {inr(amount)}
-                          </span>
+                          <StatusBadge value={claim.status} />
+                          <span className="ix-dash-amount">{inr(amount)}</span>
                         </div>
                       </div>
                     )
@@ -576,18 +927,28 @@ export default function Dashboard() {
             >
               {() => (
                 <div className="ix-dash-list">
-                  {latestAlerts.map((n) => (
-                    <div className="ix-dash-item" key={n.notificationId}>
+                  {latestAlerts.map((notification) => (
+                    <div
+                      className="ix-dash-item"
+                      key={notification.notificationId}
+                    >
                       <span className="ix-dash-item-icon">
                         <Icon name="bell" />
                       </span>
+
                       <div className="ix-dash-item-main">
                         <div className="ix-dash-item-title">
-                          {n.title || 'Notification'}
+                          {notification.title || 'Notification'}
                         </div>
-                        <div className="ix-dash-item-meta">{n.message}</div>
-                        <div className="ix-dash-item-meta" style={{ marginTop: 6 }}>
-                          {timeAgo(n.createdAt)}{!n.isRead ? ' · Unread' : ''}
+                        <div className="ix-dash-item-meta">
+                          {notification.message}
+                        </div>
+                        <div
+                          className="ix-dash-item-meta"
+                          style={{ marginTop: 4 }}
+                        >
+                          {timeAgo(notification.createdAt)}
+                          {!notification.isRead ? ' · Unread' : ''}
                         </div>
                       </div>
                     </div>
@@ -618,20 +979,25 @@ export default function Dashboard() {
           >
             {() => (
               <div className="ix-dash-policies">
-                {expiringPolicies.map((p) => (
-                  <article className="ix-dash-policy" key={p.policyNumber}>
+                {expiringPolicies.map((policy) => (
+                  <article
+                    className="ix-dash-policy"
+                    key={policy.policyNumber}
+                  >
                     <div className="ix-dash-policy-head">
                       <span className="ix-dash-policy-number">
-                        Policy #{p.policyNumber}
+                        Policy #{policy.policyNumber}
                       </span>
-                      <StatusBadge value={p.displayStatus} />
+                      <StatusBadge value={policy.displayStatus} />
                     </div>
+
                     <div className="ix-dash-policy-cover">
-                      {p.coveredTypes || 'Insurance cover'}
+                      {policy.coveredTypes || 'Insurance cover'}
                     </div>
+
                     <div className="ix-dash-policy-foot">
-                      <span>Expires {date(p.expiryDate)}</span>
-                      <Link to="/app/policies">View policies →</Link>
+                      <span>Expires {date(policy.expiryDate)}</span>
+                      <Link to="/app/policies">View →</Link>
                     </div>
                   </article>
                 ))}
