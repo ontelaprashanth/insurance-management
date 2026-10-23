@@ -14,11 +14,8 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
-import lombok.Data;
-
 @Entity
 @Table(name = "settlement")
-@Data
 public class Settlement {
 
     @Id
@@ -29,10 +26,8 @@ public class Settlement {
     // SETTLEMENT DETAILS
     // =========================================================
 
-    // Settlement record date
     private LocalDate settlementDate;
 
-    // Amount approved for settlement
     private BigDecimal amount;
 
     // PENDING, PROCESSING, SETTLED, REJECTED, FAILED
@@ -50,15 +45,12 @@ public class Settlement {
     // BANK TRANSFER DETAILS
     // =========================================================
 
-    // Bank transaction reference / UTR
     @Column(name = "transaction_reference", length = 150)
     private String transactionReference;
 
-    // Date admin recorded the bank transfer
     @Column(name = "transfer_date")
     private LocalDate transferDate;
 
-    // Admin who recorded the transfer
     @Column(name = "transfer_recorded_by", length = 150)
     private String transferRecordedBy;
 
@@ -66,15 +58,12 @@ public class Settlement {
     // PAYMENT CONFIRMATION DETAILS
     // =========================================================
 
-    // Time settlement was finally confirmed
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
 
-    // Admin who confirmed successful payment
     @Column(name = "confirmed_by", length = 150)
     private String confirmedBy;
 
-    // Optional audit note
     @Column(name = "confirmation_remarks", length = 1000)
     private String confirmationRemarks;
 
@@ -82,13 +71,162 @@ public class Settlement {
     // CLAIM RELATIONSHIP
     // =========================================================
 
-    // One settlement per claim.
-    // Failed bank transfers are retried using the same record.
     @ManyToOne
     @JoinColumn(
-            name = "claim_number",
-            nullable = false,
-            unique = true
+        name = "claim_number",
+        nullable = false,
+        unique = true
     )
     private Claims claim;
+
+    // =========================================================
+    // DEFAULT CONSTRUCTOR
+    // =========================================================
+
+    public Settlement() {
+    }
+
+    // =========================================================
+    // SETTLEMENT NUMBER
+    // =========================================================
+
+    public Long getSettlementNumber() {
+        return settlementNumber;
+    }
+
+    public void setSettlementNumber(Long settlementNumber) {
+        this.settlementNumber = settlementNumber;
+    }
+
+    // =========================================================
+    // SETTLEMENT DATE
+    // =========================================================
+
+    public LocalDate getSettlementDate() {
+        return settlementDate;
+    }
+
+    public void setSettlementDate(LocalDate settlementDate) {
+        this.settlementDate = settlementDate;
+    }
+
+    // =========================================================
+    // AMOUNT
+    // =========================================================
+
+    public BigDecimal getAmount() {
+        return amount;
+    }
+
+    public void setAmount(BigDecimal amount) {
+        this.amount = amount;
+    }
+
+    // =========================================================
+    // SETTLEMENT STATUS
+    // =========================================================
+
+    public String getSettlementStatus() {
+        return settlementStatus;
+    }
+
+    public void setSettlementStatus(String settlementStatus) {
+        this.settlementStatus = settlementStatus;
+    }
+
+    // =========================================================
+    // REJECTION REASON
+    // =========================================================
+
+    public String getRejectionReason() {
+        return rejectionReason;
+    }
+
+    public void setRejectionReason(String rejectionReason) {
+        this.rejectionReason = rejectionReason;
+    }
+
+    // =========================================================
+    // TRANSACTION REFERENCE
+    // =========================================================
+
+    public String getTransactionReference() {
+        return transactionReference;
+    }
+
+    public void setTransactionReference(String transactionReference) {
+        this.transactionReference = transactionReference;
+    }
+
+    // =========================================================
+    // TRANSFER DATE
+    // =========================================================
+
+    public LocalDate getTransferDate() {
+        return transferDate;
+    }
+
+    public void setTransferDate(LocalDate transferDate) {
+        this.transferDate = transferDate;
+    }
+
+    // =========================================================
+    // TRANSFER RECORDED BY
+    // =========================================================
+
+    public String getTransferRecordedBy() {
+        return transferRecordedBy;
+    }
+
+    public void setTransferRecordedBy(String transferRecordedBy) {
+        this.transferRecordedBy = transferRecordedBy;
+    }
+
+    // =========================================================
+    // CONFIRMED AT
+    // =========================================================
+
+    public LocalDateTime getConfirmedAt() {
+        return confirmedAt;
+    }
+
+    public void setConfirmedAt(LocalDateTime confirmedAt) {
+        this.confirmedAt = confirmedAt;
+    }
+
+    // =========================================================
+    // CONFIRMED BY
+    // =========================================================
+
+    public String getConfirmedBy() {
+        return confirmedBy;
+    }
+
+    public void setConfirmedBy(String confirmedBy) {
+        this.confirmedBy = confirmedBy;
+    }
+
+    // =========================================================
+    // CONFIRMATION REMARKS
+    // =========================================================
+
+    public String getConfirmationRemarks() {
+        return confirmationRemarks;
+    }
+
+    public void setConfirmationRemarks(String confirmationRemarks) {
+        this.confirmationRemarks = confirmationRemarks;
+    }
+
+    // =========================================================
+    // CLAIM RELATIONSHIP
+    // =========================================================
+
+    public Claims getClaim() {
+        return claim;
+    }
+
+    public void setClaim(Claims claim) {
+        this.claim = claim;
+    }
 }
