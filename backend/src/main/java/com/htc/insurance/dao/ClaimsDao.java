@@ -10,149 +10,131 @@ import com.htc.insurance.entity.ClaimStatus;
 import com.htc.insurance.entity.Claims;
 import com.htc.insurance.repository.ClaimsRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Repository
+@RequiredArgsConstructor
 public class ClaimsDao {
 
     private final ClaimsRepository repository;
 
-    public ClaimsDao(ClaimsRepository repository) {
-        this.repository = repository;
-    }
-
     // =========================================================
-    // SAVE CLAIM - PRESERVED
+    // BASIC CLAIM OPERATIONS
     // =========================================================
 
     public Claims saveClaims(Claims claims) {
         return repository.save(claims);
     }
 
-    // =========================================================
-    // GET ALL CLAIMS - PRESERVED
-    // =========================================================
-
     public List<Claims> getAllClaims() {
         return repository.findAll();
     }
-
-    // =========================================================
-    // GET CLAIM BY NUMBER - PRESERVED
-    // =========================================================
 
     public Claims getClaimsById(Long claimNumber) {
         return repository.findById(claimNumber)
                 .orElse(null);
     }
 
-    // =========================================================
-    // UPDATE CLAIM - PRESERVED
-    // =========================================================
-
     public Claims updateClaims(Claims claims) {
         return repository.save(claims);
     }
-
-    // =========================================================
-    // DELETE CLAIM - PRESERVED
-    // =========================================================
 
     public void deleteClaims(Long claimNumber) {
         repository.deleteById(claimNumber);
     }
 
     // =========================================================
-    // REFUND PROTECTION - PRESERVED
+    // REFUND PROTECTION
     // =========================================================
 
     /**
      * Checks whether a policy has any claim history.
      *
-     * Includes:
-     * PENDING
-     * APPROVED
-     * REJECTED
-     * SETTLED
+     * All claim statuses are included.
      *
-     * Even a rejected claim blocks refund eligibility.
+     * Even rejected claims block refund eligibility.
      */
-    public boolean existsClaimsByPolicyNumber(
-            Long policyNumber) {
+    public boolean existsClaimsByPolicyNumber(Long policyNumber) {
 
         validatePolicyNumber(policyNumber);
 
         return repository.existsByPolicy_PolicyNumber(
-                policyNumber);
+                policyNumber
+        );
     }
 
     // =========================================================
-    // NEW - GET CLAIM HISTORY FOR A POLICY
+    // GET POLICY CLAIM HISTORY
     // =========================================================
 
     /**
-     * Retrieves all claims belonging to a policy,
-     * including rejected and settled claims.
+     * Returns all claims belonging to a policy,
+     * ordered by claim number descending.
+     *
+     * Includes rejected and settled claims.
      */
-    public List<Claims> getClaimsByPolicyNumber(
-            Long policyNumber) {
+    public List<Claims> getClaimsByPolicyNumber(Long policyNumber) {
 
         validatePolicyNumber(policyNumber);
 
         return repository
                 .findByPolicy_PolicyNumberOrderByClaimNumberDesc(
-                        policyNumber);
+                        policyNumber
+                );
     }
 
     // =========================================================
-    // NEW - CHECK BLOCKING CLAIMS
+    // CHECK BLOCKING CLAIMS
     // =========================================================
 
     /**
-     * Prevents another claim when an existing claim
-     * is PENDING, APPROVED, or SETTLED.
+     * Prevents another claim when an existing claim is:
+     *
+     * PENDING
+     * APPROVED
+     * SETTLED
      *
      * REJECTED claims do not consume the allowance.
      */
-    public boolean hasBlockingClaim(
-            Long policyNumber) {
+    public boolean hasBlockingClaim(Long policyNumber) {
 
         validatePolicyNumber(policyNumber);
 
-        return repository
-                .existsByPolicy_PolicyNumberAndStatusIn(
-                        policyNumber,
-                        List.of(
-                                ClaimStatus.PENDING,
-                                ClaimStatus.APPROVED,
-                                ClaimStatus.SETTLED
-                        ));
+        return repository.existsByPolicy_PolicyNumberAndStatusIn(
+                policyNumber,
+                List.of(
+                        ClaimStatus.PENDING,
+                        ClaimStatus.APPROVED,
+                        ClaimStatus.SETTLED
+                )
+        );
     }
 
     // =========================================================
-    // NEW - CHECK APPROVED OR SETTLED CLAIM
+    // CHECK SUCCESSFUL CLAIMS
     // =========================================================
 
     /**
-     * Used to determine whether a policy has
-     * consumed its claim allowance.
+     * Checks whether a policy has an APPROVED
+     * or SETTLED claim.
      *
-     * This is one of the requirements for renewal.
+     * Used by policy renewal eligibility logic.
      */
-    public boolean hasSuccessfulClaim(
-            Long policyNumber) {
+    public boolean hasSuccessfulClaim(Long policyNumber) {
 
         validatePolicyNumber(policyNumber);
 
-        return repository
-                .existsByPolicy_PolicyNumberAndStatusIn(
-                        policyNumber,
-                        List.of(
-                                ClaimStatus.APPROVED,
-                                ClaimStatus.SETTLED
-                        ));
+        return repository.existsByPolicy_PolicyNumberAndStatusIn(
+                policyNumber,
+                List.of(
+                        ClaimStatus.APPROVED,
+                        ClaimStatus.SETTLED
+                )
+        );
     }
 
     // =========================================================
-    // NEW - CHECK SPECIFIC CLAIM STATUS
+    // CHECK SPECIFIC CLAIM STATUS
     // =========================================================
 
     public boolean existsClaimWithStatus(
@@ -163,17 +145,18 @@ public class ClaimsDao {
 
         if (status == null) {
             throw new IllegalArgumentException(
-                    "Claim status is required.");
+                    "Claim status is required."
+            );
         }
 
-        return repository
-                .existsByPolicy_PolicyNumberAndStatus(
-                        policyNumber,
-                        status);
+        return repository.existsByPolicy_PolicyNumberAndStatus(
+                policyNumber,
+                status
+        );
     }
 
     // =========================================================
-    // NEW - GET CLAIMS BY SELECTED STATUSES
+    // GET CLAIMS BY SELECTED STATUSES
     // =========================================================
 
     public List<Claims> getClaimsByPolicyNumberAndStatuses(
@@ -184,25 +167,26 @@ public class ClaimsDao {
 
         if (statuses == null || statuses.isEmpty()) {
             throw new IllegalArgumentException(
-                    "At least one claim status is required.");
+                    "At least one claim status is required."
+            );
         }
 
-        return repository
-                .findByPolicy_PolicyNumberAndStatusIn(
-                        policyNumber,
-                        statuses);
+        return repository.findByPolicy_PolicyNumberAndStatusIn(
+                policyNumber,
+                statuses
+        );
     }
 
     // =========================================================
-    // COMMON VALIDATION
+    // COMMON POLICY NUMBER VALIDATION
     // =========================================================
 
-    private void validatePolicyNumber(
-            Long policyNumber) {
+    private void validatePolicyNumber(Long policyNumber) {
 
         if (policyNumber == null || policyNumber <= 0) {
             throw new IllegalArgumentException(
-                    "A valid policy number is required.");
+                    "A valid policy number is required."
+            );
         }
     }
 }
