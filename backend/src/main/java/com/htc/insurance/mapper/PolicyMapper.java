@@ -12,6 +12,10 @@ import com.htc.insurance.entity.PolicyHolder;
 @Component
 public class PolicyMapper {
 
+    // =========================================================
+    // POLICY DTO TO ENTITY
+    // =========================================================
+
     public Policy convertPolicyDtoToEntity(PolicyDto dto) {
 
         if (dto == null) {
@@ -20,6 +24,10 @@ public class PolicyMapper {
 
         Policy policy = new Policy();
 
+        // =====================================================
+        // POLICY DETAILS
+        // =====================================================
+
         policy.setPolicyNumber(dto.getPolicyNumber());
         policy.setCoveredTypes(dto.getCoveredTypes());
         policy.setIsActive(dto.getIsActive());
@@ -27,7 +35,12 @@ public class PolicyMapper {
         policy.setDurationYears(dto.getDurationYears());
         policy.setExpiryDate(dto.getExpiryDate());
 
+        // =====================================================
+        // POLICY HOLDER RELATIONSHIP
+        // =====================================================
+
         if (dto.getPolicyHolderId() != null) {
+
             PolicyHolder holder = new PolicyHolder();
 
             holder.setPolicyHolderId(dto.getPolicyHolderId());
@@ -38,6 +51,10 @@ public class PolicyMapper {
         return policy;
     }
 
+    // =========================================================
+    // POLICY ENTITY TO DTO
+    // =========================================================
+
     public PolicyDto convertPolicyEntityToDto(Policy policy) {
 
         if (policy == null) {
@@ -46,6 +63,10 @@ public class PolicyMapper {
 
         PolicyDto dto = new PolicyDto();
 
+        // =====================================================
+        // POLICY DETAILS
+        // =====================================================
+
         dto.setPolicyNumber(policy.getPolicyNumber());
         dto.setCoveredTypes(policy.getCoveredTypes());
         dto.setIsActive(policy.getIsActive());
@@ -53,14 +74,23 @@ public class PolicyMapper {
         dto.setDurationYears(policy.getDurationYears());
         dto.setExpiryDate(policy.getExpiryDate());
 
+        // =====================================================
+        // POLICY HOLDER
+        // =====================================================
+
         if (policy.getPolicyHolder() != null) {
+
             dto.setPolicyHolderId(
                     policy.getPolicyHolder().getPolicyHolderId()
             );
         }
 
-        // Determine the policy status for API responses.
+        // =====================================================
+        // POLICY STATUS
+        // =====================================================
+
         LocalDate today = LocalDate.now();
+
         LocalDate expiryDate = policy.getExpiryDate();
 
         if (expiryDate != null && !expiryDate.isAfter(today)) {
@@ -78,7 +108,10 @@ public class PolicyMapper {
             dto.setStatus("ACTIVE");
         }
 
-        // Preserve the existing claims indicator.
+        // =====================================================
+        // CLAIMS INDICATOR
+        // =====================================================
+
         dto.setHasClaims(
                 policy.getClaims() != null
                         && !policy.getClaims().isEmpty()
