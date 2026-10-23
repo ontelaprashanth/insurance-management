@@ -1,3 +1,4 @@
+
 package com.htc.insurance.dao;
 
 import java.util.List;
@@ -7,14 +8,13 @@ import org.springframework.stereotype.Repository;
 import com.htc.insurance.entity.User;
 import com.htc.insurance.repository.UserRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Repository
+@RequiredArgsConstructor
 public class UserDao {
 
     private final UserRepository repository;
-
-    public UserDao(UserRepository repository) {
-        this.repository = repository;
-    }
 
     // =========================================================
     // SAVE USER
@@ -29,7 +29,6 @@ public class UserDao {
     // =========================================================
 
     public User getUserById(Long userId) {
-
         return repository.findById(userId)
                 .orElse(null);
     }
@@ -39,7 +38,6 @@ public class UserDao {
     // =========================================================
 
     public List<User> getAllUsers() {
-
         return repository.findAll();
     }
 
@@ -48,7 +46,6 @@ public class UserDao {
     // =========================================================
 
     public User updateUser(User user) {
-
         return repository.save(user);
     }
 
@@ -57,7 +54,6 @@ public class UserDao {
     // =========================================================
 
     public void deleteUser(Long userId) {
-
         repository.deleteById(userId);
     }
 
@@ -66,7 +62,6 @@ public class UserDao {
     // =========================================================
 
     public User getUserByUsername(String username) {
-
         return repository.findByUsername(username)
                 .orElse(null);
     }
@@ -76,7 +71,6 @@ public class UserDao {
     // =========================================================
 
     public User getUserByEmail(String email) {
-
         return repository.findByEmail(email)
                 .orElse(null);
     }
@@ -86,7 +80,6 @@ public class UserDao {
     // =========================================================
 
     public User getUserByContactNumber(String contactNumber) {
-
         return repository.findByContactNumber(contactNumber)
                 .orElse(null);
     }
@@ -96,7 +89,6 @@ public class UserDao {
     // =========================================================
 
     public boolean existsByUsername(String username) {
-
         return repository.existsByUsername(username);
     }
 
@@ -105,7 +97,6 @@ public class UserDao {
     // =========================================================
 
     public boolean existsByEmail(String email) {
-
         return repository.existsByEmail(email);
     }
 
@@ -114,7 +105,6 @@ public class UserDao {
     // =========================================================
 
     public boolean existsByContactNumber(String contactNumber) {
-
         return repository.existsByContactNumber(contactNumber);
     }
 }
