@@ -16,13 +16,28 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(name = "policy")
+@Getter
+@Setter
+@NoArgsConstructor
 public class Policy {
+
+    // =========================================================
+    // POLICY IDENTIFICATION
+    // =========================================================
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long policyNumber;
+
+    // =========================================================
+    // POLICY DETAILS
+    // =========================================================
 
     private String coveredTypes;
 
@@ -54,122 +69,17 @@ public class Policy {
     private List<Claims> claims;
 
     // =========================================================
-    // CONSTRUCTOR
+    // EXISTING ACTIVE STATUS COMPATIBILITY
     // =========================================================
 
-    public Policy() {
-    }
-
-    // =========================================================
-    // POLICY NUMBER
-    // =========================================================
-
-    public Long getPolicyNumber() {
-        return policyNumber;
-    }
-
-    public void setPolicyNumber(Long policyNumber) {
-        this.policyNumber = policyNumber;
-    }
-
-    // =========================================================
-    // COVERAGE TYPES
-    // =========================================================
-
-    public String getCoveredTypes() {
-        return coveredTypes;
-    }
-
-    public void setCoveredTypes(String coveredTypes) {
-        this.coveredTypes = coveredTypes;
-    }
-
-    // =========================================================
-    // ACTIVE STATUS
-    // =========================================================
-
-    public Boolean getIsActive() {
-        return isActive;
-    }
-
+    /**
+     * Preserves the existing isActive() method.
+     *
+     * Lombok also generates:
+     * getIsActive()
+     * setIsActive(Boolean)
+     */
     public Boolean isActive() {
         return isActive;
-    }
-
-    public void setIsActive(Boolean isActive) {
-        this.isActive = isActive;
-    }
-
-    // =========================================================
-    // POLICY LIFECYCLE
-    // =========================================================
-
-    public PolicyLifecycleStatus getLifecycleStatus() {
-        return lifecycleStatus;
-    }
-
-    public void setLifecycleStatus(
-            PolicyLifecycleStatus lifecycleStatus) {
-        this.lifecycleStatus = lifecycleStatus;
-    }
-
-    // =========================================================
-    // START DATE
-    // =========================================================
-
-    public LocalDate getStartDate() {
-        return startDate;
-    }
-
-    public void setStartDate(LocalDate startDate) {
-        this.startDate = startDate;
-    }
-
-    // =========================================================
-    // DURATION
-    // =========================================================
-
-    public Integer getDurationYears() {
-        return durationYears;
-    }
-
-    public void setDurationYears(Integer durationYears) {
-        this.durationYears = durationYears;
-    }
-
-    // =========================================================
-    // EXPIRY DATE
-    // =========================================================
-
-    public LocalDate getExpiryDate() {
-        return expiryDate;
-    }
-
-    public void setExpiryDate(LocalDate expiryDate) {
-        this.expiryDate = expiryDate;
-    }
-
-    // =========================================================
-    // POLICY HOLDER
-    // =========================================================
-
-    public PolicyHolder getPolicyHolder() {
-        return policyHolder;
-    }
-
-    public void setPolicyHolder(PolicyHolder policyHolder) {
-        this.policyHolder = policyHolder;
-    }
-
-    // =========================================================
-    // CLAIMS
-    // =========================================================
-
-    public List<Claims> getClaims() {
-        return claims;
-    }
-
-    public void setClaims(List<Claims> claims) {
-        this.claims = claims;
     }
 }
