@@ -22,11 +22,9 @@ jobs:
         working-directory: backend
 
     steps:
-      # Checkout project source code
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      # Configure Java 17
       - name: Set up Java 17
         uses: actions/setup-java@v5
         with:
@@ -35,15 +33,11 @@ jobs:
           cache: maven
           cache-dependency-path: backend/pom.xml
 
-      # Verify Java and Maven
-      - name: Check Java version
+      - name: Verify Java
         run: java -version
 
-      - name: Compile InsureX Backend
-        run: mvn -B -f backend/pom.xml clean compile
+      - name: Verify Maven
+        run: mvn -version
 
-      
-
-      # Compile and package backend
       - name: Build InsureX Backend
         run: mvn -B clean package -DskipTests
