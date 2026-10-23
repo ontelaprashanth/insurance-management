@@ -693,10 +693,24 @@ export default function BuyPolicy() {
         'Insurance'
       )
 
-  const planDetails = useMemo(
-    () => planFor(coveredType),
-    [coveredType],
-  )
+  // For a new purchase, use the exact plan returned by the backend.
+  // The static premium-library mapping is only a fallback for renewals,
+  // where the original plan catalogue record may no longer be available.
+  const planDetails = useMemo(() => {
+    if (!isRenewal && policy) {
+      return {
+        key: null,
+        label: policy.planName || policy.planCode || coveredType,
+        blurb:
+          policy.description ||
+          policy.planDescription ||
+          policy.coverageDescription ||
+          'Insurance coverage designed around your needs.',
+      }
+    }
+
+    return planFor(coveredType)
+  }, [isRenewal, policy, coveredType])
 
   const est = useMemo(
     () =>
@@ -1897,7 +1911,6 @@ export default function BuyPolicy() {
                           years: Number(next.years),
                         }))
                       }}
-                      planKey={planDetails?.key}
                       planLabel={planName}
                       showPlans={false}
                       lockedPlan
@@ -1915,9 +1928,13 @@ export default function BuyPolicy() {
                       durationMax={5}
                       premiumEstimate={{
                         ...est,
+                        // Annual estimate is based on the backend plan's
+                        // annual base premium scaled to the chosen coverage.
+                        // Multi-year discounts remain reflected in est.total.
                         perYear:
-                          Number(est.total) /
-                          Math.max(1, effectiveYears),
+                          Number(policy.basePremium) *
+                          (Number(effectiveCoverage) /
+                            Math.max(1, Number(policy.baseCoverage))),
                         gstRate: 0,
                       }}
                     />
