@@ -8,9 +8,10 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import lombok.RequiredArgsConstructor;
 
 import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
@@ -32,28 +33,22 @@ import com.htc.insurance.mapper.PolicyMapper;
 
 @Service
 @Transactional
+@RequiredArgsConstructor
 public class PolicyService {
 
-    @Autowired
-    private PolicyDao policyDao;
+    private final PolicyDao policyDao;
 
-    @Autowired
-    private PolicyHolderDao policyHolderDao;
+    private final PolicyHolderDao policyHolderDao;
 
-    @Autowired
-    private PolicyMapper policyMapper;
+    private final PolicyMapper policyMapper;
 
-    @Autowired
-    private UserDao userDao;
+    private final UserDao userDao;
 
-    @Autowired
-    private NotificationService notificationService;
+    private final NotificationService notificationService;
 
-    @Autowired
-    private PolicyPurchaseDao policyPurchaseDao;
+    private final PolicyPurchaseDao policyPurchaseDao;
 
-    @Autowired
-    private ClaimsDao claimsDao;
+    private final ClaimsDao claimsDao;
 
     // =========================================================
     // VALIDATE POLICY
