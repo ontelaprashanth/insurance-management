@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Isolation;
@@ -30,26 +29,23 @@ import com.htc.insurance.entity.User;
 
 import com.htc.insurance.mapper.ClaimsMapper;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class ClaimsService {
 
-    @Autowired
-    private ClaimsDao claimsDao;
+    private final ClaimsDao claimsDao;
 
-    @Autowired
-    private PolicyDao policyDao;
+    private final PolicyDao policyDao;
 
-    @Autowired
-    private PolicyPurchaseDao policyPurchaseDao;
+    private final PolicyPurchaseDao policyPurchaseDao;
 
-    @Autowired
-    private UserDao userDao;
+    private final UserDao userDao;
 
-    @Autowired
-    private ClaimsMapper claimsMapper;
+    private final ClaimsMapper claimsMapper;
 
-    @Autowired
-    private NotificationService notificationService;
+    private final NotificationService notificationService;
 
     // =========================================================
     // USER + ADMIN - SUBMIT NEW CLAIM
