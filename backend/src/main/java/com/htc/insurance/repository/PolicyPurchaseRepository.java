@@ -23,21 +23,24 @@ public interface PolicyPurchaseRepository
     // =========================================================
 
     Optional<PolicyPurchase> findByPolicyPolicyNumber(
-            Long policyNumber);
+            Long policyNumber
+    );
 
     // =========================================================
     // GET PURCHASE BY TRANSACTION ID
     // =========================================================
 
     Optional<PolicyPurchase> findByTransactionId(
-            String transactionId);
+            String transactionId
+    );
 
     // =========================================================
     // GET PURCHASE BY RAZORPAY ORDER ID
     // =========================================================
 
     Optional<PolicyPurchase> findByRazorpayOrderId(
-            String razorpayOrderId);
+            String razorpayOrderId
+    );
 
     // =========================================================
     // GET ALL PURCHASES - ADMIN
@@ -47,20 +50,23 @@ public interface PolicyPurchaseRepository
     List<PolicyPurchase> findAll();
 
     // =========================================================
-    // GET PURCHASES BY USERNAME - USER
+    // GET PURCHASES BY USERNAME - CUSTOMER
     // =========================================================
 
     List<PolicyPurchase> findByPolicyPolicyHolderUserUsername(
-            String username);
+            String username
+    );
 
     // =========================================================
-    // GET PURCHASE BY ID WITH DATABASE WRITE LOCK
+    // LOCK PURCHASE BY ID
     // =========================================================
 
     /**
-     * Used for refund processing.
+     * Acquires a pessimistic write lock.
      *
-     * Must be called inside an active transaction.
+     * Used during refund processing.
+     *
+     * Must execute inside an active transaction.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -69,19 +75,19 @@ public interface PolicyPurchaseRepository
            WHERE p.purchaseId = :purchaseId
            """)
     Optional<PolicyPurchase> findByIdForUpdate(
-            @Param("purchaseId") Long purchaseId);
+            @Param("purchaseId") Long purchaseId
+    );
 
     // =========================================================
-    // GET PURCHASE BY POLICY NUMBER WITH WRITE LOCK
+    // LOCK PURCHASE BY POLICY NUMBER
     // =========================================================
 
     /**
-     * Used to coordinate claim submission and refunds.
+     * Coordinates claim submission and refund processing.
      *
-     * Must be called inside an active transaction.
+     * Must execute inside an active transaction.
      *
-     * Assumes each purchased policy has at most one
-     * associated purchase record.
+     * Assumes each policy has at most one purchase record.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -90,58 +96,64 @@ public interface PolicyPurchaseRepository
            WHERE p.policy.policyNumber = :policyNumber
            """)
     Optional<PolicyPurchase> findByPolicyNumberForUpdate(
-            @Param("policyNumber") Long policyNumber);
+            @Param("policyNumber") Long policyNumber
+    );
 
     // =========================================================
-    // POLICY RENEWAL - NEW METHODS
+    // POLICY RENEWAL - FIND RENEWAL PURCHASE
     // =========================================================
 
     /**
-     * Finds the completed renewal purchase associated with
-     * an original purchase.
+     * Finds a renewal purchase associated with
+     * the specified original purchase.
      *
-     * Returns Optional because only one renewal purchase
-     * may reference a particular original purchase.
-     *
-     * Database uniqueness is enforced by the
-     * renewed_from_purchase_id constraint.
+     * The database uniqueness constraint on
+     * renewed_from_purchase_id allows at most one.
      */
     Optional<PolicyPurchase>
-            findByRenewedFromPurchasePurchaseId(
-                    Long originalPurchaseId);
+    findByRenewedFromPurchasePurchaseId(
+            Long originalPurchaseId
+    );
+
+    // =========================================================
+    // POLICY RENEWAL - CHECK EXISTING RENEWAL
+    // =========================================================
 
     /**
-     * Checks whether the original purchase has already
-     * been renewed successfully.
+     * Checks whether a renewal purchase record exists.
      *
-     * This is useful before creating another renewal order.
-     *
-     * The service must still use database locking because
-     * this check alone cannot prevent concurrent requests.
+     * This check alone does not prevent concurrent
+     * renewal requests.
      */
     boolean existsByRenewedFromPurchasePurchaseId(
-            Long originalPurchaseId);
+            Long originalPurchaseId
+    );
+
+    // =========================================================
+    // POLICY RENEWAL - PURCHASE HISTORY
+    // =========================================================
 
     /**
-     * Finds purchases created through renewal.
-     *
-     * Useful for renewal history and administration.
+     * Retrieves purchases that reference an
+     * earlier purchase through renewal.
      */
     List<PolicyPurchase> findByRenewedFromPurchaseIsNotNull();
 
     // =========================================================
-    // FIND PURCHASES WITH UNFINISHED REFUNDS
+    // REFUND RECONCILIATION
     // =========================================================
 
     /**
-     * Finds purchases that still display an unfinished
-     * refund status.
+     * Retrieves purchases with unfinished refund statuses.
+     *
+     * Includes:
+     * REFUND_PROCESSING
+     * PROCESSING
+     * REFUND_REQUIRES_RECONCILIATION
+     *
+     * Oldest purchase ID first.
      *
      * This is a read-only query.
-     *
-     * It allows reconciliation to identify a purchase
-     * even when the associated RefundAttempt is not
-     * currently PROCESSING.
      */
     @Query("""
            SELECT p
