@@ -1,3 +1,4 @@
+
 package com.htc.insurance.controller;
 
 import java.util.List;
@@ -7,14 +8,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.ChangePasswordRequest;
 import com.htc.insurance.dto.UserDto;
@@ -23,25 +17,19 @@ import com.htc.insurance.service.UserService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
 import jakarta.validation.Valid;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/user")
+@RequiredArgsConstructor
 public class UserController {
 
     private final UserService userService;
 
     // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public UserController(UserService userService) {
-        this.userService = userService;
-    }
-
-    // =========================================================
-    // REGISTER USER
-    // PUBLIC
+    // PUBLIC - REGISTER USER
     // =========================================================
 
     @PostMapping("/save")
@@ -63,23 +51,16 @@ public class UserController {
             @Valid @RequestBody UserDto userDto) {
 
         try {
-
-            UserDto savedUser =
-                    userService.saveUser(userDto);
-
-            return ResponseEntity
-                    .status(HttpStatus.CREATED)
-                    .body(savedUser);
+            return ResponseEntity.status(HttpStatus.CREATED)
+                    .body(userService.saveUser(userDto));
 
         } catch (IllegalArgumentException e) {
-
             return badRequest(e.getMessage());
         }
     }
 
     // =========================================================
-    // GET MY PROFILE
-    // USER ONLY
+    // USER - GET MY PROFILE
     // =========================================================
 
     @GetMapping("/me")
@@ -91,21 +72,13 @@ public class UserController {
     public ResponseEntity<UserDto> getMyProfile(
             Authentication authentication) {
 
-        UserDto user =
-                userService.getCurrentUser(
-                        authentication.getName()
-                );
-
-        if (user == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(user);
+        return userResponse(
+                userService.getCurrentUser(authentication.getName())
+        );
     }
 
     // =========================================================
-    // UPDATE MY PROFILE
-    // USER ONLY
+    // USER - UPDATE MY PROFILE
     // =========================================================
 
     @PutMapping("/me")
@@ -119,28 +92,20 @@ public class UserController {
             Authentication authentication) {
 
         try {
-
-            UserDto updated =
+            return userResponse(
                     userService.updateCurrentUser(
                             authentication.getName(),
                             userDto
-                    );
-
-            if (updated == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            return ResponseEntity.ok(updated);
+                    )
+            );
 
         } catch (IllegalArgumentException e) {
-
             return badRequest(e.getMessage());
         }
     }
 
     // =========================================================
-    // CHANGE PASSWORD
-    // USER ONLY
+    // USER - CHANGE PASSWORD
     // =========================================================
 
     @PutMapping("/me/password")
@@ -154,29 +119,20 @@ public class UserController {
             Authentication authentication) {
 
         try {
-
             userService.changePassword(
                     authentication.getName(),
                     request
             );
 
-            return ResponseEntity.ok(
-                    Map.of(
-                            "success", true,
-                            "message",
-                            "Password changed successfully"
-                    )
-            );
+            return success("Password changed successfully");
 
         } catch (IllegalArgumentException e) {
-
             return badRequest(e.getMessage());
         }
     }
 
     // =========================================================
-    // GET USER BY ID
-    // ADMIN ONLY
+    // ADMIN - GET USER BY ID
     // =========================================================
 
     @GetMapping("/get/{userId}")
@@ -188,19 +144,11 @@ public class UserController {
     public ResponseEntity<UserDto> getUserById(
             @PathVariable Long userId) {
 
-        UserDto user =
-                userService.getUserById(userId);
-
-        if (user == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(user);
+        return userResponse(userService.getUserById(userId));
     }
 
     // =========================================================
-    // GET ALL USERS
-    // ADMIN ONLY
+    // ADMIN - GET ALL USERS
     // =========================================================
 
     @GetMapping("/getAll")
@@ -211,14 +159,11 @@ public class UserController {
     )
     public ResponseEntity<List<UserDto>> getAllUsers() {
 
-        return ResponseEntity.ok(
-                userService.getAllUsers()
-        );
+        return ResponseEntity.ok(userService.getAllUsers());
     }
 
     // =========================================================
-    // UPDATE USER
-    // ADMIN ONLY
+    // ADMIN - UPDATE USER
     // =========================================================
 
     @PutMapping("/update/{userId}")
@@ -232,28 +177,17 @@ public class UserController {
             @Valid @RequestBody UserDto userDto) {
 
         try {
-
-            UserDto updatedUser =
-                    userService.updateUser(
-                            userId,
-                            userDto
-                    );
-
-            if (updatedUser == null) {
-                return ResponseEntity.notFound().build();
-            }
-
-            return ResponseEntity.ok(updatedUser);
+            return userResponse(
+                    userService.updateUser(userId, userDto)
+            );
 
         } catch (IllegalArgumentException e) {
-
             return badRequest(e.getMessage());
         }
     }
 
     // =========================================================
-    // ACTIVATE USER
-    // ADMIN ONLY
+    // ADMIN - ACTIVATE USER
     // =========================================================
 
     @PutMapping("/activate/{userId}")
@@ -284,26 +218,17 @@ public class UserController {
             @PathVariable Long userId) {
 
         try {
-
             userService.activateUser(userId);
 
-            return ResponseEntity.ok(
-                    Map.of(
-                            "success", true,
-                            "message",
-                            "User account activated successfully."
-                    )
-            );
+            return success("User account activated successfully.");
 
         } catch (IllegalArgumentException e) {
-
             return badRequest(e.getMessage());
         }
     }
 
     // =========================================================
-    // DEACTIVATE USER
-    // ADMIN ONLY
+    // ADMIN - DEACTIVATE USER
     // =========================================================
 
     @PutMapping("/deactivate/{userId}")
@@ -334,26 +259,17 @@ public class UserController {
             @PathVariable Long userId) {
 
         try {
-
             userService.deactivateUser(userId);
 
-            return ResponseEntity.ok(
-                    Map.of(
-                            "success", true,
-                            "message",
-                            "User account deactivated successfully."
-                    )
-            );
+            return success("User account deactivated successfully.");
 
         } catch (IllegalArgumentException e) {
-
             return badRequest(e.getMessage());
         }
     }
 
     // =========================================================
-    // DELETE USER
-    // ADMIN ONLY
+    // ADMIN - DELETE USER
     // =========================================================
 
     @DeleteMapping("/delete/{userId}")
@@ -366,40 +282,58 @@ public class UserController {
             @PathVariable Long userId) {
 
         try {
-
             userService.deleteUser(userId);
 
-            return ResponseEntity.ok(
-                    Map.of(
-                            "success", true,
-                            "message",
-                            "User deleted successfully"
-                    )
-            );
+            return success("User deleted successfully");
 
         } catch (IllegalArgumentException e) {
-
             return badRequest(e.getMessage());
         }
     }
 
     // =========================================================
-    // BAD REQUEST
+    // SHARED USER RESPONSE
+    // =========================================================
+
+    private ResponseEntity<UserDto> userResponse(UserDto user) {
+
+        return user == null
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(user);
+    }
+
+    // =========================================================
+    // SHARED SUCCESS RESPONSE
+    // =========================================================
+
+    private ResponseEntity<Map<String, Object>> success(
+            String message) {
+
+        return ResponseEntity.ok(
+                Map.of(
+                        "success", true,
+                        "message", message
+                )
+        );
+    }
+
+    // =========================================================
+    // SHARED BAD REQUEST RESPONSE
     // =========================================================
 
     private ResponseEntity<Map<String, Object>> badRequest(
             String message) {
 
-        return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
+        String safeMessage =
+                message != null && !message.isBlank()
+                        ? message
+                        : "Invalid request";
+
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(
                         Map.of(
                                 "success", false,
-                                "message",
-                                message != null
-                                        && !message.isBlank()
-                                        ? message
-                                        : "Invalid request"
+                                "message", safeMessage
                         )
                 );
     }
