@@ -3,6 +3,8 @@ package com.htc.insurance.repository;
 
 import java.util.Optional;
 
+import jakarta.persistence.LockModeType;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -10,8 +12,6 @@ import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import com.htc.insurance.entity.Policy;
-
-import jakarta.persistence.LockModeType;
 
 @Repository
 public interface PolicyRepository
@@ -39,5 +39,6 @@ public interface PolicyRepository
            WHERE p.policyNumber = :policyNumber
            """)
     Optional<Policy> findByPolicyNumberForUpdate(
-            @Param("policyNumber") Long policyNumber);
+            @Param("policyNumber") Long policyNumber
+    );
 }
