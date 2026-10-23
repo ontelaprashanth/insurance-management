@@ -42,17 +42,11 @@ public class PaymentService {
     // PAYMENT CONFIGURATION
     // =========================================================
 
-    private static final BigDecimal MIN_COVERAGE =
-            new BigDecimal("1000000");
-
     private static final BigDecimal MAX_COVERAGE =
             new BigDecimal("10000000");
 
     private static final int MIN_DURATION_YEARS = 1;
     private static final int MAX_DURATION_YEARS = 5;
-
-    private static final BigDecimal LONG_TERM_DISCOUNT =
-            new BigDecimal("0.05");
 
     private static final BigDecimal ZERO =
             BigDecimal.ZERO.setScale(
@@ -130,21 +124,6 @@ public class PaymentService {
         }
 
         // =====================================================
-        // VALIDATE COVERAGE
-        // =====================================================
-
-        if (request.getCoverageAmount() == null
-                || request.getCoverageAmount()
-                    .compareTo(MIN_COVERAGE) < 0
-                || request.getCoverageAmount()
-                    .compareTo(MAX_COVERAGE) > 0) {
-
-            throw new IllegalArgumentException(
-                    "Coverage must be between "
-                    + "₹10,00,000 and ₹1,00,00,000.");
-        }
-
-        // =====================================================
         // VALIDATE DURATION
         // =====================================================
 
@@ -206,6 +185,25 @@ public class PaymentService {
         }
 
         // =====================================================
+        // VALIDATE SELECTED PLAN COVERAGE
+        // =====================================================
+
+        // Each plan has its own minimum coverage. Do not use
+        // the old fixed ₹10 lakh minimum for all plan types.
+        BigDecimal requestedCoverage = request.getCoverageAmount();
+
+        if (requestedCoverage == null
+                || requestedCoverage.compareTo(baseCoverage) < 0
+                || requestedCoverage.compareTo(MAX_COVERAGE) > 0) {
+
+            throw new IllegalArgumentException(
+                    "Coverage for the selected plan must be between ₹"
+                    + formatIndianAmount(baseCoverage)
+                    + " and ₹"
+                    + formatIndianAmount(MAX_COVERAGE) + ".");
+        }
+
+        // =====================================================
         // CALCULATE PREMIUM
         // =====================================================
 
@@ -232,26 +230,12 @@ public class PaymentService {
                                 RoundingMode.HALF_UP);
 
         // =====================================================
-        // LONG-TERM DISCOUNT
+        // STRAIGHT YEARLY PRICING (NO MULTI-YEAR DISCOUNT)
         // =====================================================
 
-        BigDecimal discount = ZERO;
-
-        if (request.getDurationYears() >= 2) {
-
-            discount = calculatedBasePremium
-                    .multiply(LONG_TERM_DISCOUNT)
-                    .setScale(
-                            2,
-                            RoundingMode.HALF_UP);
-        }
-
-        BigDecimal taxableAmount =
-                calculatedBasePremium
-                        .subtract(discount)
-                        .setScale(
-                                2,
-                                RoundingMode.HALF_UP);
+        // Two years = two times the selected plan's yearly price.
+        // Match the BuyPolicy.jsx premium estimate.
+        BigDecimal taxableAmount = calculatedBasePremium;
 
         // Preserve existing GST calculation behavior.
         BigDecimal totalPremium =
@@ -973,6 +957,14 @@ public class PaymentService {
                 && !request.getRazorpayPaymentId().isBlank()
                 && request.getRazorpaySignature() != null
                 && !request.getRazorpaySignature().isBlank();
+    }
+
+    // Format coverage limits in Indian currency grouping.
+    private String formatIndianAmount(BigDecimal amount) {
+        java.text.NumberFormat formatter = java.text.NumberFormat
+                .getNumberInstance(new java.util.Locale("en", "IN"));
+        formatter.setMaximumFractionDigits(0);
+        return formatter.format(amount);
     }
 
     // =========================================================
