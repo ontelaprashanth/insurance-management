@@ -965,8 +965,8 @@ export default function BuyPolicy() {
     setPaying(true)
 
     let razorpayResponse = null
-    let orderCreated = false
     let checkoutCompleted = false
+    let paymentStage = 'creating_order'
 
     try {
       // Refresh renewal records before creating another order.
@@ -1003,7 +1003,7 @@ export default function BuyPolicy() {
             currency: 'INR',
           })
 
-      orderCreated = true
+      paymentStage = 'validating_order'
 
       const order = normalizeOrder(rawOrder)
 
@@ -1029,6 +1029,7 @@ export default function BuyPolicy() {
         )
       }
 
+      paymentStage = 'razorpay_checkout'
       razorpayResponse = await openCheckout(order)
 
       checkoutCompleted = true
@@ -1059,6 +1060,7 @@ export default function BuyPolicy() {
           razorpayResponse.razorpay_payment_id,
       })
 
+      paymentStage = 'verifying_payment'
       // Backend verification is mandatory.
       const saved = isRenewal
         ? await renewals.confirm(
@@ -1140,31 +1142,38 @@ export default function BuyPolicy() {
           'Do not pay again. Check Payments or contact InsureX support.',
         )
       } else {
-        const networkUncertain =
-          paymentError?.code === 'ERR_NETWORK' ||
-          paymentError?.code === 'ECONNABORTED' ||
-          paymentError?.code === 'ETIMEDOUT' ||
-          (
-            paymentError?.response &&
-            paymentError.response.status >= 500
-          )
-
-        // If order creation itself was uncertain,
-        // another order should not be created blindly.
+        // Order creation is NOT a payment. A timeout or HTTP 5xx here
+        // may leave an unused Razorpay order, but no checkout payment
+        // has been confirmed. Do not permanently lock the Pay button.
+        // Only a successful Razorpay callback followed by failed backend
+        // verification is treated as an uncertain completed payment.
         if (
-          !orderCreated &&
-          networkUncertain
+          paymentStage === 'creating_order' ||
+          paymentStage === 'validating_order'
         ) {
-          setPaymentUncertain(true)
+          setPaymentUncertain(false)
+          setPaymentReference(null)
+          setError(
+            `${errorMessage(paymentError, 'Could not create the payment order.')} ` +
+            'Razorpay payment was not started. Check your connection or backend status, then try again.',
+          )
+        } else {
+          // Checkout closed or failed before the success callback.
+          // A bank debit can still require investigation, so never
+          // claim that no money was charged.
+          setPaymentUncertain(false)
+          setError(
+            `${errorMessage(paymentError, 'Razorpay checkout did not complete.')} ` +
+            'If your bank shows a debit, verify the payment in Razorpay or with support before retrying.',
+          )
         }
-
-        setError(
-          errorMessage(
-            paymentError,
-            'Unable to start or complete checkout.',
-          ),
-        )
       }
+      console.error('InsureX checkout failed:', {
+        stage: paymentStage,
+        code: paymentError?.code,
+        status: paymentError?.response?.status,
+        message: paymentError?.message,
+      })
     } finally {
       paymentLock.current = false
       setPaying(false)
@@ -1593,9 +1602,9 @@ export default function BuyPolicy() {
                               {' '}of cover, per year
                             </dd>
 
-                            <dt>Multi-year discount</dt>
+                            <dt>Multi-year pricing</dt>
                             <dd>
-                              5% off for 2 years or more
+                              Annual premium × selected years
                             </dd>
 
                             <dt>GST</dt>
