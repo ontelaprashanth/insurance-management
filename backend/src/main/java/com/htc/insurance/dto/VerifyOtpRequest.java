@@ -1,37 +1,30 @@
+
 package com.htc.insurance.dto;
 
+import lombok.Getter;
+import lombok.Setter;
+import lombok.NoArgsConstructor;
+
+@Getter
+@Setter
+@NoArgsConstructor
 public class VerifyOtpRequest {
+
+    // =========================================================
+    // USER IDENTIFIER
+    // =========================================================
 
     private String identifier;
 
+    // =========================================================
+    // OTP
+    // =========================================================
+
     private String otp;
 
+    // =========================================================
+    // OTP PURPOSE
+    // =========================================================
+
     private String purpose;
-
-    public VerifyOtpRequest() {
-    }
-
-    public String getIdentifier() {
-        return identifier;
-    }
-
-    public void setIdentifier(String identifier) {
-        this.identifier = identifier;
-    }
-
-    public String getOtp() {
-        return otp;
-    }
-
-    public void setOtp(String otp) {
-        this.otp = otp;
-    }
-
-    public String getPurpose() {
-        return purpose;
-    }
-
-    public void setPurpose(String purpose) {
-        this.purpose = purpose;
-    }
 }
