@@ -1,3 +1,4 @@
+
 package com.htc.insurance.mapper;
 
 import org.mapstruct.Mapper;
@@ -9,13 +10,29 @@ import com.htc.insurance.entity.Reviewer;
 @Mapper(componentModel = "spring")
 public interface ReviewerMapper {
 
+    // =========================================================
+    // REVIEWER DTO TO ENTITY
+    // =========================================================
+
     @Mapping(target = "user", ignore = true)
     @Mapping(target = "claim", ignore = true)
     Reviewer convertReviewerDtoToEntity(
-            ReviewerDto reviewerDto);
+            ReviewerDto reviewerDto
+    );
 
-    @Mapping(source = "user.userId", target = "userId")
-    @Mapping(source = "claim.claimNumber", target = "claimNumber")
+    // =========================================================
+    // REVIEWER ENTITY TO DTO
+    // =========================================================
+
+    @Mapping(
+        source = "user.userId",
+        target = "userId"
+    )
+    @Mapping(
+        source = "claim.claimNumber",
+        target = "claimNumber"
+    )
     ReviewerDto convertReviewerEntityToDto(
-            Reviewer reviewer);
+            Reviewer reviewer
+    );
 }
