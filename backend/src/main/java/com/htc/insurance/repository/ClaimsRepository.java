@@ -15,73 +15,82 @@ public interface ClaimsRepository
         extends JpaRepository<Claims, Long> {
 
     // =========================================================
-    // REFUND PROTECTION - PRESERVED
+    // REFUND PROTECTION
     // =========================================================
 
     /**
      * Returns true if a policy has ever had a claim.
      *
+     * IMPORTANT:
      * Even a REJECTED claim prevents a refund.
      *
      * Do not replace this with a status-based check.
      */
     boolean existsByPolicy_PolicyNumber(
-            Long policyNumber);
+            Long policyNumber
+    );
 
     // =========================================================
-    // GET CLAIMS FOR A SPECIFIC POLICY
+    // GET CLAIM HISTORY FOR A POLICY
     // =========================================================
 
     /**
-     * Retrieves claim history for a particular policy.
+     * Retrieves all claims for a particular policy.
      *
-     * Includes PENDING, APPROVED, REJECTED and SETTLED.
+     * Includes:
+     * PENDING, APPROVED, REJECTED, SETTLED.
+     *
+     * Newest claim number first.
      */
     List<Claims> findByPolicy_PolicyNumberOrderByClaimNumberDesc(
-            Long policyNumber);
+            Long policyNumber
+    );
 
     // =========================================================
-    // CHECK FOR BLOCKING CLAIM STATUS
+    // CHECK FOR BLOCKING CLAIM STATUSES
     // =========================================================
 
     /**
-     * Checks whether a policy has any claims matching
-     * the supplied statuses.
+     * Checks whether a policy has any claims
+     * matching the supplied statuses.
      *
-     * Used to block duplicate claim submissions.
+     * Used to prevent duplicate claim submissions.
      *
-     * Example blocking statuses:
+     * Example:
      * PENDING, APPROVED, SETTLED.
      */
     boolean existsByPolicy_PolicyNumberAndStatusIn(
             Long policyNumber,
-            Collection<ClaimStatus> statuses);
+            Collection<ClaimStatus> statuses
+    );
 
     // =========================================================
-    // CHECK FOR A PARTICULAR CLAIM STATUS
+    // CHECK A PARTICULAR CLAIM STATUS
     // =========================================================
 
     /**
-     * Useful for renewal eligibility checks.
+     * Checks whether a policy has a claim
+     * with the specified status.
      *
-     * Example:
-     * APPROVED or SETTLED.
+     * Useful for renewal eligibility.
      */
     boolean existsByPolicy_PolicyNumberAndStatus(
             Long policyNumber,
-            ClaimStatus status);
+            ClaimStatus status
+    );
 
     // =========================================================
-    // GET CLAIMS BY STATUS FOR A POLICY
+    // GET CLAIMS BY SELECTED STATUSES
     // =========================================================
 
     /**
-     * Retrieves claims matching selected statuses
-     * for a specific policy.
+     * Retrieves claims matching the selected
+     * statuses for a particular policy.
      *
-     * Useful for admin processing and claim history.
+     * Useful for admin processing and history.
      */
     List<Claims> findByPolicy_PolicyNumberAndStatusIn(
             Long policyNumber,
-            Collection<ClaimStatus> statuses);
+            Collection<ClaimStatus> statuses
+    );
 }
