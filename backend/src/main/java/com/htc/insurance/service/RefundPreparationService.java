@@ -1,4 +1,3 @@
-
 package com.htc.insurance.service;
 
 import java.math.BigDecimal;
@@ -21,7 +20,10 @@ import com.htc.insurance.entity.PolicyPurchase;
 
 import com.htc.insurance.repository.RefundAttemptRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class RefundPreparationService {
 
     private static final long REFUND_WINDOW_HOURS = 24;
@@ -36,18 +38,6 @@ public class RefundPreparationService {
     private final PolicyDao policyDao;
     private final ClaimsDao claimsDao;
     private final RefundAttemptRepository refundAttemptRepository;
-
-    public RefundPreparationService(
-            PolicyPurchaseDao policyPurchaseDao,
-            PolicyDao policyDao,
-            ClaimsDao claimsDao,
-            RefundAttemptRepository refundAttemptRepository) {
-
-        this.policyPurchaseDao = policyPurchaseDao;
-        this.policyDao = policyDao;
-        this.claimsDao = claimsDao;
-        this.refundAttemptRepository = refundAttemptRepository;
-    }
 
     // =========================================================
     // PREPARE REFUND
