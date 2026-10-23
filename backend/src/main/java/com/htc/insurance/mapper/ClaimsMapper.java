@@ -1,3 +1,4 @@
+
 package com.htc.insurance.mapper;
 
 import org.mapstruct.Mapper;
@@ -9,12 +10,15 @@ import com.htc.insurance.entity.Claims;
 @Mapper(componentModel = "spring")
 public interface ClaimsMapper {
 
+    // =========================================================
+    // CLAIMS ENTITY TO DTO
+    // =========================================================
+
     @Mapping(
         source = "policy.policyNumber",
         target = "policyNumber"
     )
     @Mapping(
-        source = "reviewers",
         target = "reviewerId",
         ignore = true
     )
@@ -22,13 +26,15 @@ public interface ClaimsMapper {
             Claims claims
     );
 
+    // =========================================================
+    // CLAIMS DTO TO ENTITY
+    // =========================================================
+
     @Mapping(
-        source = "policyNumber",
         target = "policy",
         ignore = true
     )
     @Mapping(
-        source = "reviewerId",
         target = "reviewers",
         ignore = true
     )
