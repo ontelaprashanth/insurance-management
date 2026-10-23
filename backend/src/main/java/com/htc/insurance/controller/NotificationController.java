@@ -1,28 +1,24 @@
+
 package com.htc.insurance.controller;
 
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.NotificationDto;
 import com.htc.insurance.service.NotificationService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/api/notifications")
+@RequiredArgsConstructor
 public class NotificationController {
 
-    @Autowired
-    private NotificationService notificationService;
-
+    private final NotificationService notificationService;
 
     // =========================================================
     // GET MY NOTIFICATIONS
@@ -33,32 +29,28 @@ public class NotificationController {
             Authentication authentication) {
 
         return ResponseEntity.ok(
-                notificationService
-                        .getMyNotifications(authentication)
+                notificationService.getMyNotifications(authentication)
         );
     }
 
-
     // =========================================================
-    // GET UNREAD COUNT
+    // GET UNREAD NOTIFICATION COUNT
     // =========================================================
 
     @GetMapping("/unread-count")
     public ResponseEntity<Map<String, Long>> getUnreadCount(
             Authentication authentication) {
 
-        long count =
-                notificationService
-                        .getUnreadCount(authentication);
-
         return ResponseEntity.ok(
-                Map.of("count", count)
+                Map.of(
+                        "count",
+                        notificationService.getUnreadCount(authentication)
+                )
         );
     }
 
-
     // =========================================================
-    // MARK ONE AS READ
+    // MARK NOTIFICATION AS READ
     // =========================================================
 
     @PutMapping("/read/{notificationId}")
@@ -74,24 +66,20 @@ public class NotificationController {
         );
     }
 
-
     // =========================================================
-    // MARK ALL AS READ
+    // MARK ALL NOTIFICATIONS AS READ
     // =========================================================
 
     @PutMapping("/read-all")
     public ResponseEntity<String> markAllAsRead(
             Authentication authentication) {
 
-        notificationService.markAllAsRead(
-                authentication
-        );
+        notificationService.markAllAsRead(authentication);
 
         return ResponseEntity.ok(
                 "All notifications marked as read."
         );
     }
-
 
     // =========================================================
     // DELETE NOTIFICATION
