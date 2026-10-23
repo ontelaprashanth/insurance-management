@@ -45,9 +45,6 @@ public class PaymentService {
     // PAYMENT CONFIGURATION
     // =========================================================
 
-    private static final BigDecimal MIN_COVERAGE =
-            new BigDecimal("1000000");
-
     private static final BigDecimal MAX_COVERAGE =
             new BigDecimal("10000000");
 
@@ -115,21 +112,6 @@ public class PaymentService {
         }
 
         // =====================================================
-        // VALIDATE COVERAGE
-        // =====================================================
-
-        if (request.getCoverageAmount() == null
-                || request.getCoverageAmount()
-                    .compareTo(MIN_COVERAGE) < 0
-                || request.getCoverageAmount()
-                    .compareTo(MAX_COVERAGE) > 0) {
-
-            throw new IllegalArgumentException(
-                    "Coverage must be between "
-                    + "₹10,00,000 and ₹1,00,00,000.");
-        }
-
-        // =====================================================
         // VALIDATE DURATION
         // =====================================================
 
@@ -188,6 +170,33 @@ public class PaymentService {
             throw new IllegalStateException(
                     "The selected insurance plan "
                     + "has invalid pricing.");
+        }
+
+        // =====================================================
+        // VALIDATE COVERAGE AGAINST THE SELECTED PLAN
+        // =====================================================
+
+        // The base coverage stored for each plan is its minimum
+        // selectable coverage. Do not apply a universal ₹10 lakh
+        // minimum to plans whose base coverage is lower.
+        BigDecimal minimumCoverage = baseCoverage;
+
+        // Preserve the existing ₹1 crore ceiling. Plans with a
+        // base coverage above that ceiling can still be purchased
+        // at their advertised base coverage.
+        BigDecimal maximumCoverage = MAX_COVERAGE.max(baseCoverage);
+
+        if (request.getCoverageAmount() == null
+                || request.getCoverageAmount().compareTo(minimumCoverage) < 0
+                || request.getCoverageAmount().compareTo(maximumCoverage) > 0) {
+
+            throw new IllegalArgumentException(
+                    "Coverage for " + plan.getPlanName()
+                    + " must be between ₹"
+                    + minimumCoverage.stripTrailingZeros().toPlainString()
+                    + " and ₹"
+                    + maximumCoverage.stripTrailingZeros().toPlainString()
+                    + ".");
         }
 
         // =====================================================
