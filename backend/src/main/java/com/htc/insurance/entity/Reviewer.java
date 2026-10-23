@@ -10,13 +10,28 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(name = "reviewer")
+@Getter
+@Setter
+@NoArgsConstructor
 public class Reviewer {
+
+    // =========================================================
+    // PRIMARY KEY
+    // =========================================================
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long reviewerId;
+
+    // =========================================================
+    // REVIEWER DETAILS
+    // =========================================================
 
     private String name;
 
@@ -24,148 +39,51 @@ public class Reviewer {
 
     private String contactNumber;
 
+    // =========================================================
+    // RATING
+    // =========================================================
+
     private Integer rating;
 
-    @Column(name = "review", columnDefinition = "TEXT")
+    // =========================================================
+    // REVIEW
+    // =========================================================
+
+    @Column(
+        name = "review",
+        columnDefinition = "TEXT"
+    )
     private String review;
 
-    @Column(name = "admin_reply", columnDefinition = "TEXT")
+    // =========================================================
+    // ADMIN REPLY
+    // =========================================================
+
+    @Column(
+        name = "admin_reply",
+        columnDefinition = "TEXT"
+    )
     private String adminReply;
 
+    // =========================================================
+    // REVIEW STATUS
+    // =========================================================
+
     private String status;
+
+    // =========================================================
+    // USER RELATIONSHIP
+    // =========================================================
 
     @ManyToOne
     @JoinColumn(name = "user_id")
     private User user;
 
+    // =========================================================
+    // CLAIM RELATIONSHIP
+    // =========================================================
+
     @ManyToOne
     @JoinColumn(name = "claim_number")
     private Claims claim;
-
-    // =====================================================
-    // DEFAULT CONSTRUCTOR
-    // =====================================================
-
-    public Reviewer() {
-    }
-
-    // =====================================================
-    // REVIEWER ID
-    // =====================================================
-
-    public Long getReviewerId() {
-        return reviewerId;
-    }
-
-    public void setReviewerId(Long reviewerId) {
-        this.reviewerId = reviewerId;
-    }
-
-    // =====================================================
-    // NAME
-    // =====================================================
-
-    public String getName() {
-        return name;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    // =====================================================
-    // EMAIL
-    // =====================================================
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    // =====================================================
-    // CONTACT NUMBER
-    // =====================================================
-
-    public String getContactNumber() {
-        return contactNumber;
-    }
-
-    public void setContactNumber(String contactNumber) {
-        this.contactNumber = contactNumber;
-    }
-
-    // =====================================================
-    // RATING
-    // =====================================================
-
-    public Integer getRating() {
-        return rating;
-    }
-
-    public void setRating(Integer rating) {
-        this.rating = rating;
-    }
-
-    // =====================================================
-    // REVIEW
-    // =====================================================
-
-    public String getReview() {
-        return review;
-    }
-
-    public void setReview(String review) {
-        this.review = review;
-    }
-
-    // =====================================================
-    // ADMIN REPLY
-    // =====================================================
-
-    public String getAdminReply() {
-        return adminReply;
-    }
-
-    public void setAdminReply(String adminReply) {
-        this.adminReply = adminReply;
-    }
-
-    // =====================================================
-    // STATUS
-    // =====================================================
-
-    public String getStatus() {
-        return status;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    // =====================================================
-    // USER RELATIONSHIP
-    // =====================================================
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    // =====================================================
-    // CLAIM RELATIONSHIP
-    // =====================================================
-
-    public Claims getClaim() {
-        return claim;
-    }
-
-    public void setClaim(Claims claim) {
-        this.claim = claim;
-    }
 }
