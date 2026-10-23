@@ -13,12 +13,15 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.htc.insurance.entity.OtpVerification;
 import com.htc.insurance.repository.OtpVerificationRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class OtpService {
 
     private final OtpVerificationRepository otpRepository;
 
-    private final RestClient restClient;
+    private final RestClient restClient = RestClient.create();
 
     @Value("${messagecentral.base-url}")
     private String baseUrl;
@@ -46,13 +49,6 @@ public class OtpService {
 
     @Value("${messagecentral.max-attempts:5}")
     private int maxAttempts;
-
-    public OtpService(
-            OtpVerificationRepository otpRepository) {
-
-        this.otpRepository = otpRepository;
-        this.restClient = RestClient.create();
-    }
 
     // =========================================================
     // GENERATE AND SEND OTP
