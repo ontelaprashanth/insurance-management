@@ -1,3 +1,4 @@
+
 package com.htc.insurance.entity;
 
 import java.time.LocalDateTime;
@@ -12,17 +13,36 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(name = "notifications")
+@Getter
+@Setter
+@NoArgsConstructor
 public class Notification {
+
+    // =========================================================
+    // NOTIFICATION ID
+    // =========================================================
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long notificationId;
 
+    // =========================================================
+    // USER RELATIONSHIP
+    // =========================================================
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    // =========================================================
+    // NOTIFICATION DETAILS
+    // =========================================================
 
     @Column(nullable = false, length = 100)
     private String title;
@@ -33,79 +53,24 @@ public class Notification {
     @Column(nullable = false, length = 50)
     private String type;
 
+    // =========================================================
+    // READ STATUS
+    // =========================================================
+
     @Column(nullable = false)
     private Boolean isRead = false;
+
+    // =========================================================
+    // CREATED DATE
+    // =========================================================
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    // =========================================================
+    // NOTIFICATION SOURCE
+    // =========================================================
+
     @Column(nullable = false, length = 20)
     private String source = "SYSTEM";
-
-    public Notification() {
-    }
-
-    public Long getNotificationId() {
-        return notificationId;
-    }
-
-    public void setNotificationId(Long notificationId) {
-        this.notificationId = notificationId;
-    }
-
-    public User getUser() {
-        return user;
-    }
-
-    public void setUser(User user) {
-        this.user = user;
-    }
-
-    public String getTitle() {
-        return title;
-    }
-
-    public void setTitle(String title) {
-        this.title = title;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public void setMessage(String message) {
-        this.message = message;
-    }
-
-    public String getType() {
-        return type;
-    }
-
-    public void setType(String type) {
-        this.type = type;
-    }
-
-    public Boolean getIsRead() {
-        return isRead;
-    }
-
-    public void setIsRead(Boolean isRead) {
-        this.isRead = isRead;
-    }
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public void setCreatedAt(LocalDateTime createdAt) {
-        this.createdAt = createdAt;
-    }
-
-    public String getSource() {
-        return source;
-    }
-
-    public void setSource(String source) {
-        this.source = source;
-    }
 }
