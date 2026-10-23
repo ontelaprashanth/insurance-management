@@ -4,8 +4,8 @@ package com.htc.insurance.controller;
 import java.util.List;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
@@ -13,16 +13,18 @@ import org.springframework.web.bind.annotation.*;
 import com.htc.insurance.dto.SettlementDto;
 import com.htc.insurance.service.SettlementService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/settlement")
 @PreAuthorize("hasRole('ADMIN')")
+@RequiredArgsConstructor
 public class SettlementController {
 
-    @Autowired
-    private SettlementService settlementService;
+    private final SettlementService settlementService;
 
     // =========================================================
-    // CREATE SETTLEMENT
+    // ADMIN - CREATE SETTLEMENT
     // =========================================================
 
     @PostMapping("/save")
@@ -30,41 +32,37 @@ public class SettlementController {
             @RequestBody SettlementDto dto) {
 
         return ResponseEntity.ok(
-                settlementService.saveSettlement(dto));
+                settlementService.saveSettlement(dto)
+        );
     }
 
     // =========================================================
-    // GET ALL SETTLEMENTS
+    // ADMIN - GET ALL SETTLEMENTS
     // =========================================================
 
     @GetMapping("/getAll")
     public ResponseEntity<List<SettlementDto>> getAllSettlements() {
 
         return ResponseEntity.ok(
-                settlementService.getAllSettlements());
+                settlementService.getAllSettlements()
+        );
     }
 
     // =========================================================
-    // GET SETTLEMENT BY ID
+    // ADMIN - GET SETTLEMENT BY ID
     // =========================================================
 
     @GetMapping("/get/{settlementNumber}")
     public ResponseEntity<SettlementDto> getSettlementById(
             @PathVariable Long settlementNumber) {
 
-        SettlementDto settlement =
-                settlementService.getSettlementById(
-                        settlementNumber);
-
-        if (settlement == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(settlement);
+        return respond(
+                settlementService.getSettlementById(settlementNumber)
+        );
     }
 
     // =========================================================
-    // GET SETTLEMENTS BY CLAIM NUMBER
+    // ADMIN - GET SETTLEMENTS BY CLAIM NUMBER
     // =========================================================
 
     @GetMapping("/claim/{claimNumber}")
@@ -72,12 +70,14 @@ public class SettlementController {
             @PathVariable Long claimNumber) {
 
         return ResponseEntity.ok(
-                settlementService
-                        .getSettlementsByClaimNumber(claimNumber));
+                settlementService.getSettlementsByClaimNumber(
+                        claimNumber
+                )
+        );
     }
 
     // =========================================================
-    // UPDATE PENDING SETTLEMENT
+    // ADMIN - UPDATE PENDING SETTLEMENT
     // =========================================================
 
     @PutMapping("/update/{settlementNumber}")
@@ -85,20 +85,16 @@ public class SettlementController {
             @PathVariable Long settlementNumber,
             @RequestBody SettlementDto dto) {
 
-        SettlementDto updated =
+        return respond(
                 settlementService.updateSettlement(
                         settlementNumber,
-                        dto);
-
-        if (updated == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(updated);
+                        dto
+                )
+        );
     }
 
     // =========================================================
-    // RECORD BANK TRANSFER
+    // ADMIN - RECORD BANK TRANSFER
     // PENDING / FAILED -> PROCESSING
     // =========================================================
 
@@ -112,25 +108,26 @@ public class SettlementController {
                 settlementService.recordTransfer(
                         settlementNumber,
                         dto,
-                        getAdminUsername(authentication)));
+                        requireAdminUsername(authentication)
+                )
+        );
     }
 
     // =========================================================
-    // LEGACY PROCESS ENDPOINT
+    // ADMIN - LEGACY PROCESS ENDPOINT
     // =========================================================
 
     /*
      * Preserved for backward compatibility.
      *
-     * The current SettlementService intentionally rejects
-     * this operation because a bank transaction reference
-     * must be recorded first.
+     * SettlementService intentionally rejects processing
+     * without first recording a bank transaction reference.
      *
-     * Frontend must use:
-     *
+     * Use:
      * PUT /settlement/transfer/{settlementNumber}
      *
-     * This endpoint must never mark a claim as SETTLED.
+     * This endpoint must not independently mark
+     * a claim as SETTLED.
      */
 
     @PutMapping("/process/{settlementNumber}")
@@ -139,11 +136,13 @@ public class SettlementController {
 
         return ResponseEntity.ok(
                 settlementService.processSettlement(
-                        settlementNumber));
+                        settlementNumber
+                )
+        );
     }
 
     // =========================================================
-    // CONFIRM SUCCESSFUL BANK PAYMENT
+    // ADMIN - CONFIRM SUCCESSFUL BANK PAYMENT
     // PROCESSING -> SETTLED
     // =========================================================
 
@@ -153,19 +152,17 @@ public class SettlementController {
             @RequestBody Map<String, String> request,
             Authentication authentication) {
 
-        String remarks = request == null
-                ? null
-                : request.get("confirmationRemarks");
-
         return ResponseEntity.ok(
                 settlementService.confirmSettlement(
                         settlementNumber,
-                        remarks,
-                        getAdminUsername(authentication)));
+                        requestValue(request, "confirmationRemarks"),
+                        requireAdminUsername(authentication)
+                )
+        );
     }
 
     // =========================================================
-    // RECORD FAILED BANK TRANSFER
+    // ADMIN - RECORD FAILED BANK TRANSFER
     // PROCESSING -> FAILED
     // =========================================================
 
@@ -174,18 +171,16 @@ public class SettlementController {
             @PathVariable Long settlementNumber,
             @RequestBody Map<String, String> request) {
 
-        String reason = request == null
-                ? null
-                : request.get("reason");
-
         return ResponseEntity.ok(
                 settlementService.failSettlement(
                         settlementNumber,
-                        reason));
+                        requestValue(request, "reason")
+                )
+        );
     }
 
     // =========================================================
-    // REJECT PENDING SETTLEMENT
+    // ADMIN - REJECT PENDING SETTLEMENT
     // PENDING -> REJECTED
     // =========================================================
 
@@ -194,18 +189,16 @@ public class SettlementController {
             @PathVariable Long settlementNumber,
             @RequestBody Map<String, String> request) {
 
-        String reason = request == null
-                ? null
-                : request.get("rejectionReason");
-
         return ResponseEntity.ok(
                 settlementService.rejectSettlement(
                         settlementNumber,
-                        reason));
+                        requestValue(request, "rejectionReason")
+                )
+        );
     }
 
     // =========================================================
-    // DELETE PENDING SETTLEMENT
+    // ADMIN - DELETE PENDING SETTLEMENT
     // =========================================================
 
     @DeleteMapping("/delete/{settlementNumber}")
@@ -215,14 +208,38 @@ public class SettlementController {
         settlementService.deleteSettlement(settlementNumber);
 
         return ResponseEntity.ok(
-                "Settlement deleted successfully.");
+                "Settlement deleted successfully."
+        );
     }
 
     // =========================================================
-    // AUTHENTICATED ADMINISTRATOR
+    // SHARED SETTLEMENT RESPONSE
     // =========================================================
 
-    private String getAdminUsername(
+    private ResponseEntity<SettlementDto> respond(
+            SettlementDto settlement) {
+
+        return settlement == null
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(settlement);
+    }
+
+    // =========================================================
+    // SAFE REQUEST VALUE EXTRACTION
+    // =========================================================
+
+    private String requestValue(
+            Map<String, String> request,
+            String key) {
+
+        return request == null ? null : request.get(key);
+    }
+
+    // =========================================================
+    // AUTHENTICATED ADMIN USERNAME
+    // =========================================================
+
+    private String requireAdminUsername(
             Authentication authentication) {
 
         if (authentication == null
@@ -230,9 +247,9 @@ public class SettlementController {
                 || authentication.getName() == null
                 || authentication.getName().isBlank()) {
 
-            throw new org.springframework.security.access
-                    .AccessDeniedException(
-                            "Administrator authentication is required.");
+            throw new AccessDeniedException(
+                    "Administrator authentication is required."
+            );
         }
 
         return authentication.getName();
