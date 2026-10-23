@@ -1,3 +1,4 @@
+
 package com.htc.insurance.security;
 
 import java.nio.charset.StandardCharsets;
@@ -15,10 +16,13 @@ import io.jsonwebtoken.security.Keys;
 @Service
 public class JwtService {
 
+    // =========================================================
+    // JWT CONFIGURATION
+    // =========================================================
+
     private final SecretKey key;
 
     private final long expirationTime;
-
 
     // =========================================================
     // CONSTRUCTOR
@@ -29,20 +33,18 @@ public class JwtService {
             @Value("${jwt.expiration:3600000}") long expirationTime) {
 
         if (secret == null || secret.length() < 32) {
+
             throw new IllegalArgumentException(
                     "JWT secret must contain at least 32 characters."
             );
         }
 
-        this.key =
-                Keys.hmacShaKeyFor(
-                        secret.getBytes(StandardCharsets.UTF_8)
-                );
+        this.key = Keys.hmacShaKeyFor(
+                secret.getBytes(StandardCharsets.UTF_8)
+        );
 
-        this.expirationTime =
-                expirationTime;
+        this.expirationTime = expirationTime;
     }
-
 
     // =========================================================
     // GENERATE JWT TOKEN
@@ -72,7 +74,6 @@ public class JwtService {
                 .compact();
     }
 
-
     // =========================================================
     // EXTRACT USERNAME
     // =========================================================
@@ -80,20 +81,18 @@ public class JwtService {
     public String extractUsername(
             String token) {
 
-        Claims claims =
-                Jwts.parser()
+        Claims claims = Jwts.parser()
 
-                        .verifyWith(key)
+                .verifyWith(key)
 
-                        .build()
+                .build()
 
-                        .parseSignedClaims(token)
+                .parseSignedClaims(token)
 
-                        .getPayload();
+                .getPayload();
 
         return claims.getSubject();
     }
-
 
     // =========================================================
     // EXTRACT ROLE
@@ -102,23 +101,21 @@ public class JwtService {
     public String extractRole(
             String token) {
 
-        Claims claims =
-                Jwts.parser()
+        Claims claims = Jwts.parser()
 
-                        .verifyWith(key)
+                .verifyWith(key)
 
-                        .build()
+                .build()
 
-                        .parseSignedClaims(token)
+                .parseSignedClaims(token)
 
-                        .getPayload();
+                .getPayload();
 
         return claims.get(
                 "role",
                 String.class
         );
     }
-
 
     // =========================================================
     // VALIDATE JWT TOKEN
@@ -144,7 +141,6 @@ public class JwtService {
             return false;
         }
     }
-
 
     // =========================================================
     // VALIDATE TOKEN FOR SPECIFIC USER
