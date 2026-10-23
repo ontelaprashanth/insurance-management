@@ -6,6 +6,8 @@ import java.time.LocalDateTime;
 import java.util.Locale;
 
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,6 +24,7 @@ import com.htc.insurance.entity.RefundAttemptStatus;
 import com.htc.insurance.repository.RefundAttemptRepository;
 
 @Service
+@RequiredArgsConstructor
 public class RefundAttemptPersistenceService {
 
     // =========================================================
@@ -51,15 +54,6 @@ public class RefundAttemptPersistenceService {
     private final PolicyPurchaseDao purchaseDao;
     private final PolicyDao policyDao;
 
-    public RefundAttemptPersistenceService(
-            RefundAttemptRepository refundRepository,
-            PolicyPurchaseDao purchaseDao,
-            PolicyDao policyDao) {
-
-        this.refundRepository = refundRepository;
-        this.purchaseDao = purchaseDao;
-        this.policyDao = policyDao;
-    }
 
     // =========================================================
     // BEGIN REFUND
