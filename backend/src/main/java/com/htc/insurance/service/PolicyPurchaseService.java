@@ -44,14 +44,8 @@ public class PolicyPurchaseService {
     private static final Logger log =
             LoggerFactory.getLogger(PolicyPurchaseService.class);
 
-    private static final BigDecimal MINIMUM_COVERAGE =
-            new BigDecimal("1000000.00");
-
     private static final BigDecimal MAXIMUM_COVERAGE =
             new BigDecimal("10000000.00");
-
-    private static final BigDecimal DISCOUNT_RATE =
-            new BigDecimal("0.05");
 
     private static final BigDecimal GST_RATE =
             new BigDecimal("0.00");
@@ -546,14 +540,11 @@ public class PolicyPurchaseService {
         }
 
         if (dto.getCoverageAmount() == null
-                || dto.getCoverageAmount()
-                        .compareTo(MINIMUM_COVERAGE) < 0
-                || dto.getCoverageAmount()
-                        .compareTo(MAXIMUM_COVERAGE) > 0) {
+                || dto.getCoverageAmount().compareTo(BigDecimal.ZERO) <= 0
+                || dto.getCoverageAmount().compareTo(MAXIMUM_COVERAGE) > 0) {
 
             throw new IllegalArgumentException(
-                    "Coverage must be between INR 10 lakh "
-                    + "and INR 1 crore.");
+                    "Coverage must be positive and must not exceed INR 1 crore.");
         }
 
         if (dto.getDurationYears() == null
@@ -640,6 +631,14 @@ public class PolicyPurchaseService {
                     "Insurance plan pricing is invalid.");
         }
 
+        // Enforce the minimum coverage of the selected catalogue plan.
+        if (coverage == null
+                || coverage.compareTo(plan.getBaseCoverage()) < 0
+                || coverage.compareTo(MAXIMUM_COVERAGE) > 0) {
+            throw new IllegalArgumentException(
+                    "Coverage is outside the selected plan's allowed range.");
+        }
+
         BigDecimal coverageFactor = coverage.divide(
                 plan.getBaseCoverage(),
                 10,
@@ -653,12 +652,7 @@ public class PolicyPurchaseService {
         BigDecimal discountAmount = BigDecimal.ZERO
                 .setScale(2, RoundingMode.HALF_UP);
 
-        if (durationYears >= 2) {
-
-            discountAmount = basePremium
-                    .multiply(DISCOUNT_RATE)
-                    .setScale(2, RoundingMode.HALF_UP);
-        }
+        // No multi-year discount: match PaymentService's order amount.
 
         BigDecimal taxableAmount = basePremium
                 .subtract(discountAmount)
