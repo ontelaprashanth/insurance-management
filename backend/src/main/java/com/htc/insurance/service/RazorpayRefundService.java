@@ -21,6 +21,7 @@ public class RazorpayRefundService {
 
     private final PolicyPurchaseDao purchaseDao;
     private final RefundAttemptPersistenceService persistenceService;
+    private final RefundPreparationService preparationService;
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -33,9 +34,11 @@ public class RazorpayRefundService {
 
     public RazorpayRefundService(
             PolicyPurchaseDao purchaseDao,
-            RefundAttemptPersistenceService persistenceService) {
+            RefundAttemptPersistenceService persistenceService,
+            RefundPreparationService preparationService) {
         this.purchaseDao = purchaseDao;
         this.persistenceService = persistenceService;
+        this.preparationService = preparationService;
     }
 
     /*
@@ -218,6 +221,21 @@ public class RazorpayRefundService {
                     "Razorpay reports an existing refund. "
                     + "Manual reconciliation is required.");
         }
+
+        /*
+         * Prepare under the policy/purchase locks AFTER checking Razorpay,
+         * but BEFORE creating the persistent refund attempt.
+         * This enforces ownership, 24-hour eligibility, claim exclusion,
+         * and policy lifecycle rules without bypassing preparation.
+         *
+         * Both preparation and beginRefund commit independently before
+         * the external refund request. If the process stops between them,
+         * REFUND_PENDING needs operational recovery; never blindly retry.
+         */
+        preparationService.prepareRefund(
+                purchaseId,
+                reason,
+                username);
 
         /*
          * Persist the unique attempt before calling Razorpay.
