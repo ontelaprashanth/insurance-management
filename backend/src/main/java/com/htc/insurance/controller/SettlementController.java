@@ -21,9 +21,9 @@ public class SettlementController {
     @Autowired
     private SettlementService settlementService;
 
-    // ==========================================
+    // =========================================================
     // CREATE SETTLEMENT
-    // ==========================================
+    // =========================================================
 
     @PostMapping("/save")
     public ResponseEntity<SettlementDto> saveSettlement(
@@ -33,9 +33,9 @@ public class SettlementController {
                 settlementService.saveSettlement(dto));
     }
 
-    // ==========================================
+    // =========================================================
     // GET ALL SETTLEMENTS
-    // ==========================================
+    // =========================================================
 
     @GetMapping("/getAll")
     public ResponseEntity<List<SettlementDto>> getAllSettlements() {
@@ -44,9 +44,9 @@ public class SettlementController {
                 settlementService.getAllSettlements());
     }
 
-    // ==========================================
+    // =========================================================
     // GET SETTLEMENT BY ID
-    // ==========================================
+    // =========================================================
 
     @GetMapping("/get/{settlementNumber}")
     public ResponseEntity<SettlementDto> getSettlementById(
@@ -63,9 +63,9 @@ public class SettlementController {
         return ResponseEntity.ok(settlement);
     }
 
-    // ==========================================
-    // GET SETTLEMENTS BY CLAIM
-    // ==========================================
+    // =========================================================
+    // GET SETTLEMENTS BY CLAIM NUMBER
+    // =========================================================
 
     @GetMapping("/claim/{claimNumber}")
     public ResponseEntity<List<SettlementDto>> getSettlementsByClaim(
@@ -76,9 +76,9 @@ public class SettlementController {
                         .getSettlementsByClaimNumber(claimNumber));
     }
 
-    // ==========================================
+    // =========================================================
     // UPDATE PENDING SETTLEMENT
-    // ==========================================
+    // =========================================================
 
     @PutMapping("/update/{settlementNumber}")
     public ResponseEntity<SettlementDto> updateSettlement(
@@ -87,7 +87,8 @@ public class SettlementController {
 
         SettlementDto updated =
                 settlementService.updateSettlement(
-                        settlementNumber, dto);
+                        settlementNumber,
+                        dto);
 
         if (updated == null) {
             return ResponseEntity.notFound().build();
@@ -96,9 +97,10 @@ public class SettlementController {
         return ResponseEntity.ok(updated);
     }
 
-    // ==========================================
+    // =========================================================
     // RECORD BANK TRANSFER
-    // ==========================================
+    // PENDING / FAILED -> PROCESSING
+    // =========================================================
 
     @PutMapping("/transfer/{settlementNumber}")
     public ResponseEntity<SettlementDto> recordTransfer(
@@ -110,15 +112,26 @@ public class SettlementController {
                 settlementService.recordTransfer(
                         settlementNumber,
                         dto,
-                        authentication.getName()));
+                        getAdminUsername(authentication)));
     }
 
-    // ==========================================
+    // =========================================================
     // LEGACY PROCESS ENDPOINT
-    // ==========================================
-    // Preserve existing route.
-    // Must only transition PENDING -> PROCESSING.
-    // It must NEVER mark a claim as SETTLED.
+    // =========================================================
+
+    /*
+     * Preserved for backward compatibility.
+     *
+     * The current SettlementService intentionally rejects
+     * this operation because a bank transaction reference
+     * must be recorded first.
+     *
+     * Frontend must use:
+     *
+     * PUT /settlement/transfer/{settlementNumber}
+     *
+     * This endpoint must never mark a claim as SETTLED.
+     */
 
     @PutMapping("/process/{settlementNumber}")
     public ResponseEntity<SettlementDto> processSettlement(
@@ -129,9 +142,10 @@ public class SettlementController {
                         settlementNumber));
     }
 
-    // ==========================================
+    // =========================================================
     // CONFIRM SUCCESSFUL BANK PAYMENT
-    // ==========================================
+    // PROCESSING -> SETTLED
+    // =========================================================
 
     @PutMapping("/confirm/{settlementNumber}")
     public ResponseEntity<SettlementDto> confirmSettlement(
@@ -147,12 +161,13 @@ public class SettlementController {
                 settlementService.confirmSettlement(
                         settlementNumber,
                         remarks,
-                        authentication.getName()));
+                        getAdminUsername(authentication)));
     }
 
-    // ==========================================
+    // =========================================================
     // RECORD FAILED BANK TRANSFER
-    // ==========================================
+    // PROCESSING -> FAILED
+    // =========================================================
 
     @PutMapping("/fail/{settlementNumber}")
     public ResponseEntity<SettlementDto> failSettlement(
@@ -165,12 +180,14 @@ public class SettlementController {
 
         return ResponseEntity.ok(
                 settlementService.failSettlement(
-                        settlementNumber, reason));
+                        settlementNumber,
+                        reason));
     }
 
-    // ==========================================
+    // =========================================================
     // REJECT PENDING SETTLEMENT
-    // ==========================================
+    // PENDING -> REJECTED
+    // =========================================================
 
     @PutMapping("/reject/{settlementNumber}")
     public ResponseEntity<SettlementDto> rejectSettlement(
@@ -183,12 +200,13 @@ public class SettlementController {
 
         return ResponseEntity.ok(
                 settlementService.rejectSettlement(
-                        settlementNumber, reason));
+                        settlementNumber,
+                        reason));
     }
 
-    // ==========================================
+    // =========================================================
     // DELETE PENDING SETTLEMENT
-    // ==========================================
+    // =========================================================
 
     @DeleteMapping("/delete/{settlementNumber}")
     public ResponseEntity<String> deleteSettlement(
@@ -198,5 +216,25 @@ public class SettlementController {
 
         return ResponseEntity.ok(
                 "Settlement deleted successfully.");
+    }
+
+    // =========================================================
+    // AUTHENTICATED ADMINISTRATOR
+    // =========================================================
+
+    private String getAdminUsername(
+            Authentication authentication) {
+
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
+
+            throw new org.springframework.security.access
+                    .AccessDeniedException(
+                            "Administrator authentication is required.");
+        }
+
+        return authentication.getName();
     }
 }
