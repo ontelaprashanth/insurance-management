@@ -25,6 +25,10 @@ public class Settlement {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long settlementNumber;
 
+    // =========================================================
+    // SETTLEMENT DETAILS
+    // =========================================================
+
     // Settlement record date
     private LocalDate settlementDate;
 
@@ -35,8 +39,16 @@ public class Settlement {
     @Column(name = "settlement_status", length = 30)
     private String settlementStatus;
 
+    // =========================================================
+    // REJECTION / FAILURE DETAILS
+    // =========================================================
+
     @Column(name = "rejection_reason", length = 1000)
     private String rejectionReason;
+
+    // =========================================================
+    // BANK TRANSFER DETAILS
+    // =========================================================
 
     // Bank transaction reference / UTR
     @Column(name = "transaction_reference", length = 150)
@@ -50,6 +62,10 @@ public class Settlement {
     @Column(name = "transfer_recorded_by", length = 150)
     private String transferRecordedBy;
 
+    // =========================================================
+    // PAYMENT CONFIRMATION DETAILS
+    // =========================================================
+
     // Time settlement was finally confirmed
     @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
@@ -62,7 +78,17 @@ public class Settlement {
     @Column(name = "confirmation_remarks", length = 1000)
     private String confirmationRemarks;
 
+    // =========================================================
+    // CLAIM RELATIONSHIP
+    // =========================================================
+
+    // One settlement per claim.
+    // Failed bank transfers are retried using the same record.
     @ManyToOne
-    @JoinColumn(name = "claim_number")
+    @JoinColumn(
+            name = "claim_number",
+            nullable = false,
+            unique = true
+    )
     private Claims claim;
 }
