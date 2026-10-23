@@ -17,9 +17,20 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.OneToMany;
 import jakarta.persistence.Table;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(name = "claims")
+@Getter
+@Setter
+@NoArgsConstructor
 public class Claims {
+
+    // =========================================================
+    // CLAIM IDENTIFICATION
+    // =========================================================
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,6 +40,10 @@ public class Claims {
 
     @Column(name = "nfilepo")
     private String nFilepo;
+
+    // =========================================================
+    // CLAIM INFORMATION
+    // =========================================================
 
     private BigDecimal amount;
 
@@ -41,6 +56,10 @@ public class Claims {
     @Column(columnDefinition = "TEXT")
     private String description;
 
+    // =========================================================
+    // ADMIN REVIEW
+    // =========================================================
+
     private BigDecimal approvedAmount;
 
     @Column(columnDefinition = "TEXT")
@@ -51,147 +70,32 @@ public class Claims {
 
     private LocalDate reviewedDate;
 
+    // =========================================================
+    // POLICY RELATIONSHIP
+    // =========================================================
+
     @ManyToOne
     @JoinColumn(name = "policy_number")
     private Policy policy;
 
+    // =========================================================
+    // REVIEWER RELATIONSHIP
+    // =========================================================
+
     @OneToMany(mappedBy = "claim")
     private List<Reviewer> reviewers;
+
+    // =========================================================
+    // SETTLEMENT RELATIONSHIP
+    // =========================================================
 
     @OneToMany(mappedBy = "claim")
     private List<Settlement> settlements;
 
+    // =========================================================
+    // CLAIM STATUS
+    // =========================================================
+
     @Enumerated(EnumType.STRING)
     private ClaimStatus status;
-
-    public Claims() {
-    }
-
-    public Long getClaimNumber() {
-        return claimNumber;
-    }
-
-    public void setClaimNumber(Long claimNumber) {
-        this.claimNumber = claimNumber;
-    }
-
-    public LocalDate getClaimDate() {
-        return claimDate;
-    }
-
-    public void setClaimDate(LocalDate claimDate) {
-        this.claimDate = claimDate;
-    }
-
-    public String getNFilepo() {
-        return nFilepo;
-    }
-
-    public void setNFilepo(String nFilepo) {
-        this.nFilepo = nFilepo;
-    }
-
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public String getClaimType() {
-        return claimType;
-    }
-
-    public void setClaimType(String claimType) {
-        this.claimType = claimType;
-    }
-
-    public LocalDate getIncidentDate() {
-        return incidentDate;
-    }
-
-    public void setIncidentDate(LocalDate incidentDate) {
-        this.incidentDate = incidentDate;
-    }
-
-    public String getIncidentLocation() {
-        return incidentLocation;
-    }
-
-    public void setIncidentLocation(String incidentLocation) {
-        this.incidentLocation = incidentLocation;
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public BigDecimal getApprovedAmount() {
-        return approvedAmount;
-    }
-
-    public void setApprovedAmount(BigDecimal approvedAmount) {
-        this.approvedAmount = approvedAmount;
-    }
-
-    public String getAdminRemarks() {
-        return adminRemarks;
-    }
-
-    public void setAdminRemarks(String adminRemarks) {
-        this.adminRemarks = adminRemarks;
-    }
-
-    public String getRejectionReason() {
-        return rejectionReason;
-    }
-
-    public void setRejectionReason(String rejectionReason) {
-        this.rejectionReason = rejectionReason;
-    }
-
-    public LocalDate getReviewedDate() {
-        return reviewedDate;
-    }
-
-    public void setReviewedDate(LocalDate reviewedDate) {
-        this.reviewedDate = reviewedDate;
-    }
-
-    public Policy getPolicy() {
-        return policy;
-    }
-
-    public void setPolicy(Policy policy) {
-        this.policy = policy;
-    }
-
-    public List<Reviewer> getReviewers() {
-        return reviewers;
-    }
-
-    public void setReviewers(List<Reviewer> reviewers) {
-        this.reviewers = reviewers;
-    }
-
-    public List<Settlement> getSettlements() {
-        return settlements;
-    }
-
-    public void setSettlements(List<Settlement> settlements) {
-        this.settlements = settlements;
-    }
-
-    public ClaimStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(ClaimStatus status) {
-        this.status = status;
-    }
 }
