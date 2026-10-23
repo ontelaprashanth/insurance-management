@@ -14,19 +14,20 @@ import com.htc.insurance.entity.PaymentAttempt;
 import com.htc.insurance.entity.PaymentAttemptStatus;
 import com.htc.insurance.repository.PaymentAttemptRepository;
 
+import lombok.RequiredArgsConstructor;
+
 @Service
+@RequiredArgsConstructor
 public class PaymentAttemptService {
 
     private static final String PURCHASE_TYPE_NEW = "NEW";
     private static final String PURCHASE_TYPE_RENEWAL = "RENEWAL";
 
+    // =========================================================
+    // DEPENDENCY INJECTION - LOMBOK
+    // =========================================================
+
     private final PaymentAttemptRepository repository;
-
-    public PaymentAttemptService(
-            PaymentAttemptRepository repository) {
-
-        this.repository = repository;
-    }
 
     // =========================================================
     // NORMAL POLICY PURCHASE - CREATE PAYMENT ATTEMPT
