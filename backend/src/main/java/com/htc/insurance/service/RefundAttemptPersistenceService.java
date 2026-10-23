@@ -119,11 +119,14 @@ public class RefundAttemptPersistenceService {
         // VERIFY REFUND ELIGIBILITY
         // =====================================================
 
-        if (!REFUND_PENDING.equalsIgnoreCase(
+        // A new refund starts from NOT_REFUNDED. This check runs
+        // while the policy and purchase are locked, so only one
+        // request can transition the purchase to REFUND_PROCESSING.
+        if (!"NOT_REFUNDED".equalsIgnoreCase(
                 purchase.getRefundStatus())) {
 
             throw new IllegalStateException(
-                    "Purchase is not awaiting a refund.");
+                    "This purchase is not eligible for a new refund.");
         }
 
         if (refundRepository.existsByPurchaseId(purchaseId)) {
