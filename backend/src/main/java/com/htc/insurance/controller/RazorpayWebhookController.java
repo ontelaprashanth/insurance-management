@@ -4,14 +4,13 @@ package com.htc.insurance.controller;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
-import java.util.Optional;
+import java.util.HexFormat;
 
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 import org.json.JSONObject;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -21,12 +20,14 @@ import com.htc.insurance.entity.RefundAttempt;
 import com.htc.insurance.repository.RefundAttemptRepository;
 import com.htc.insurance.service.RefundAttemptPersistenceService;
 
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/webhooks")
 public class RazorpayWebhookController {
-
-    private static final Logger log =
-            LoggerFactory.getLogger(RazorpayWebhookController.class);
 
     private final RefundAttemptRepository refundRepository;
     private final RefundAttemptPersistenceService persistenceService;
@@ -34,16 +35,8 @@ public class RazorpayWebhookController {
     @Value("${razorpay.webhook.secret:}")
     private String webhookSecret;
 
-    public RazorpayWebhookController(
-            RefundAttemptRepository refundRepository,
-            RefundAttemptPersistenceService persistenceService) {
-
-        this.refundRepository = refundRepository;
-        this.persistenceService = persistenceService;
-    }
-
     // =========================================================
-    // RAZORPAY WEBHOOK ENDPOINT
+    // RAZORPAY WEBHOOK
     // =========================================================
 
     @PostMapping("/razorpay")
@@ -51,97 +44,82 @@ public class RazorpayWebhookController {
             @RequestBody String rawBody,
             @RequestHeader(
                     value = "X-Razorpay-Signature",
-                    required = false) String signature) {
+                    required = false
+            ) String signature) {
 
         // =====================================================
-        // STEP 1: VERIFY WEBHOOK CONFIGURATION
+        // 1. VERIFY WEBHOOK CONFIGURATION
         // =====================================================
 
         if (webhookSecret == null || webhookSecret.isBlank()) {
-
             log.error("Razorpay webhook secret is not configured.");
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Webhook configuration error");
+            return error(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Webhook configuration error"
+            );
         }
 
         // =====================================================
-        // STEP 2: VERIFY RAZORPAY SIGNATURE
+        // 2. VERIFY SIGNATURE
         // =====================================================
 
         if (!isValidSignature(rawBody, signature)) {
-
             log.warn("Rejected Razorpay webhook: invalid signature.");
-
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body("Invalid webhook signature");
+            return error(
+                    HttpStatus.UNAUTHORIZED,
+                    "Invalid webhook signature"
+            );
         }
 
         try {
-
             JSONObject event = new JSONObject(rawBody);
-
             String eventName = event.optString("event", "");
 
             // =================================================
-            // STEP 3: ACCEPT SUPPORTED REFUND EVENTS
+            // 3. FILTER SUPPORTED EVENTS
             // =================================================
 
-            if (!"refund.created".equals(eventName)
-                    && !"refund.processed".equals(eventName)
-                    && !"refund.failed".equals(eventName)) {
-
+            if (!isRefundEvent(eventName)) {
                 return ResponseEntity.ok("Event ignored");
             }
 
             // =================================================
-            // STEP 4: READ REFUND DETAILS
+            // 4. EXTRACT REFUND INFORMATION
             // =================================================
 
-            JSONObject refundEntity = event
+            JSONObject refund = event
                     .getJSONObject("payload")
                     .getJSONObject("refund")
                     .getJSONObject("entity");
 
-            String refundId =
-                    refundEntity.optString("id", "");
-
-            String paymentId =
-                    refundEntity.optString("payment_id", "");
-
-            String status =
-                    refundEntity.optString("status", "");
+            String refundId = refund.optString("id", "");
+            String paymentId = refund.optString("payment_id", "");
+            String status = refund.optString("status", "");
 
             if (refundId.isBlank()
                     || paymentId.isBlank()
                     || status.isBlank()) {
 
-                log.warn(
-                        "Incomplete Razorpay refund webhook: {}",
-                        eventName);
+                log.warn("Incomplete refund webhook: {}", eventName);
 
                 return ResponseEntity.badRequest()
                         .body("Missing refund details");
             }
 
             // =================================================
-            // STEP 5: VALIDATE REFUND AMOUNT
+            // 5. VALIDATE REFUND AMOUNT
             // =================================================
 
-            if (!refundEntity.has("amount")
-                    || refundEntity.isNull("amount")) {
+            if (!refund.has("amount")
+                    || refund.isNull("amount")) {
 
                 return ResponseEntity.badRequest()
                         .body("Missing refund amount");
             }
 
-            long amountInPaise =
-                    refundEntity.getLong("amount");
+            long amountInPaise = refund.getLong("amount");
 
             if (amountInPaise <= 0) {
-
                 return ResponseEntity.badRequest()
                         .body("Invalid refund amount");
             }
@@ -150,152 +128,108 @@ public class RazorpayWebhookController {
                     BigDecimal.valueOf(amountInPaise, 2);
 
             // =================================================
-            // STEP 6: READ REFUND NOTES
+            // 6. EXTRACT REFUND NOTES
             // =================================================
 
-            JSONObject notes =
-                    refundEntity.optJSONObject("notes");
+            JSONObject notes = refund.optJSONObject("notes");
 
-            Long attemptId = null;
-            Long purchaseId = null;
+            Long attemptId = notes == null
+                    ? null
+                    : parsePositiveId(
+                            notes.optString("refund_attempt_id", "")
+                    );
 
-            if (notes != null) {
-
-                attemptId = parsePositiveId(
-                        notes.optString(
-                                "refund_attempt_id", ""));
-
-                purchaseId = parsePositiveId(
-                        notes.optString(
-                                "purchase_id", ""));
-            }
+            Long purchaseId = notes == null
+                    ? null
+                    : parsePositiveId(
+                            notes.optString("purchase_id", "")
+                    );
 
             // =================================================
-            // STEP 7: FIND THE EXISTING REFUND ATTEMPT
+            // 7. FIND EXISTING REFUND ATTEMPT
             // =================================================
 
-            RefundAttempt attempt = null;
-
-            /*
-             * Preferred: attempt ID included in Razorpay notes.
-             */
-            if (attemptId != null) {
-
-                Optional<RefundAttempt> byId =
-                        refundRepository.findById(attemptId);
-
-                attempt = byId.orElse(null);
-            }
-
-            /*
-             * Compatibility with older RefundService versions
-             * that included purchase_id but not attempt_id.
-             */
-            if (attempt == null && purchaseId != null) {
-
-                attempt = refundRepository
-                        .findByPurchaseId(purchaseId)
-                        .orElse(null);
-            }
-
-            /*
-             * Compatibility with existing refunds whose
-             * Razorpay refund ID was already persisted.
-             */
-            if (attempt == null) {
-
-                attempt = refundRepository
-                        .findByRazorpayRefundId(refundId)
-                        .orElse(null);
-            }
+            RefundAttempt attempt = findRefundAttempt(
+                    attemptId,
+                    purchaseId,
+                    refundId
+            );
 
             if (attempt == null) {
-
-                /*
-                 * Never create another refund here.
-                 *
-                 * Returning a server error allows Razorpay
-                 * to retry the webhook delivery.
-                 */
                 log.warn(
-                        "No attempt found for Razorpay refund {}",
-                        refundId);
+                        "No refund attempt found for refund {}",
+                        refundId
+                );
 
-                return ResponseEntity
-                        .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                        .body("Refund attempt not found");
+                // Allow Razorpay to retry the webhook.
+                return error(
+                        HttpStatus.INTERNAL_SERVER_ERROR,
+                        "Refund attempt not found"
+                );
             }
 
             // =================================================
-            // STEP 8: VALIDATE NOTES AGAINST STORED ATTEMPT
+            // 8. VALIDATE ATTEMPT AND PURCHASE IDS
             // =================================================
 
             if (attemptId != null
                     && !attemptId.equals(
                             attempt.getRefundAttemptId())) {
 
-                log.error(
-                        "Attempt ID mismatch for refund {}",
-                        refundId);
+                log.error("Refund attempt ID mismatch: {}", refundId);
 
-                return ResponseEntity
-                        .status(HttpStatus.CONFLICT)
-                        .body("Refund attempt ID mismatch");
+                return error(
+                        HttpStatus.CONFLICT,
+                        "Refund attempt ID mismatch"
+                );
             }
 
             if (purchaseId != null
-                    && !purchaseId.equals(
-                            attempt.getPurchaseId())) {
+                    && !purchaseId.equals(attempt.getPurchaseId())) {
 
-                log.error(
-                        "Purchase ID mismatch for refund {}",
-                        refundId);
+                log.error("Refund purchase ID mismatch: {}", refundId);
 
-                return ResponseEntity
-                        .status(HttpStatus.CONFLICT)
-                        .body("Refund purchase ID mismatch");
+                return error(
+                        HttpStatus.CONFLICT,
+                        "Refund purchase ID mismatch"
+                );
             }
 
             // =================================================
-            // STEP 9: VERIFY ORIGINAL RAZORPAY PAYMENT
+            // 9. VALIDATE ORIGINAL PAYMENT
             // =================================================
 
-            if (attempt.getRazorpayPaymentId() == null
-                    || !paymentId.equals(
-                            attempt.getRazorpayPaymentId())) {
+            if (!paymentId.equals(attempt.getRazorpayPaymentId())) {
 
-                log.error(
-                        "Payment ID mismatch for refund {}",
-                        refundId);
+                log.error("Refund payment ID mismatch: {}", refundId);
 
-                return ResponseEntity
-                        .status(HttpStatus.CONFLICT)
-                        .body("Refund payment ID mismatch");
+                return error(
+                        HttpStatus.CONFLICT,
+                        "Refund payment ID mismatch"
+                );
             }
 
             // =================================================
-            // STEP 10: VERIFY REFUND AMOUNT
+            // 10. VALIDATE REFUND AMOUNT
             // =================================================
 
             if (attempt.getRefundAmount() == null
                     || refundAmount.compareTo(
                             attempt.getRefundAmount()) != 0) {
 
-                log.error(
-                        "Refund amount mismatch for {}",
-                        refundId);
+                log.error("Refund amount mismatch: {}", refundId);
 
-                return ResponseEntity
-                        .status(HttpStatus.CONFLICT)
-                        .body("Refund amount mismatch");
+                return error(
+                        HttpStatus.CONFLICT,
+                        "Refund amount mismatch"
+                );
             }
 
             // =================================================
-            // STEP 11: VALIDATE EXISTING REFUND ID
+            // 11. VALIDATE EXISTING REFUND ID
             // =================================================
 
-            String storedRefundId =
-                    attempt.getRazorpayRefundId();
+            String storedRefundId = attempt.getRazorpayRefundId();
 
             if (storedRefundId != null
                     && !storedRefundId.isBlank()
@@ -303,54 +237,86 @@ public class RazorpayWebhookController {
 
                 log.error(
                         "Refund ID mismatch for attempt {}",
-                        attempt.getRefundAttemptId());
+                        attempt.getRefundAttemptId()
+                );
 
-                return ResponseEntity
-                        .status(HttpStatus.CONFLICT)
-                        .body("Refund ID mismatch");
+                return error(
+                        HttpStatus.CONFLICT,
+                        "Refund ID mismatch"
+                );
             }
 
             // =================================================
-            // STEP 12: SYNCHRONIZE REFUND STATUS
+            // 12. SYNCHRONIZE REFUND STATUS
             // =================================================
-
-            /*
-             * This service updates:
-             *
-             * - RefundAttempt.status
-             * - PolicyPurchase.refundStatus
-             * - PolicyPurchase.refundId
-             * - PolicyPurchase.refundDateTime
-             *
-             * The updates occur within one transaction.
-             *
-             * It also prevents older events from
-             * downgrading an already completed refund.
-             */
 
             persistenceService.recordRefundResult(
                     attempt.getRefundAttemptId(),
                     refundId,
-                    status);
+                    status
+            );
 
             log.info(
                     "Processed Razorpay event {} for refund {} with status {}",
                     eventName,
                     refundId,
-                    status);
+                    status
+            );
 
             return ResponseEntity.ok("Webhook processed");
 
         } catch (Exception ex) {
+            log.error("Unable to process Razorpay webhook", ex);
 
-            log.error(
-                    "Unable to process Razorpay webhook.",
-                    ex);
-
-            return ResponseEntity
-                    .status(HttpStatus.INTERNAL_SERVER_ERROR)
-                    .body("Webhook processing failed");
+            return error(
+                    HttpStatus.INTERNAL_SERVER_ERROR,
+                    "Webhook processing failed"
+            );
         }
+    }
+
+    // =========================================================
+    // SUPPORTED REFUND EVENTS
+    // =========================================================
+
+    private boolean isRefundEvent(String eventName) {
+        return "refund.created".equals(eventName)
+                || "refund.processed".equals(eventName)
+                || "refund.failed".equals(eventName);
+    }
+
+    // =========================================================
+    // FIND REFUND ATTEMPT
+    // =========================================================
+
+    private RefundAttempt findRefundAttempt(
+            Long attemptId,
+            Long purchaseId,
+            String refundId) {
+
+        if (attemptId != null) {
+            RefundAttempt attempt = refundRepository
+                    .findById(attemptId)
+                    .orElse(null);
+
+            if (attempt != null) {
+                return attempt;
+            }
+        }
+
+        if (purchaseId != null) {
+            RefundAttempt attempt = refundRepository
+                    .findByPurchaseId(purchaseId)
+                    .orElse(null);
+
+            if (attempt != null) {
+                return attempt;
+            }
+        }
+
+        return refundRepository
+                .findByRazorpayRefundId(refundId)
+                .orElse(null);
     }
 
     // =========================================================
@@ -363,53 +329,38 @@ public class RazorpayWebhookController {
 
         if (rawBody == null
                 || receivedSignature == null
-                || receivedSignature.isBlank()) {
+                || !receivedSignature.trim()
+                        .matches("(?i)[0-9a-f]{64}")) {
 
             return false;
         }
 
         try {
-
             Mac mac = Mac.getInstance("HmacSHA256");
 
             mac.init(new SecretKeySpec(
-                    webhookSecret.getBytes(
-                            StandardCharsets.UTF_8),
-                    "HmacSHA256"));
+                    webhookSecret.getBytes(StandardCharsets.UTF_8),
+                    "HmacSHA256"
+            ));
 
-            byte[] digest = mac.doFinal(
-                    rawBody.getBytes(
-                            StandardCharsets.UTF_8));
+            byte[] expected = mac.doFinal(
+                    rawBody.getBytes(StandardCharsets.UTF_8)
+            );
 
-            StringBuilder calculated =
-                    new StringBuilder();
-
-            for (byte b : digest) {
-
-                calculated.append(
-                        String.format("%02x", b & 0xff));
-            }
-
-            return MessageDigest.isEqual(
-                    calculated.toString().getBytes(
-                            StandardCharsets.UTF_8),
+            byte[] received = HexFormat.of().parseHex(
                     receivedSignature.trim()
-                            .toLowerCase()
-                            .getBytes(
-                                    StandardCharsets.UTF_8));
+            );
+
+            return MessageDigest.isEqual(expected, received);
 
         } catch (Exception ex) {
-
-            log.error(
-                    "Razorpay signature verification failed.",
-                    ex);
-
+            log.error("Razorpay signature verification failed", ex);
             return false;
         }
     }
 
     // =========================================================
-    // SAFE ID PARSING
+    // SAFE POSITIVE ID PARSING
     // =========================================================
 
     private Long parsePositiveId(String value) {
@@ -419,14 +370,22 @@ public class RazorpayWebhookController {
         }
 
         try {
-
-            long parsed = Long.parseLong(value.trim());
-
-            return parsed > 0 ? parsed : null;
+            long id = Long.parseLong(value.trim());
+            return id > 0 ? id : null;
 
         } catch (NumberFormatException ex) {
-
             return null;
         }
+    }
+
+    // =========================================================
+    // ERROR RESPONSE
+    // =========================================================
+
+    private ResponseEntity<String> error(
+            HttpStatus status,
+            String message) {
+
+        return ResponseEntity.status(status).body(message);
     }
 }
