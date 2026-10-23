@@ -15,6 +15,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
+import lombok.RequiredArgsConstructor;
+
 import com.htc.insurance.dao.ClaimsDao;
 import com.htc.insurance.dao.PolicyDao;
 import com.htc.insurance.dao.PolicyPurchaseDao;
@@ -48,6 +50,7 @@ import com.htc.insurance.repository.PaymentAttemptRepository;
  * 12. Legacy purchases may use a verified stored plan ID.
  */
 @Service
+@RequiredArgsConstructor
 public class PolicyRenewalService {
 
     private static final Logger log =
@@ -61,26 +64,6 @@ public class PolicyRenewalService {
     private final PaymentAttemptRepository attemptRepository;
     private final PaymentAttemptService attemptService;
     private final PaymentService paymentService;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public PolicyRenewalService(
-            PolicyDao policyDao,
-            PolicyPurchaseDao purchaseDao,
-            ClaimsDao claimsDao,
-            PaymentAttemptRepository attemptRepository,
-            PaymentAttemptService attemptService,
-            PaymentService paymentService) {
-
-        this.policyDao = policyDao;
-        this.purchaseDao = purchaseDao;
-        this.claimsDao = claimsDao;
-        this.attemptRepository = attemptRepository;
-        this.attemptService = attemptService;
-        this.paymentService = paymentService;
-    }
 
     // =========================================================
     // CREATE RENEWAL ORDER
