@@ -75,16 +75,27 @@ public class RefundPreparationService {
             RefundRequestDto request,
             String authenticatedUsername) {
 
-        // =====================================================
-        // VALIDATE REQUEST
-        // =====================================================
-
         if (request == null) {
             throw new IllegalArgumentException(
                     "Refund request is required.");
         }
 
-        Long purchaseId = request.getPurchaseId();
+        return prepareRefund(
+                request.getPurchaseId(),
+                request.getRefundReason(),
+                authenticatedUsername);
+    }
+
+    /**
+     * Shared entry point for the existing DTO flow and the
+     * Razorpay refund service. Spring transactions apply when
+     * this method is invoked from another Spring bean.
+     */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
+    public PolicyPurchase prepareRefund(
+            Long purchaseId,
+            String refundReason,
+            String authenticatedUsername) {
 
         if (purchaseId == null || purchaseId <= 0) {
             throw new IllegalArgumentException(
@@ -93,16 +104,14 @@ public class RefundPreparationService {
 
         if (authenticatedUsername == null
                 || authenticatedUsername.isBlank()) {
-
             throw new IllegalArgumentException(
                     "Authenticated user is required.");
         }
 
         String username = authenticatedUsername.trim();
-
-        String reason = request.getRefundReason() == null
+        String reason = refundReason == null
                 ? ""
-                : request.getRefundReason().trim();
+                : refundReason.trim();
 
         if (reason.isBlank()) {
             throw new IllegalArgumentException(
