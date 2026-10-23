@@ -41,8 +41,6 @@ public class PaymentOrderRequest {
      * never trust this client-supplied value.
      */
     @Deprecated
-    @Getter(onMethod_ = @Deprecated)
-    @Setter(onMethod_ = @Deprecated)
     private BigDecimal amount;
 
     // =====================================================
