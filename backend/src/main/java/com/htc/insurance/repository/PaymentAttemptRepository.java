@@ -20,7 +20,7 @@ public interface PaymentAttemptRepository
         extends JpaRepository<PaymentAttempt, Long> {
 
     // =========================================================
-    // EXISTING PAYMENT ATTEMPT LOOKUPS
+    // PAYMENT ATTEMPT LOOKUPS
     // =========================================================
 
     Optional<PaymentAttempt> findByAttemptReference(
@@ -64,32 +64,28 @@ public interface PaymentAttemptRepository
     );
 
     // =========================================================
-    // POLICY RENEWAL - PAYMENT ATTEMPT HISTORY
+    // POLICY RENEWAL PAYMENT HISTORY
     // =========================================================
 
     /**
-     * Returns all payment attempts for an original policy.
+     * Retrieves all payment attempts associated with
+     * the specified original policy number.
      *
-     * Includes:
-     * - Pending renewal attempts
-     * - Completed renewal attempts
-     * - Attempts requiring reconciliation
+     * Includes pending, completed and reconciliation attempts.
      */
     List<PaymentAttempt>
-            findByRenewalSourcePolicyNumberOrderByCreatedAtDesc(
-                    Long renewalSourcePolicyNumber
-            );
+    findByRenewalSourcePolicyNumberOrderByCreatedAtDesc(
+            Long renewalSourcePolicyNumber
+    );
 
     // =========================================================
-    // FIND BY PURCHASE TYPE
+    // FIND PAYMENT ATTEMPTS BY PURCHASE TYPE
     // =========================================================
 
     /**
      * Supported purchase types:
      * NEW
      * RENEWAL
-     *
-     * Historical purchases may have a null purchase type.
      */
     List<PaymentAttempt> findByPurchaseType(
             String purchaseType
@@ -100,10 +96,11 @@ public interface PaymentAttemptRepository
     // =========================================================
 
     /**
-     * Advisory duplicate-checking method.
+     * Checks whether a renewal attempt exists
+     * for the supplied policy and status.
      *
-     * Does not replace database uniqueness constraints
-     * or transactional locking.
+     * This is an advisory check and does not replace
+     * database uniqueness constraints.
      */
     boolean existsByRenewalSourcePolicyNumberAndStatus(
             Long renewalSourcePolicyNumber,
@@ -115,10 +112,9 @@ public interface PaymentAttemptRepository
     // =========================================================
 
     /**
-     * Locks the payment attempt before updating
-     * its Razorpay order or reconciliation status.
+     * Acquires a pessimistic write lock on the payment attempt.
      *
-     * Must execute inside an active transaction.
+     * Must execute within an active transaction.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
@@ -135,12 +131,10 @@ public interface PaymentAttemptRepository
     // =========================================================
 
     /**
-     * Locks the payment attempt before updating
-     * a verified or completed payment.
+     * Acquires a pessimistic write lock before updating
+     * a payment associated with the Razorpay order.
      *
-     * Prevents concurrent payment status changes.
-     *
-     * Must execute inside an active transaction.
+     * Must execute within an active transaction.
      */
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("""
