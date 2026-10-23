@@ -1,147 +1,103 @@
+
 package com.htc.insurance.controller;
 
 import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.htc.insurance.dao.UserDao;
 import com.htc.insurance.entity.User;
 
-import jakarta.servlet.http.HttpSession;
+import lombok.RequiredArgsConstructor;
 
 @RestController
+@RequiredArgsConstructor
 public class SessionController {
 
     private final UserDao userDao;
 
-    public SessionController(UserDao userDao) {
-        this.userDao = userDao;
-    }
+    // =========================================================
+    // GET CURRENT AUTHENTICATED USER SESSION
+    // =========================================================
 
     @GetMapping("/api/session")
     public Map<String, Object> getSession(
-            HttpSession session,
             Authentication authentication) {
 
-        Map<String, Object> response =
-                new HashMap<>();
+        Map<String, Object> response = new HashMap<>();
 
-        // ==============================
-        // SESSION ID
-        // ==============================
+        // =====================================================
+        // AUTHENTICATION DETAILS
+        // =====================================================
 
-        response.put(
-                "sessionId",
-                session.getId()
-        );
+        if (authentication == null
+                || !authentication.isAuthenticated()
+                || authentication.getName() == null
+                || authentication.getName().isBlank()) {
 
-        // ==============================
-        // LOGGED-IN USERNAME
-        // ==============================
+            throw new org.springframework.security.access
+                    .AccessDeniedException(
+                            "Authentication is required."
+                    );
+        }
 
-        String username =
-                authentication.getName();
+        String username = authentication.getName();
 
-        response.put(
-                "username",
-                username
-        );
+        response.put("username", username);
 
-        // Return the server-side role so the frontend can display
-        // the current database authority instead of trusting only
-        // the role claim cached in an older JWT.
+        // Resolve role from Spring Security authorities.
         response.put(
                 "role",
                 authentication.getAuthorities()
                         .stream()
+                        .map(GrantedAuthority::getAuthority)
+                        .filter(authority ->
+                                authority.startsWith("ROLE_"))
+                        .map(authority ->
+                                authority.substring(5))
                         .findFirst()
-                        .map(a -> a.getAuthority().replace("ROLE_", ""))
                         .orElse(null)
         );
 
-        // ==============================
-        // GET USER FROM DATABASE
-        // ==============================
+        // =====================================================
+        // LOAD USER DETAILS FROM DATABASE
+        // =====================================================
 
-        User user =
-                userDao.getUserByUsername(username);
+        User user = userDao.getUserByUsername(username);
 
-        if (user != null) {
-
-            // ==============================
-            // BASIC USER DETAILS
-            // ==============================
-
-            response.put(
-                    "userId",
-                    user.getUserId()
-            );
-
-            response.put(
-                    "isActive",
-                    user.getIsActive()
-            );
-
-            // ==============================
-            // CREATED DATE
-            // ==============================
-
-            response.put(
-                    "createdAt",
-                    user.getCreatedAt()
-            );
-
-            // ==============================
-            // EXPIRY DATE
-            // ==============================
-
-            response.put(
-                    "expiryDate",
-                    user.getExpiryDate()
-            );
-
-            // ==============================
-            // OTHER USER DETAILS
-            // ==============================
-
-            response.put(
-                    "contactNumber",
-                    user.getContactNumber()
-            );
-
-            response.put(
-                    "occupation",
-                    user.getOccupation()
-            );
-
-            response.put(
-                    "income",
-                    user.getIncome()
-            );
-
-            response.put(
-                    "aadharNumber",
-                    user.getAadharNumber()
-            );
-
-            response.put(
-                    "bankName",
-                    user.getBankName()
-            );
-
-            response.put(
-                    "accountNumber",
-                    user.getAccountNumber()
-            );
-
-            response.put(
-                    "ifscCode",
-                    user.getIfscCode()
-            );
+        if (user == null) {
+            return response;
         }
+
+        // =====================================================
+        // BASIC USER DETAILS
+        // =====================================================
+
+        response.put("userId", user.getUserId());
+        response.put("isActive", user.getIsActive());
+        response.put("createdAt", user.getCreatedAt());
+        response.put("expiryDate", user.getExpiryDate());
+
+        // =====================================================
+        // PROFILE DETAILS
+        // =====================================================
+
+        response.put("contactNumber", user.getContactNumber());
+        response.put("occupation", user.getOccupation());
+        response.put("income", user.getIncome());
+
+        // =====================================================
+        // EXISTING USER DETAILS
+        // =====================================================
+
+        response.put("aadharNumber", user.getAadharNumber());
+        response.put("bankName", user.getBankName());
+        response.put("accountNumber", user.getAccountNumber());
+        response.put("ifscCode", user.getIfscCode());
 
         return response;
     }
