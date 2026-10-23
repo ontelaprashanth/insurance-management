@@ -4,6 +4,8 @@ package com.htc.insurance.service;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
@@ -20,6 +22,7 @@ import com.htc.insurance.entity.RefundAttemptStatus;
 import com.htc.insurance.repository.RefundAttemptRepository;
 
 @Service
+@RequiredArgsConstructor
 public class RefundPersistenceService {
 
     // =========================================================
@@ -48,20 +51,6 @@ public class RefundPersistenceService {
     private final PolicyPurchaseDao policyPurchaseDao;
     private final PolicyDao policyDao;
     private final RefundAttemptRepository refundAttemptRepository;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public RefundPersistenceService(
-            PolicyPurchaseDao policyPurchaseDao,
-            PolicyDao policyDao,
-            RefundAttemptRepository refundAttemptRepository) {
-
-        this.policyPurchaseDao = policyPurchaseDao;
-        this.policyDao = policyDao;
-        this.refundAttemptRepository = refundAttemptRepository;
-    }
 
     // =========================================================
     // REFUND ACCEPTED BY RAZORPAY
