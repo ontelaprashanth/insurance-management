@@ -1,93 +1,59 @@
+
 package com.htc.insurance.dto;
 
 import java.math.BigDecimal;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
+@Getter
+@Setter
+@NoArgsConstructor
 public class PaymentOrderRequest {
 
-    /*
-     * Catalogue plan selected by the customer.
-     */
+    // =====================================================
+    // SELECTED INSURANCE PLAN
+    // =====================================================
+
     private Long planId;
 
-    /*
-     * Requested insurance coverage amount.
-     */
+    // =====================================================
+    // REQUESTED COVERAGE
+    // =====================================================
+
     private BigDecimal coverageAmount;
 
-    /*
-     * Requested policy duration in years.
-     */
+    // =====================================================
+    // POLICY DURATION
+    // =====================================================
+
     private Integer durationYears;
 
-    /*
-     * Retained temporarily for compatibility with the existing
-     * PaymentService. The secured order-creation flow must NOT
-     * trust this client-supplied amount.
+    // =====================================================
+    // LEGACY PAYMENT AMOUNT
+    // =====================================================
+
+    /**
+     * Retained for compatibility with the existing PaymentService.
+     *
+     * The backend must calculate the payable amount and must
+     * never trust this client-supplied value.
      */
     @Deprecated
+    @Getter(onMethod_ = @Deprecated)
+    @Setter(onMethod_ = @Deprecated)
     private BigDecimal amount;
 
-    /*
-     * Payment currency. The backend validates this against
-     * its configured Razorpay currency.
-     */
+    // =====================================================
+    // PAYMENT CURRENCY
+    // =====================================================
+
     private String currency;
 
-    /*
-     * Optional Razorpay receipt reference.
-     */
+    // =====================================================
+    // RAZORPAY RECEIPT
+    // =====================================================
+
     private String receipt;
-
-    public PaymentOrderRequest() {
-    }
-
-    public Long getPlanId() {
-        return planId;
-    }
-
-    public void setPlanId(Long planId) {
-        this.planId = planId;
-    }
-
-    public BigDecimal getCoverageAmount() {
-        return coverageAmount;
-    }
-
-    public void setCoverageAmount(BigDecimal coverageAmount) {
-        this.coverageAmount = coverageAmount;
-    }
-
-    public Integer getDurationYears() {
-        return durationYears;
-    }
-
-    public void setDurationYears(Integer durationYears) {
-        this.durationYears = durationYears;
-    }
-
-    @Deprecated
-    public BigDecimal getAmount() {
-        return amount;
-    }
-
-    @Deprecated
-    public void setAmount(BigDecimal amount) {
-        this.amount = amount;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    public String getReceipt() {
-        return receipt;
-    }
-
-    public void setReceipt(String receipt) {
-        this.receipt = receipt;
-    }
 }
