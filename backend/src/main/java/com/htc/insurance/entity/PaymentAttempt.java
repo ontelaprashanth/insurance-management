@@ -17,6 +17,10 @@ import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
 
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
+
 @Entity
 @Table(
     name = "payment_attempt",
@@ -39,6 +43,9 @@ import jakarta.persistence.Version;
         )
     }
 )
+@Getter
+@Setter
+@NoArgsConstructor
 public class PaymentAttempt {
 
     // =========================================================
@@ -166,6 +173,7 @@ public class PaymentAttempt {
     // TIMESTAMPS
     // =========================================================
 
+    @Setter(lombok.AccessLevel.NONE)
     @Column(
         name = "created_at",
         nullable = false,
@@ -173,6 +181,7 @@ public class PaymentAttempt {
     )
     private LocalDateTime createdAt;
 
+    @Setter(lombok.AccessLevel.NONE)
     @Column(
         name = "updated_at",
         nullable = false
@@ -183,19 +192,13 @@ public class PaymentAttempt {
     // OPTIMISTIC LOCKING
     // =========================================================
 
+    @Setter(lombok.AccessLevel.NONE)
     @Version
     @Column(
         name = "version",
         nullable = false
     )
     private Long version;
-
-    // =========================================================
-    // CONSTRUCTOR
-    // =========================================================
-
-    public PaymentAttempt() {
-    }
 
     // =========================================================
     // JPA LIFECYCLE
@@ -224,152 +227,5 @@ public class PaymentAttempt {
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-    }
-
-    // =========================================================
-    // GETTERS AND SETTERS
-    // =========================================================
-
-    public Long getAttemptId() {
-        return attemptId;
-    }
-
-    public void setAttemptId(Long attemptId) {
-        this.attemptId = attemptId;
-    }
-
-    public String getAttemptReference() {
-        return attemptReference;
-    }
-
-    public void setAttemptReference(String attemptReference) {
-        this.attemptReference = attemptReference;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public Long getPlanId() {
-        return planId;
-    }
-
-    public void setPlanId(Long planId) {
-        this.planId = planId;
-    }
-
-    public BigDecimal getCoverageAmount() {
-        return coverageAmount;
-    }
-
-    public void setCoverageAmount(BigDecimal coverageAmount) {
-        this.coverageAmount = coverageAmount;
-    }
-
-    public Integer getDurationYears() {
-        return durationYears;
-    }
-
-    public void setDurationYears(Integer durationYears) {
-        this.durationYears = durationYears;
-    }
-
-    public BigDecimal getCalculatedPremium() {
-        return calculatedPremium;
-    }
-
-    public void setCalculatedPremium(BigDecimal calculatedPremium) {
-        this.calculatedPremium = calculatedPremium;
-    }
-
-    public String getCurrency() {
-        return currency;
-    }
-
-    public void setCurrency(String currency) {
-        this.currency = currency;
-    }
-
-    // =========================================================
-    // RENEWAL GETTERS AND SETTERS
-    // =========================================================
-
-    public String getPurchaseType() {
-        return purchaseType;
-    }
-
-    public void setPurchaseType(String purchaseType) {
-        this.purchaseType = purchaseType;
-    }
-
-    public Long getRenewalSourcePolicyNumber() {
-        return renewalSourcePolicyNumber;
-    }
-
-    public void setRenewalSourcePolicyNumber(
-            Long renewalSourcePolicyNumber) {
-
-        this.renewalSourcePolicyNumber =
-                renewalSourcePolicyNumber;
-    }
-
-    // =========================================================
-    // RAZORPAY GETTERS AND SETTERS
-    // =========================================================
-
-    public String getRazorpayOrderId() {
-        return razorpayOrderId;
-    }
-
-    public void setRazorpayOrderId(String razorpayOrderId) {
-        this.razorpayOrderId = razorpayOrderId;
-    }
-
-    public String getRazorpayPaymentId() {
-        return razorpayPaymentId;
-    }
-
-    public void setRazorpayPaymentId(String razorpayPaymentId) {
-        this.razorpayPaymentId = razorpayPaymentId;
-    }
-
-    // =========================================================
-    // PAYMENT STATUS GETTERS AND SETTERS
-    // =========================================================
-
-    public PaymentAttemptStatus getStatus() {
-        return status;
-    }
-
-    public void setStatus(PaymentAttemptStatus status) {
-        this.status = status;
-    }
-
-    public String getFailureReason() {
-        return failureReason;
-    }
-
-    public void setFailureReason(String failureReason) {
-        this.failureReason = failureReason;
-    }
-
-    // =========================================================
-    // TIMESTAMP GETTERS
-    // =========================================================
-
-    public LocalDateTime getCreatedAt() {
-        return createdAt;
-    }
-
-    public LocalDateTime getUpdatedAt() {
-        return updatedAt;
-    }
-
-    public Long getVersion() {
-        return version;
     }
 }
