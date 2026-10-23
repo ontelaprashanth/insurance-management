@@ -6,31 +6,23 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.ClaimDecisionDto;
 import com.htc.insurance.dto.ClaimsDto;
 import com.htc.insurance.service.ClaimsService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/claims")
+@RequiredArgsConstructor
 public class ClaimsController {
 
     private final ClaimsService claimsService;
 
-    public ClaimsController(ClaimsService claimsService) {
-        this.claimsService = claimsService;
-    }
-
     // =========================================================
-    // USER + ADMIN - SUBMIT NEW CLAIM
+    // USER + ADMIN - SUBMIT CLAIM
     // =========================================================
 
     @PostMapping("/save")
@@ -39,16 +31,13 @@ public class ClaimsController {
             @RequestBody ClaimsDto claimsDto,
             Authentication authentication) {
 
-        ClaimsDto savedClaim = claimsService.saveClaims(
-                claimsDto,
-                authentication
+        return ResponseEntity.ok(
+                claimsService.saveClaims(claimsDto, authentication)
         );
-
-        return ResponseEntity.ok(savedClaim);
     }
 
     // =========================================================
-    // USER - GET MY CLAIMS
+    // USER - MY CLAIMS
     // =========================================================
 
     @GetMapping("/my-claims")
@@ -62,20 +51,18 @@ public class ClaimsController {
     }
 
     // =========================================================
-    // ADMIN - GET ALL CLAIMS
+    // ADMIN - ALL CLAIMS
     // =========================================================
 
     @GetMapping("/getAll")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<ClaimsDto>> getAllClaims() {
 
-        return ResponseEntity.ok(
-                claimsService.getAllClaims()
-        );
+        return ResponseEntity.ok(claimsService.getAllClaims());
     }
 
     // =========================================================
-    // USER + ADMIN - GET CLAIM BY NUMBER
+    // USER + ADMIN - GET CLAIM
     // =========================================================
 
     @GetMapping("/get/{claimNumber}")
@@ -84,16 +71,12 @@ public class ClaimsController {
             @PathVariable Long claimNumber,
             Authentication authentication) {
 
-        ClaimsDto claim = claimsService.getClaimsById(
-                claimNumber,
-                authentication
+        return respond(
+                claimsService.getClaimsById(
+                        claimNumber,
+                        authentication
+                )
         );
-
-        if (claim == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(claim);
     }
 
     // =========================================================
@@ -106,16 +89,9 @@ public class ClaimsController {
             @PathVariable Long claimNumber,
             @RequestBody ClaimsDto claimsDto) {
 
-        ClaimsDto updatedClaim = claimsService.updateClaims(
-                claimNumber,
-                claimsDto
+        return respond(
+                claimsService.updateClaims(claimNumber, claimsDto)
         );
-
-        if (updatedClaim == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(updatedClaim);
     }
 
     // =========================================================
@@ -128,16 +104,9 @@ public class ClaimsController {
             @PathVariable Long claimNumber,
             @RequestBody ClaimDecisionDto decisionDto) {
 
-        ClaimsDto approvedClaim = claimsService.approveClaim(
-                claimNumber,
-                decisionDto
+        return respond(
+                claimsService.approveClaim(claimNumber, decisionDto)
         );
-
-        if (approvedClaim == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(approvedClaim);
     }
 
     // =========================================================
@@ -150,16 +119,9 @@ public class ClaimsController {
             @PathVariable Long claimNumber,
             @RequestBody ClaimDecisionDto decisionDto) {
 
-        ClaimsDto rejectedClaim = claimsService.rejectClaim(
-                claimNumber,
-                decisionDto
+        return respond(
+                claimsService.rejectClaim(claimNumber, decisionDto)
         );
-
-        if (rejectedClaim == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(rejectedClaim);
     }
 
     // =========================================================
@@ -173,8 +135,16 @@ public class ClaimsController {
 
         claimsService.deleteClaims(claimNumber);
 
-        return ResponseEntity.ok(
-                "Claim deleted successfully"
-        );
+        return ResponseEntity.ok("Claim deleted successfully");
+    }
+
+    // =========================================================
+    // SHARED RESPONSE HELPER
+    // =========================================================
+
+    private ResponseEntity<ClaimsDto> respond(ClaimsDto claim) {
+        return claim == null
+                ? ResponseEntity.notFound().build()
+                : ResponseEntity.ok(claim);
     }
 }
