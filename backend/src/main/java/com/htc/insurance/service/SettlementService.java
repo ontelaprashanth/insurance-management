@@ -6,8 +6,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,26 +31,21 @@ import com.htc.insurance.repository.ClaimsRepository;
 import com.htc.insurance.repository.SettlementRepository;
 
 @Service
+@RequiredArgsConstructor
 @Transactional(isolation = Isolation.READ_COMMITTED)
 public class SettlementService {
 
-    @Autowired
-    private SettlementRepository settlementRepository;
+    private final SettlementRepository settlementRepository;
 
-    @Autowired
-    private ClaimsRepository claimsRepository;
+    private final ClaimsRepository claimsRepository;
 
-    @Autowired
-    private ClaimsDao claimsDao;
+    private final ClaimsDao claimsDao;
 
-    @Autowired
-    private PolicyDao policyDao;
+    private final PolicyDao policyDao;
 
-    @Autowired
-    private PolicyPurchaseDao policyPurchaseDao;
+    private final PolicyPurchaseDao policyPurchaseDao;
 
-    @Autowired
-    private NotificationService notificationService;
+    private final NotificationService notificationService;
 
     // =========================================================
     // CREATE SETTLEMENT
