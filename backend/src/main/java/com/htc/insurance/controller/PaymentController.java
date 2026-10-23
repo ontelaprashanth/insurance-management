@@ -6,25 +6,25 @@ import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
 import com.htc.insurance.dto.PaymentOrderRequest;
 import com.htc.insurance.dto.PaymentOrderResponse;
 import com.htc.insurance.dto.PaymentVerificationRequest;
 import com.htc.insurance.service.PaymentService;
 
+import lombok.RequiredArgsConstructor;
+
 @RestController
 @RequestMapping("/payment")
+@RequiredArgsConstructor
 public class PaymentController {
 
     private final PaymentService paymentService;
 
-    public PaymentController(PaymentService paymentService) {
-        this.paymentService = paymentService;
-    }
+    // =========================================================
+    // CREATE RAZORPAY ORDER
+    // =========================================================
 
     @PostMapping("/create-order")
     @PreAuthorize("hasRole('USER')")
@@ -32,11 +32,17 @@ public class PaymentController {
             @RequestBody PaymentOrderRequest request,
             Authentication authentication) throws Exception {
 
-        PaymentOrderResponse response = paymentService.createOrder(
-                request, authentication.getName());
-
-        return ResponseEntity.ok(response);
+        return ResponseEntity.ok(
+                paymentService.createOrder(
+                        request,
+                        authentication.getName()
+                )
+        );
     }
+
+    // =========================================================
+    // VERIFY RAZORPAY PAYMENT
+    // =========================================================
 
     @PostMapping("/verify")
     @PreAuthorize("hasRole('USER')")
