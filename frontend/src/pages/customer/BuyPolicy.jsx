@@ -46,6 +46,8 @@ import { dateTime, inr, inrShort } from '../../lib/format'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 
+import '../../style.css'
+
 /* =========================================================
    CONSTANTS
 ========================================================= */
@@ -290,303 +292,6 @@ function getPurchaseError(error) {
    INSUREX PREMIUM GREEN STYLES
 ========================================================= */
 
-const BUY_GREEN_STYLES = `
-.ix-buy-page {
-  --ix-green-950:#103e2d;
-  --ix-green-800:#145c3e;
-  --ix-green-700:#17814f;
-  --ix-green-100:#d9f5e6;
-  --ix-green-50:#f4fbf7;
-  color:#163c2d;
-  min-width:0;
-}
-.ix-buy-page :is(h1,h2,h3,h4,strong,b,dt) {color:#103e2d}
-.ix-buy-page :is(p,dd,label,.muted) {color:#355a49}
-.ix-buy-page .ix-buy-hero {
-  display:flex;align-items:center;gap:14px;
-  margin-bottom:20px;padding:18px;
-  border-radius:18px;
-  background:linear-gradient(115deg,#103e2d,#17814f);
-  color:#fff;position:relative;overflow:hidden;
-  animation:ixBuyRise .5s ease both;
-}
-.ix-buy-page .ix-buy-hero strong,
-.ix-buy-page .ix-buy-hero p {color:#fff}
-.ix-buy-page .ix-buy-hero svg {
-  flex:none;animation:ixBuyFloat 3s ease-in-out infinite;
-}
-.ix-buy-page .ix-buy-hero:after {
-  content:'';position:absolute;inset:0;
-  transform:translateX(-120%) skewX(-20deg);
-  background:linear-gradient(90deg,transparent,rgba(255,255,255,.13),transparent);
-  animation:ixBuyShine 6s ease-in-out infinite;
-  pointer-events:none;
-}
-.ix-buy-page .steps {
-  display:grid;grid-template-columns:repeat(3,minmax(0,1fr));
-  gap:10px;margin:0 0 22px;
-}
-.ix-buy-page .steps .step {
-  display:flex;align-items:center;justify-content:center;
-  gap:9px;min-width:0;padding:13px 10px;
-  border:1px solid #d3e9dc;border-radius:14px;
-  background:#fff;color:#315a45;font-weight:700;
-  box-shadow:0 5px 18px rgba(16,62,45,.05);
-  animation:ixBuyRise .45s ease both;
-  transition:transform .25s ease,box-shadow .25s ease,background .25s ease;
-}
-.ix-buy-page .steps .step:nth-child(2){animation-delay:.08s}
-.ix-buy-page .steps .step:nth-child(3){animation-delay:.16s}
-.ix-buy-page .steps .step:hover {
-  transform:translateY(-3px);
-  box-shadow:0 10px 22px rgba(16,62,45,.1);
-}
-.ix-buy-page .steps .step.active {
-  background:linear-gradient(120deg,#103e2d,#17814f);
-  color:#fff;border-color:#17814f;
-}
-.ix-buy-page .steps .step.done {
-  background:#d9f5e6;border-color:#9cd6b7;color:#145c3e;
-}
-.ix-buy-page .steps .n {
-  width:28px;height:28px;flex:none;
-  display:grid;place-items:center;border-radius:50%;
-  background:#e5f5ec;color:#145c3e;font-weight:800;
-}
-.ix-buy-page .steps .step.active .n {background:#fff}
-.ix-buy-page .wizard {
-  display:grid;grid-template-columns:minmax(0,1fr) minmax(270px,360px);
-  align-items:start;gap:20px;
-}
-.ix-buy-page .wizard>* {min-width:0}
-.ix-buy-page .wizard>:first-child {display:grid;gap:16px}
-.ix-buy-page .wizard :is(.panel,.card),
-.ix-buy-page .ix-buy-step-card {
-  border:1px solid #cce9d9;border-radius:18px;
-  box-shadow:0 8px 26px rgba(16,62,45,.07);
-}
-.ix-buy-page .wizard :is(.panel,.card) {
-  animation:ixBuyRise .45s ease both;
-  transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;
-}
-.ix-buy-page .wizard :is(.panel,.card):hover {
-  transform:translateY(-3px);
-  box-shadow:0 14px 30px rgba(16,62,45,.11);
-  border-color:#7bcba2;
-}
-.ix-buy-page .wizard .kv {
-  display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);
-  gap:12px 16px;
-}
-.ix-buy-page .wizard .kv dt {font-weight:600;color:#426654}
-.ix-buy-page .wizard .kv dd {
-  margin:0;text-align:right;font-weight:700;
-  overflow-wrap:anywhere;color:#103e2d;
-}
-.ix-buy-page .ix-checkout-actions {
-  display:flex;align-items:center;justify-content:flex-end;
-  flex-wrap:wrap;gap:10px;margin-top:16px;padding:14px;
-  border:1px solid #d4e9dc;border-radius:15px;background:#f4fbf7;
-}
-.ix-buy-page :is(button,.btn) {
-  transition:transform .2s ease,box-shadow .2s ease,filter .2s ease;
-}
-.ix-buy-page :is(button,.btn):not(:disabled):hover {
-  transform:translateY(-2px);
-  box-shadow:0 7px 17px rgba(16,62,45,.14);
-}
-.ix-buy-page :is(.btn.primary,.btn.dark,button.primary,button.dark) {
-  background:#17814f;color:#fff;border-color:#17814f;
-}
-.ix-buy-page :is(input,select,textarea) {
-  color:#103e2d;border-color:#bdd9c8;
-}
-.ix-buy-page :is(input,select,textarea):focus {
-  outline-color:#17814f;border-color:#17814f;
-}
-.ix-buy-page .form-grid {row-gap:16px}
-.ix-buy-page .alert {
-  border-radius:13px;line-height:1.6;overflow-wrap:anywhere;
-}
-.ix-buy-page .alert.info {
-  background:#eaf8ef;color:#184d34;border:1px solid #b8dfc8;
-}
-.ix-buy-page .ix-checkout-alert {margin-bottom:16px}
-.ix-buy-page .ix-checkout-reference {
-  margin-top:10px;font-size:12px;overflow-wrap:anywhere;
-}
-.ix-buy-page .ix-original-side {
-  min-width:0;align-self:start;overflow:hidden;
-  border:1px solid #cce9d9;border-radius:20px;
-  background:#fff;box-shadow:0 12px 32px rgba(16,62,45,.09);
-}
-.ix-buy-page .ix-coverage-dial {padding:0}
-.ix-buy-page .ix-coverage-dial .dial {
-  padding:20px;background:#fff;color:#163c2d;min-width:0;
-}
-.ix-buy-page .ix-coverage-dial .dial-header {
-  display:flex;align-items:flex-start;justify-content:space-between;
-  gap:12px;margin-bottom:18px;
-}
-.ix-buy-page .ix-coverage-dial .dial-eyebrow {
-  display:block;color:#17814f;font-size:10px;font-weight:800;
-  letter-spacing:.12em;margin-bottom:6px;
-}
-.ix-buy-page .ix-coverage-dial .dial-heading h3 {
-  font-size:21px;line-height:1.25;margin:0 0 6px;color:#103e2d;
-}
-.ix-buy-page .ix-coverage-dial .dial-heading p {
-  font-size:12px;line-height:1.5;margin:0;color:#547563;
-}
-.ix-buy-page .ix-coverage-dial .dial-shield {
-  display:grid;place-items:center;flex:none;
-  width:44px;height:44px;border-radius:14px;
-  background:#eaf8ef;color:#17814f;
-}
-.ix-buy-page .ix-coverage-dial .dial-label {
-  display:block;color:#426654;font-size:12px;font-weight:650;
-}
-.ix-buy-page .ix-coverage-dial .dial-premium {
-  display:flex;justify-content:space-between;align-items:center;
-  gap:12px;padding:14px;margin-bottom:20px;
-  border:1px solid #cce9d9;border-radius:14px;
-  background:linear-gradient(145deg,#f4fbf7,#e5f7ec);
-}
-.ix-buy-page .ix-coverage-dial .dial-price {
-  font-size:25px;font-weight:850;line-height:1.2;color:#17814f;
-  font-variant-numeric:tabular-nums;overflow-wrap:anywhere;
-}
-.ix-buy-page .ix-coverage-dial .dial-price-caption {
-  display:block;font-size:11px;color:#547563;margin-top:5px;
-}
-.ix-buy-page .ix-coverage-dial .dial-price-tag {
-  min-width:0;text-align:right;
-}
-.ix-buy-page .ix-coverage-dial .dial-price-tag span {
-  display:block;font-size:10px;color:#547563;margin-bottom:4px;
-}
-.ix-buy-page .ix-coverage-dial .dial-price-tag strong {
-  display:block;font-size:13px;color:#103e2d;overflow-wrap:anywhere;
-}
-.ix-buy-page .ix-coverage-dial .dial-control {margin:0 0 20px}
-.ix-buy-page .ix-coverage-dial .dial-control-heading {
-  display:flex;align-items:center;justify-content:space-between;
-  gap:10px;margin-bottom:10px;
-}
-.ix-buy-page .ix-coverage-dial .dial-control-value {
-  font-size:16px;color:#17814f;font-variant-numeric:tabular-nums;
-  text-align:right;
-}
-.ix-buy-page .ix-coverage-dial .dial-range {
-  display:block;width:100%;margin:0;accent-color:#17814f;cursor:pointer;
-}
-.ix-buy-page .ix-coverage-dial .dial-range-labels {
-  display:flex;justify-content:space-between;gap:12px;
-  margin-top:8px;color:#547563;font-size:10px;
-}
-.ix-buy-page .ix-coverage-dial .dial-duration-options {
-  display:grid;grid-template-columns:repeat(5,minmax(0,1fr));
-  gap:6px;margin-top:12px;
-}
-.ix-buy-page .ix-coverage-dial .dial-duration-chip {
-  min-width:0;padding:8px 2px;border:1px solid #cce9d9;
-  border-radius:9px;background:#fff;color:#145c3e;
-  font-size:12px;font-weight:750;cursor:pointer;
-  transition:transform .2s ease,background .2s ease,border-color .2s ease;
-}
-.ix-buy-page .ix-coverage-dial .dial-duration-chip.active {
-  border:2px solid #17814f;padding:7px 1px;
-  background:#d9f5e6;box-shadow:0 4px 12px rgba(23,129,79,.13);
-}
-.ix-buy-page .ix-coverage-dial .dial-duration-chip:not(:disabled):hover {
-  transform:translateY(-2px);background:#eaf8ef;
-}
-.ix-buy-page .ix-coverage-dial .dial-breakdown {
-  padding-top:12px;border-top:1px solid #d6eadf;
-}
-.ix-buy-page .ix-coverage-dial .dial-breakdown-row {
-  display:flex;justify-content:space-between;gap:12px;
-  padding:8px 0;font-size:12px;
-}
-.ix-buy-page .ix-coverage-dial .dial-breakdown-row span {color:#426654}
-.ix-buy-page .ix-coverage-dial .dial-breakdown-row strong {
-  text-align:right;color:#103e2d;font-variant-numeric:tabular-nums;
-  overflow-wrap:anywhere;
-}
-.ix-buy-page .ix-coverage-dial .dial-breakdown-total {
-  margin-top:8px;padding:13px;border:1px solid #b8dfc8;
-  border-radius:11px;background:#eaf8ef;font-weight:800;
-}
-.ix-buy-page .ix-coverage-dial .dial-breakdown-total strong:last-child {
-  font-size:19px;color:#17814f;
-}
-.ix-buy-page .ix-coverage-dial .dial-disclaimer {
-  margin:12px 0 0;color:#547563;font-size:10px;line-height:1.5;
-}
-.ix-buy-page .ix-buy-success {
-  max-width:780px;margin:16px auto;padding:26px;
-  border:1px solid #bfe6d0;border-radius:24px;
-  background:linear-gradient(155deg,#fff,#e9f9f0);
-  box-shadow:0 20px 55px rgba(16,62,45,.12);
-  animation:ixBuyRise .55s ease both;color:#103e2d;
-}
-.ix-buy-page .ix-buy-success h4,
-.ix-buy-page .ix-buy-success strong,
-.ix-buy-page .ix-buy-success dd {color:#103e2d}
-.ix-buy-page .ix-buy-success .check-big {
-  display:grid;place-items:center;width:64px;height:64px;
-  margin:0 auto 16px;background:#17814f;color:white;border-radius:50%;
-  animation:ixBuyPop .6s ease both;
-}
-@keyframes ixBuyRise {
-  from{opacity:0;transform:translateY(16px)}
-  to{opacity:1;transform:translateY(0)}
-}
-@keyframes ixBuyFloat {
-  0%,100%{transform:translateY(0)}
-  50%{transform:translateY(-4px)}
-}
-@keyframes ixBuyShine {
-  0%,55%{transform:translateX(-120%) skewX(-20deg)}
-  85%,100%{transform:translateX(130%) skewX(-20deg)}
-}
-@keyframes ixBuyPop {
-  from{opacity:0;transform:scale(.6)}
-  to{opacity:1;transform:scale(1)}
-}
-@media(max-width:900px) {
-  .ix-buy-page .wizard {grid-template-columns:minmax(0,1fr)}
-  .ix-buy-page .ix-original-side {width:100%}
-}
-@media(max-width:640px) {
-  .ix-buy-page .steps {gap:6px}
-  .ix-buy-page .steps .step {
-    flex-direction:column;text-align:center;gap:5px;
-    font-size:11px;padding:10px 5px;
-  }
-  .ix-buy-page .steps .step .n {width:25px;height:25px}
-  .ix-buy-page .wizard .kv {grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px}
-  .ix-buy-page .ix-checkout-actions {justify-content:stretch}
-  .ix-buy-page .ix-checkout-actions>* {flex:1 1 130px}
-  .ix-buy-page .ix-buy-success {padding:16px;margin:8px}
-}
-@media(max-width:480px) {
-  .ix-buy-page .ix-coverage-dial .dial {padding:15px}
-  .ix-buy-page .ix-coverage-dial .dial-premium {padding:11px}
-  .ix-buy-page .ix-coverage-dial .dial-price {font-size:21px}
-  .ix-buy-page .ix-coverage-dial .dial-duration-options {gap:4px}
-  .ix-buy-page .ix-buy-hero {padding:14px}
-}
-@media(prefers-reduced-motion:reduce) {
-  .ix-buy-page *,
-  .ix-buy-page *:before,
-  .ix-buy-page *:after {
-    animation:none!important;
-    transition:none!important;
-    scroll-behavior:auto!important;
-  }
-}
-`
 
 /* =========================================================
    COMPONENT
@@ -1170,7 +875,6 @@ export default function BuyPolicy() {
   if (done) {
     return (
       <div className="ix-buy-page">
-        <style>{BUY_GREEN_STYLES}</style>
 
         <div className="ix-buy-success">
           <Panel>
@@ -1179,7 +883,7 @@ export default function BuyPolicy() {
                 <Icon name="check" size={32} strokeWidth={3} />
               </div>
 
-              <h4 style={{ fontSize: 24 }}>
+              <h4>
                 {isRenewal
                   ? 'Policy renewed successfully'
                   : 'You are covered'}
@@ -1194,12 +898,7 @@ export default function BuyPolicy() {
               </p>
 
               <dl
-                className="kv"
-                style={{
-                  maxWidth: 380,
-                  margin: '0 auto 24px',
-                  textAlign: 'left',
-                }}
+                className="kv ix-success-details"
               >
                 <dt>Amount paid</dt>
                 <dd>{inr(done.totalPremium ?? est?.total ?? 0)}</dd>
@@ -1230,7 +929,7 @@ export default function BuyPolicy() {
                 )}
               </dl>
 
-              <div className="row" style={{ justifyContent: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div className="row ix-buy-success-actions">
                 <Button
                   variant="dark"
                   onClick={() => navigate('/app/purchases')}
@@ -1275,7 +974,6 @@ export default function BuyPolicy() {
 
   return (
     <div className="ix-buy-page">
-      <style>{BUY_GREEN_STYLES}</style>
 
       <PageHeader
         title={isRenewal ? 'Renew insurance' : 'Buy insurance'}
@@ -1303,7 +1001,7 @@ export default function BuyPolicy() {
           <strong>
             {isRenewal ? 'Secure policy renewal' : 'Secure insurance checkout'}
           </strong>
-          <p style={{ margin: '3px 0 0', fontSize: 13 }}>
+          <p className="ix-buy-hero-copy">
             {isRenewal
               ? 'Keep your original policy benefits and review your renewal.'
               : 'Choose your cover, confirm nominee details, and pay securely.'}
@@ -1366,7 +1064,7 @@ export default function BuyPolicy() {
                     </div>
                   )}
 
-                  <div style={{ marginTop: 12 }}>
+                  <div className="ix-check-payment-link">
                     <Link className="btn" to="/app/purchases">
                       Check payment history
                     </Link>
@@ -1374,7 +1072,7 @@ export default function BuyPolicy() {
                 </div>
               )}
 
-              <ol className="steps" style={{ listStyle: 'none', padding: 0 }}>
+              <ol className="steps ix-steps-list">
                 {STEPS.map((label, index) => (
                   <li
                     key={label}
@@ -1403,7 +1101,7 @@ export default function BuyPolicy() {
                           : `${planDetails?.label || coveredType} cover`
                       }
                     >
-                      <p style={{ marginBottom: 16 }}>
+                      <p className="ix-cover-description">
                         {isRenewal
                           ? 'Your renewal keeps the original coverage amount, duration, and paid premium.'
                           : policy.description ||
@@ -1458,7 +1156,7 @@ export default function BuyPolicy() {
                         <dd>{inr(est.total)}</dd>
                       </dl>
 
-                      <p style={{ fontSize: 12, marginTop: 14 }}>
+                      <p className="ix-estimate-note">
                         This is an indicative estimate. The final amount shown
                         by the secure payment order is determined by InsureX's
                         backend.
@@ -1571,7 +1269,7 @@ export default function BuyPolicy() {
                         <dd>{inr(est.total)}</dd>
                       </dl>
 
-                      <div className="alert info" style={{ marginTop: 16 }}>
+                      <div className="alert info ix-payment-info">
                         Payment is processed through Razorpay. The backend
                         verifies the payment before recording the insurance
                         purchase. Do not pay again if you were charged but your
