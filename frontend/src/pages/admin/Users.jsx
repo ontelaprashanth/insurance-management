@@ -27,10 +27,6 @@ import {
 
 import { date, dateTime, inr } from '../../lib/format'
 
-/* =========================================================
-   INSUREX — ADMIN USER MANAGEMENT
-========================================================= */
-
 const SEARCH_FIELDS = [
   'userId',
   'username',
@@ -47,6 +43,7 @@ function normalizeRows(data) {
   if (Array.isArray(data?.data?.content)) {
     return data.data.content
   }
+
   return []
 }
 
@@ -129,8 +126,7 @@ function EditUser({ user, onClose }) {
   }
 
   const save = useMutation({
-    mutationFn: (body) =>
-      users.update(user.userId, body),
+    mutationFn: (body) => users.update(user.userId, body),
 
     retry: false,
 
@@ -314,10 +310,7 @@ function EditUser({ user, onClose }) {
         noValidate
       >
         {error && (
-          <div
-            className="alert error full"
-            role="alert"
-          >
+          <div className="alert error full" role="alert">
             {error}
           </div>
         )}
@@ -448,9 +441,7 @@ export default function Users() {
     SEARCH_FIELDS,
   )
 
-  /* =======================================================
-     FILTERS
-  ======================================================= */
+  /* FILTERS */
 
   const rows = useMemo(
     () =>
@@ -502,17 +493,14 @@ export default function Users() {
 
   const adminCount = all.filter(isAdmin).length
 
-  /* =======================================================
-     FRESH SELECTED RECORDS
-  ======================================================= */
+  /* FRESH SELECTED RECORDS */
 
   function findUser(id) {
     if (id == null) return null
 
     return (
       all.find(
-        (user) =>
-          String(user.userId) === String(id),
+        (user) => String(user.userId) === String(id),
       ) || null
     )
   }
@@ -522,9 +510,7 @@ export default function Users() {
   const toggling = findUser(toggleId)
   const deleting = findUser(deleteId)
 
-  /* =======================================================
-     REFRESH
-  ======================================================= */
+  /* REFRESH */
 
   async function refreshUsers() {
     setPageError('')
@@ -545,9 +531,7 @@ export default function Users() {
     }
   }
 
-  /* =======================================================
-     ACTIVATE / DEACTIVATE
-  ======================================================= */
+  /* ACTIVATE / DEACTIVATE */
 
   const toggle = useMutation({
     mutationFn: (user) =>
@@ -641,13 +625,10 @@ export default function Users() {
     toggle.mutate(toggling)
   }
 
-  /* =======================================================
-     DELETE USER
-  ======================================================= */
+  /* DELETE USER */
 
   const remove = useMutation({
-    mutationFn: (userId) =>
-      users.remove(userId),
+    mutationFn: (userId) => users.remove(userId),
 
     retry: false,
 
@@ -731,115 +712,10 @@ export default function Users() {
     remove.mutate(deleting.userId)
   }
 
-  /* =======================================================
-     UI
-  ======================================================= */
+  /* UI */
 
   return (
     <>
-      <style>{`
-        .ix-users-summary {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 14px;
-          margin-bottom: 20px;
-        }
-
-        .ix-users-summary-card {
-          min-width: 0;
-          padding: 18px;
-          border: 1px solid var(--line, #e2e8f0);
-          border-radius: 14px;
-          background: var(--surface, #fff);
-        }
-
-        .ix-users-summary-card .label {
-          font-size: 12px;
-          color: var(--muted, #64748b);
-        }
-
-        .ix-users-summary-card .value {
-          margin-top: 7px;
-          font-size: 26px;
-          font-weight: 750;
-        }
-
-        .ix-users-toolbar {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        .ix-users-table-wrap {
-          width: 100%;
-          max-width: 100%;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .ix-users-table-wrap table {
-          width: 100%;
-          min-width: 1020px;
-        }
-
-        .ix-users-table-wrap th,
-        .ix-users-table-wrap td {
-          padding: 12px 14px;
-          vertical-align: middle;
-        }
-
-        .ix-users-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          gap: 7px;
-          white-space: nowrap;
-        }
-
-        .ix-users-actions button {
-          flex-shrink: 0;
-        }
-
-        .ix-users-modal-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        @media (max-width: 900px) {
-          .ix-users-summary {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 600px) {
-          .ix-users-summary {
-            gap: 10px;
-          }
-
-          .ix-users-summary-card {
-            padding: 14px;
-          }
-
-          .ix-users-summary-card .value {
-            font-size: 22px;
-          }
-
-          .ix-users-table-wrap table {
-            min-width: 960px;
-          }
-        }
-
-        @media (max-width: 360px) {
-          .ix-users-summary {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
       <PageHeader
         title="Users"
         subtitle="Manage customer accounts, update profiles, and control account access."
@@ -971,10 +847,7 @@ export default function Users() {
                             {displayValue(user.username)}
                           </strong>
 
-                          <div
-                            className="faint"
-                            style={{ fontSize: 12.5 }}
-                          >
+                          <div className="faint ix-user-email">
                             {displayValue(user.email)}
                           </div>
                         </div>
@@ -1003,8 +876,7 @@ export default function Users() {
                     {
                       key: 'createdAt',
                       header: 'Joined',
-                      render: (user) =>
-                        date(user.createdAt),
+                      render: (user) => date(user.createdAt),
                     },
                     {
                       key: 'isActive',
