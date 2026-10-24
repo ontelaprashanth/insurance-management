@@ -46,8 +46,6 @@ import { dateTime, inr, inrShort } from '../../lib/format'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 
-import '../../style.css'
-
 /* =========================================================
    CONSTANTS
 ========================================================= */
@@ -287,11 +285,6 @@ function getPurchaseError(error) {
     'We could not confirm your insurance purchase.',
   )
 }
-
-/* =========================================================
-   INSUREX PREMIUM GREEN STYLES
-========================================================= */
-
 
 /* =========================================================
    COMPONENT
