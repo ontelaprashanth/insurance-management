@@ -1,8 +1,8 @@
+
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import CoverageDial from '../../components/CoverageDial'
-import Logo from '../../components/Logo'
 import { PLANS } from '../../lib/premium'
 import { inr } from '../../lib/format'
 import { useAuth } from '../../auth/AuthContext'
@@ -94,6 +94,47 @@ const STYLES = `
   .ix-landing button:focus-visible {
     outline: 3px solid #34d399;
     outline-offset: 4px;
+  }
+
+  .ix-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: #123b2d;
+  }
+
+  .ix-brand-icon {
+    display: grid;
+    place-items: center;
+    width: 43px;
+    height: 43px;
+    border: 1px solid #ccebd9;
+    border-radius: 13px;
+    background: #ecfdf5;
+    font-size: 23px;
+  }
+
+  .ix-brand-text {
+    display: flex;
+    flex-direction: column;
+    color: #065f46;
+    font-size: 23px;
+    font-weight: 900;
+    line-height: 1.1;
+    letter-spacing: -1px;
+  }
+
+  .ix-brand-text > span {
+    display: inline;
+    color: #10b981;
+  }
+
+  .ix-brand-text small {
+    margin-top: 4px;
+    color: #71847b;
+    font-size: 8px;
+    font-weight: 800;
+    letter-spacing: 1.2px;
   }
 
   .ix-nav {
@@ -842,6 +883,14 @@ const STYLES = `
     background: #e8f8ef;
   }
 
+  .ix-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 20px;
+  }
+
   @keyframes ix-enter {
     from { opacity: 0; transform: translateY(18px); }
     to { opacity: 1; transform: translateY(0); }
@@ -1205,8 +1254,15 @@ export default function Landing() {
         <Link
           to={user ? dashboardPath : '/'}
           aria-label="InsureX home"
+          className="ix-brand"
         >
-          <Logo />
+          <span className="ix-brand-icon" aria-hidden="true">
+            🛡️
+          </span>
+          <span className="ix-brand-text">
+            Insure<span>X</span>
+            <small>INSURANCE PLATFORM</small>
+          </span>
         </Link>
 
         <nav className="ix-nav-actions" aria-label="Main navigation">
@@ -1503,15 +1559,7 @@ export default function Landing() {
                 durationMax={5}
               />
 
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'flex-end',
-                  flexWrap: 'wrap',
-                  gap: 10,
-                  marginTop: 20,
-                }}
-              >
+              <div className="ix-modal-actions">
                 <button
                   type="button"
                   className="ix-btn ix-btn-outline"
