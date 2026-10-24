@@ -1,4 +1,3 @@
-
 import React, { useId, useMemo } from 'react'
 
 import {
@@ -14,8 +13,13 @@ import { inr, inrShort } from '../lib/format'
 
 const ACTIVE_PLANS = PLANS.filter((plan) => plan.active !== false)
 
-const clamp = (value, min, max) =>
-  Math.min(Math.max(Number(value) || min, min), max)
+const clamp = (value, min, max) => {
+  const number = Number(value)
+
+  if (!Number.isFinite(number)) return min
+
+  return Math.min(Math.max(number, min), max)
+}
 
 export default function CoverageDial({
   value = {},
@@ -58,11 +62,12 @@ export default function CoverageDial({
 
   const maxDuration = Math.max(
     1,
-    Math.floor(Number(durationMax) || MAX_YEARS),
+    Math.min(
+      MAX_YEARS,
+      Math.floor(Number(durationMax) || MAX_YEARS),
+    ),
   )
 
-  // Start at the selected plan's actual coverage amount
-  // when the parent has not supplied a coverage value.
   const defaultCoverage = clamp(
     selectedPlan?.coverage ?? minCoverage,
     minCoverage,
@@ -75,33 +80,26 @@ export default function CoverageDial({
     maxCoverage,
   )
 
-  const years = clamp(
-    value.years ?? 1,
-    1,
-    maxDuration,
-  )
+  const years = clamp(value.years ?? 1, 1, maxDuration)
 
   const calculatedEstimate = useMemo(
     () => estimate(selectedPlan?.key, coverage, years),
     [selectedPlan?.key, coverage, years],
   )
 
-  const est = premiumEstimate ?? calculatedEstimate ?? {}
+  // Use the live estimate on the landing page.
+  // Preserve an explicitly supplied estimate for locked-plan flows.
+  const est =
+    lockedPlan && premiumEstimate
+      ? premiumEstimate
+      : calculatedEstimate
 
-  const suppliedTotal = Number(est.total)
-  const suppliedAnnual = Number(est.perYear)
-
-  const total =
-    est.total != null && Number.isFinite(suppliedTotal)
-      ? suppliedTotal
-      : est.perYear != null && Number.isFinite(suppliedAnnual)
-        ? suppliedAnnual * years
-        : 0
-
-  const perYear =
-    est.perYear != null && Number.isFinite(suppliedAnnual)
-      ? suppliedAnnual
-      : total / Math.max(1, years)
+  const total = Number(est?.total) || 0
+  const perYear = Number(est?.perYear) || 0
+  const base = Number(est?.base) || 0
+  const discount = Number(est?.discount) || 0
+  const gst = Number(est?.gst) || 0
+  const gstRate = Number(est?.gstRate) || 0
 
   const displayPlanName =
     planLabel ||
@@ -134,8 +132,6 @@ export default function CoverageDial({
 
     if (!nextPlan) return
 
-    // Reset coverage to the selected plan's listed coverage
-    // so its initial premium matches the configured price.
     const nextCoverage = clamp(
       nextPlan.coverage,
       minCoverage,
@@ -297,9 +293,38 @@ export default function CoverageDial({
         </div>
       </div>
 
+      <div className="dial-breakdown">
+        <div className="dial-breakdown-row">
+          <span>Base premium</span>
+          <strong>{inr(base)}</strong>
+        </div>
+
+        <div className="dial-breakdown-row">
+          <span>
+            Multi-year discount {years >= 2 ? '(5%)' : ''}
+          </span>
+
+          <strong className={discount > 0 ? 'dial-discount' : ''}>
+            {discount > 0 ? `−${inr(discount)}` : inr(0)}
+          </strong>
+        </div>
+
+        <div className="dial-breakdown-row">
+          <span>GST ({gstRate}%)</span>
+          <strong>{inr(gst)}</strong>
+        </div>
+
+        <div className="dial-breakdown-row dial-breakdown-total">
+          <span>Estimated payable</span>
+          <strong>{inr(total)}</strong>
+        </div>
+      </div>
+
       <p className="dial-disclaimer">
-        This is an estimate for guidance only. The final premium
-        and payable amount are determined by the insurance platform
+        This calculator estimates the premium proportionally from
+        the selected plan's listed coverage and annual premium.
+        A 5% multi-year discount is estimated for terms of two years
+        or more. Final pricing and applicable taxes are confirmed
         during purchase.
       </p>
     </section>
