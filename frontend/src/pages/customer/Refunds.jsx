@@ -261,15 +261,7 @@ function RefundDetails({
       onClose={onClose}
       wide
       footer={
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'flex-end',
-            alignItems: 'center',
-            flexWrap: 'wrap',
-            gap: 10,
-          }}
-        >
+        <div className="ix-refunds-modal-actions">
           <Button
             onClick={onRefresh}
             disabled={refreshing}
@@ -294,33 +286,16 @@ function RefundDetails({
         </div>
       }
     >
-      <div
-        className="stack"
-        style={{
-          gap: 18,
-        }}
-      >
+      <div className="stack ix-refunds-detail-stack">
         {/* ===============================================
             POLICY SUMMARY
         =============================================== */}
 
         <div className="ix-refunds-detail-header">
-          <ShieldCheck
-            size={24}
-            color="var(--fjord, #0f3d3e)"
-          />
+          <ShieldCheck size={24} />
 
-          <div
-            style={{
-              flex: 1,
-              minWidth: 150,
-            }}
-          >
-            <h3
-              style={{
-                margin: '0 0 5px',
-              }}
-            >
+          <div className="ix-refunds-detail-main">
+            <h3>
               {purchase.coveredTypes ||
                 'Insurance policy'}
             </h3>
@@ -786,309 +761,6 @@ export default function Refunds() {
 
   return (
     <>
-      <style>{`
-        /* ===============================================
-           INSUREX REFUNDS — RESPONSIVE STYLES
-        =============================================== */
-
-        .ix-refunds-toolbar {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        .ix-refunds-toolbar > * {
-          max-width: 100%;
-        }
-
-        .ix-refunds-summary {
-          display: grid;
-          grid-template-columns:
-            repeat(auto-fit, minmax(180px, 1fr));
-          gap: 14px;
-          margin-bottom: 20px;
-        }
-
-        .ix-refunds-table {
-          width: 100%;
-          max-width: 100%;
-          min-width: 0;
-          overflow-x: auto;
-          overflow-y: hidden;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .ix-refunds-table .table-wrap {
-          width: 100%;
-          max-width: 100%;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .ix-refunds-table table {
-          width: 100%;
-          min-width: 1020px;
-          table-layout: fixed;
-          border-collapse: collapse;
-        }
-
-        .ix-refunds-table th,
-        .ix-refunds-table td {
-          box-sizing: border-box;
-          padding: 16px 14px;
-          vertical-align: middle;
-          white-space: nowrap;
-        }
-
-        .ix-refunds-table th:nth-child(1),
-        .ix-refunds-table td:nth-child(1) {
-          width: 9%;
-        }
-
-        .ix-refunds-table th:nth-child(2),
-        .ix-refunds-table td:nth-child(2) {
-          width: 23%;
-        }
-
-        .ix-refunds-table th:nth-child(3),
-        .ix-refunds-table td:nth-child(3) {
-          width: 14%;
-        }
-
-        .ix-refunds-table th:nth-child(4),
-        .ix-refunds-table td:nth-child(4) {
-          width: 15%;
-        }
-
-        .ix-refunds-table th:nth-child(5),
-        .ix-refunds-table td:nth-child(5) {
-          width: 16%;
-        }
-
-        .ix-refunds-table th:nth-child(6),
-        .ix-refunds-table td:nth-child(6) {
-          width: 13%;
-        }
-
-        .ix-refunds-table th:nth-child(7),
-        .ix-refunds-table td:nth-child(7) {
-          width: 10%;
-          text-align: right;
-        }
-
-        .ix-refunds-purchase {
-          display: block;
-          font-weight: 700;
-        }
-
-        .ix-refunds-plan {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          gap: 4px;
-          min-width: 0;
-        }
-
-        .ix-refunds-plan strong {
-          display: block;
-          font-weight: 700;
-          white-space: nowrap;
-        }
-
-        .ix-refunds-plan .muted {
-          display: block;
-          font-size: 13px;
-          white-space: nowrap;
-        }
-
-        .ix-refunds-amount,
-        .ix-refunds-updated {
-          display: inline-block;
-          white-space: nowrap;
-          font-variant-numeric: tabular-nums;
-        }
-
-        .ix-refunds-status {
-          display: inline-flex;
-          white-space: nowrap;
-        }
-
-        .ix-refunds-status * {
-          white-space: nowrap !important;
-          word-break: normal !important;
-          overflow-wrap: normal !important;
-        }
-
-        .ix-refunds-action {
-          display: inline-flex;
-          align-items: center;
-          justify-content: flex-end;
-          white-space: nowrap;
-        }
-
-        .ix-refunds-action button {
-          white-space: nowrap;
-          flex-shrink: 0;
-        }
-
-        .ix-refunds-detail-header {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-          padding: 16px;
-          border: 1px solid
-            var(--line, #e3e9e8);
-          border-radius: 14px;
-        }
-
-        @keyframes ixRefundSpin {
-          to {
-            transform: rotate(360deg);
-          }
-        }
-
-        .ix-refunds-spin {
-          animation:
-            ixRefundSpin 0.9s linear infinite;
-        }
-
-        @media (max-width: 700px) {
-          .ix-refunds-summary {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-
-          .ix-refunds-table table {
-            min-width: 940px;
-          }
-
-          .ix-refunds-table th,
-          .ix-refunds-table td {
-            padding: 12px 11px;
-          }
-        }
-
-        @media (max-width: 380px) {
-          .ix-refunds-summary {
-            grid-template-columns: 1fr;
-          }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-          .ix-refunds-spin {
-            animation: none;
-          }
-        }
-
-        /* =====================================================
-           INSUREX — PREMIUM EMERALD REFUNDS EXPERIENCE
-           Visual-only overrides: all financial logic unchanged.
-        ===================================================== */
-        @keyframes ixRefundReveal {
-          from { opacity:0; transform:translateY(18px) scale(.975); }
-          to { opacity:1; transform:translateY(0) scale(1); }
-        }
-        @keyframes ixRefundFloat {
-          0%,100% { transform:translateY(0) rotate(-3deg); }
-          50% { transform:translateY(-5px) rotate(4deg); }
-        }
-        @keyframes ixRefundShimmer {
-          from { transform:translateX(-180%) skewX(-16deg); }
-          to { transform:translateX(460%) skewX(-16deg); }
-        }
-        .ix-refunds-summary > * {
-          position:relative; isolation:isolate; overflow:hidden;
-          border:1px solid #bfe4ce !important; border-radius:18px !important;
-          background:linear-gradient(145deg,#fff 5%,#edf9f1 100%) !important;
-          box-shadow:0 7px 22px rgba(16,103,63,.08);
-          animation:ixRefundReveal .6s cubic-bezier(.2,.8,.2,1) both;
-          transition:transform .3s ease,box-shadow .3s ease,border-color .3s ease;
-        }
-        .ix-refunds-summary > :nth-child(2) { animation-delay:80ms; }
-        .ix-refunds-summary > :nth-child(3) { animation-delay:160ms; }
-        .ix-refunds-summary > :nth-child(4) { animation-delay:240ms; }
-        .ix-refunds-summary > *::before {
-          content:''; position:absolute; inset:0 auto 0 -35%; width:24%;
-          background:linear-gradient(90deg,transparent,rgba(65,194,121,.15),transparent);
-          transform:translateX(-180%) skewX(-16deg); pointer-events:none;
-        }
-        .ix-refunds-summary > *:hover::before { animation:ixRefundShimmer .95s ease-out; }
-        .ix-refunds-summary > *:hover {
-          transform:translateY(-6px); border-color:#37a46b !important;
-          box-shadow:0 18px 34px rgba(16,103,63,.16);
-        }
-        .ix-refunds-summary .payment-summary { color:#17744a !important; gap:13px; }
-        .ix-refunds-summary .payment-summary svg {
-          color:#158250; animation:ixRefundFloat 4s ease-in-out infinite;
-          flex-shrink:0;
-        }
-        .ix-refunds-summary .payment-summary strong {
-          color:#0b432d !important; font-size:clamp(22px,2.4vw,29px);
-          font-weight:800; font-variant-numeric:tabular-nums;
-        }
-        .ix-refunds-summary .payment-summary .muted { color:#466b58 !important; opacity:1 !important; }
-        .ix-refunds-toolbar {
-          padding:17px 18px !important;
-          background:linear-gradient(115deg,#f3fbf5,#e8f7ee);
-          border-bottom:1px solid #cbe7d6;
-        }
-        .ix-refunds-toolbar select {
-          border:1px solid #a9d7bd !important;
-          background:#fff !important; color:#174b34 !important;
-          border-radius:12px !important; font-weight:650;
-          transition:border-color .2s ease,box-shadow .2s ease;
-        }
-        .ix-refunds-toolbar select:focus-visible {
-          outline:2px solid #138250; outline-offset:2px;
-        }
-        .ix-refunds-toolbar button:not(:disabled) {
-          transition:transform .22s ease,box-shadow .22s ease;
-        }
-        .ix-refunds-toolbar button:not(:disabled):hover { transform:translateY(-2px); box-shadow:0 7px 18px rgba(20,117,70,.13); }
-        .ix-refunds-table { animation:ixRefundReveal .58s ease both; }
-        .ix-refunds-table table { color:#1a4332; }
-        .ix-refunds-table thead th {
-          background:#e8f6ed !important; color:#205a3d !important;
-          border-bottom:1px solid #bfdfcb !important;
-          font-size:12px; font-weight:800; letter-spacing:.02em;
-        }
-        .ix-refunds-table tbody tr { transition:background-color .2s ease,box-shadow .2s ease; }
-        .ix-refunds-table tbody tr:nth-child(even) { background:#f8fcf9; }
-        .ix-refunds-table tbody tr:hover { background:#e9f8ef !important; }
-        .ix-refunds-table tbody td { border-bottom-color:#e0eee5 !important; }
-        .ix-refunds-purchase,.ix-refunds-plan strong { color:#0c4b30 !important; }
-        .ix-refunds-plan .muted { color:#527460 !important; opacity:1 !important; }
-        .ix-refunds-amount { color:#124c34; font-weight:750; }
-        .ix-refunds-detail-header {
-          background:linear-gradient(120deg,#ecf9f1,#fff);
-          border:1px solid #bfe4cd !important; color:#15452f;
-          border-radius:17px !important; box-shadow:0 5px 18px rgba(19,103,64,.06);
-          animation:ixRefundReveal .5s ease both;
-        }
-        .ix-refunds-detail-header svg { color:#178451 !important; }
-        .ix-refunds-detail-header h3 { color:#10452d; }
-        .ix-refunds-detail-header .muted { color:#54705d !important; opacity:1 !important; }
-        .ix-refunds-action button:not(:disabled) { transition:transform .2s ease,box-shadow .2s ease; }
-        .ix-refunds-action button:not(:disabled):hover { transform:translateY(-2px); box-shadow:0 7px 16px rgba(16,111,65,.15); }
-        @media(max-width:700px) {
-          .ix-refunds-summary { gap:10px; }
-          .ix-refunds-toolbar { padding:12px !important; }
-          .ix-refunds-toolbar > * { min-width:0; }
-          .ix-refunds-detail-header { padding:13px; }
-        }
-        @media(prefers-reduced-motion:reduce) {
-          .ix-refunds-summary > *, .ix-refunds-summary .payment-summary svg,
-          .ix-refunds-table,.ix-refunds-detail-header,.ix-refunds-summary > *::before {
-            animation:none !important; transition:none !important;
-          }
-          .ix-refunds-summary > *:hover,.ix-refunds-toolbar button:not(:disabled):hover,
-          .ix-refunds-action button:not(:disabled):hover { transform:none !important; }
-        }
-      `}</style>
-
       {/* ===================================================
           PAGE HEADER
       =================================================== */}
@@ -1266,21 +938,12 @@ export default function Refunds() {
           />
 
           <select
+            className="ix-refunds-filter-select"
             value={filter}
             onChange={(event) =>
               setFilter(event.target.value)
             }
             aria-label="Filter refunds"
-            style={{
-              minHeight: 40,
-              padding: '8px 12px',
-              borderRadius: 10,
-              border:
-                '1px solid var(--line, #e3e9e8)',
-              background:
-                'var(--surface, #fff)',
-              color: 'inherit',
-            }}
           >
             <option value="ALL">
               All refunds
@@ -1335,18 +998,10 @@ export default function Refunds() {
         >
           {() =>
             refundRows.length === 0 ? (
-              <div
-                style={{
-                  padding: 28,
-                  textAlign: 'center',
-                }}
-              >
+              <div className="ix-refunds-empty">
                 <RotateCcw
                   size={28}
-                  style={{
-                    marginBottom: 10,
-                    opacity: 0.6,
-                  }}
+                  className="ix-refunds-empty-icon"
                 />
 
                 <h3>
@@ -1368,12 +1023,7 @@ export default function Refunds() {
                 </Button>
               </div>
             ) : filteredRows.length === 0 ? (
-              <div
-                style={{
-                  padding: 28,
-                  textAlign: 'center',
-                }}
-              >
+              <div className="ix-refunds-empty">
                 <h3>
                   No matching refunds
                 </h3>
