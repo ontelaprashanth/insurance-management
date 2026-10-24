@@ -14,10 +14,12 @@ export default function AuthShell({ headline, text, children }) {
           display: grid;
           grid-template-columns: minmax(0, 0.92fr) minmax(0, 1.08fr);
           min-height: 100vh;
+          min-height: 100dvh;
           color: var(--auth-text);
           background: #ffffff;
           font-family: Inter, ui-sans-serif, system-ui, -apple-system,
             BlinkMacSystemFont, "Segoe UI", sans-serif;
+          isolation: isolate;
         }
 
         .ix-auth *,
@@ -30,6 +32,7 @@ export default function AuthShell({ headline, text, children }) {
           text-decoration: none;
         }
 
+        /* Animated green panel */
         .ix-auth-side {
           position: relative;
           display: flex;
@@ -53,6 +56,7 @@ export default function AuthShell({ headline, text, children }) {
             ),
             linear-gradient(145deg, #064d39 0%, #087f5b 58%, #10976b 100%);
           isolation: isolate;
+          animation: ix-auth-panel-enter 850ms cubic-bezier(.2,.7,.2,1) both;
         }
 
         .ix-auth-side::before,
@@ -70,6 +74,7 @@ export default function AuthShell({ headline, text, children }) {
           right: -155px;
           width: 390px;
           height: 390px;
+          animation: ix-auth-orbit 22s ease-in-out infinite alternate;
         }
 
         .ix-auth-side::after {
@@ -77,6 +82,8 @@ export default function AuthShell({ headline, text, children }) {
           bottom: -190px;
           width: 360px;
           height: 360px;
+          border-color: rgba(166, 255, 209, 0.16);
+          animation: ix-auth-orbit 18s ease-in-out infinite alternate-reverse;
         }
 
         .ix-auth-brand {
@@ -88,22 +95,42 @@ export default function AuthShell({ headline, text, children }) {
           font-size: 24px;
           font-weight: 850;
           letter-spacing: -0.7px;
-          transition: opacity 180ms ease;
+          transition:
+            opacity 220ms ease,
+            transform 220ms ease;
+          animation: ix-auth-brand-enter 650ms ease both;
+          animation-delay: 120ms;
         }
 
         .ix-auth-brand:hover {
-          opacity: 0.85;
+          opacity: 0.92;
+          transform: translateY(-2px);
+        }
+
+        .ix-auth-brand:active {
+          transform: translateY(0) scale(.985);
         }
 
         .ix-auth-brand-mark {
           display: grid;
           width: 43px;
           height: 43px;
+          flex: 0 0 43px;
           place-items: center;
           border: 1px solid rgba(255, 255, 255, 0.24);
           border-radius: 13px;
           background: rgba(255, 255, 255, 0.12);
           box-shadow: 0 8px 22px rgba(0, 0, 0, 0.08);
+          transition:
+            background 220ms ease,
+            box-shadow 220ms ease,
+            transform 220ms ease;
+        }
+
+        .ix-auth-brand:hover .ix-auth-brand-mark {
+          background: rgba(255, 255, 255, 0.2);
+          box-shadow: 0 8px 26px rgba(0, 0, 0, 0.15);
+          transform: rotate(-4deg);
         }
 
         .ix-auth-brand-mark > * {
@@ -124,12 +151,14 @@ export default function AuthShell({ headline, text, children }) {
           letter-spacing: 2px;
         }
 
+        /* Staggered welcome message */
         .ix-auth-message {
           width: 100%;
           max-width: 490px;
           margin-block: auto;
           padding-block: 60px;
-          animation: ix-auth-enter 600ms ease both;
+          animation: ix-auth-message-enter 800ms cubic-bezier(.2,.7,.2,1) both;
+          animation-delay: 180ms;
         }
 
         .ix-auth-kicker {
@@ -144,14 +173,18 @@ export default function AuthShell({ headline, text, children }) {
           font-size: 10px;
           font-weight: 800;
           letter-spacing: 1.2px;
+          animation: ix-auth-item-enter 600ms ease both;
+          animation-delay: 280ms;
         }
 
         .ix-auth-kicker-dot {
           width: 7px;
           height: 7px;
+          flex: 0 0 7px;
           border-radius: 50%;
           background: #8bf0b7;
           box-shadow: 0 0 0 4px rgba(139, 240, 183, 0.12);
+          animation: ix-auth-dot-pulse 2.4s ease-in-out infinite;
         }
 
         .ix-auth-message h1 {
@@ -162,6 +195,8 @@ export default function AuthShell({ headline, text, children }) {
           font-weight: 850;
           letter-spacing: -2px;
           line-height: 1.12;
+          animation: ix-auth-item-enter 650ms ease both;
+          animation-delay: 370ms;
         }
 
         .ix-auth-message p {
@@ -170,6 +205,8 @@ export default function AuthShell({ headline, text, children }) {
           color: rgba(255, 255, 255, 0.78);
           font-size: 14px;
           line-height: 1.9;
+          animation: ix-auth-item-enter 650ms ease both;
+          animation-delay: 460ms;
         }
 
         .ix-auth-benefits {
@@ -185,6 +222,27 @@ export default function AuthShell({ headline, text, children }) {
           color: rgba(255, 255, 255, 0.91);
           font-size: 12px;
           font-weight: 650;
+          animation: ix-auth-item-enter 600ms ease both;
+          transition:
+            color 180ms ease,
+            transform 180ms ease;
+        }
+
+        .ix-auth-benefit:nth-child(1) {
+          animation-delay: 520ms;
+        }
+
+        .ix-auth-benefit:nth-child(2) {
+          animation-delay: 610ms;
+        }
+
+        .ix-auth-benefit:nth-child(3) {
+          animation-delay: 700ms;
+        }
+
+        .ix-auth-benefit:hover {
+          color: #ffffff;
+          transform: translateX(4px);
         }
 
         .ix-auth-benefit-icon {
@@ -199,14 +257,27 @@ export default function AuthShell({ headline, text, children }) {
           background: rgba(255, 255, 255, 0.09);
           font-size: 12px;
           font-weight: 900;
+          transition:
+            background 180ms ease,
+            transform 180ms ease,
+            box-shadow 180ms ease;
+        }
+
+        .ix-auth-benefit:hover .ix-auth-benefit-icon {
+          background: rgba(255, 255, 255, 0.17);
+          box-shadow: 0 0 16px rgba(139, 240, 183, 0.12);
+          transform: scale(1.08);
         }
 
         .ix-auth-footer {
           color: rgba(255, 255, 255, 0.62);
           font-size: 11px;
           line-height: 1.8;
+          animation: ix-auth-item-enter 650ms ease both;
+          animation-delay: 750ms;
         }
 
+        /* Animated form area */
         .ix-auth-main {
           display: flex;
           min-width: 0;
@@ -220,13 +291,16 @@ export default function AuthShell({ headline, text, children }) {
               transparent 40%
             ),
             #ffffff;
+          animation: ix-auth-main-enter 800ms cubic-bezier(.2,.7,.2,1) both;
+          animation-delay: 100ms;
         }
 
         .ix-auth-content {
           width: 100%;
           max-width: 460px;
           min-width: 0;
-          animation: ix-auth-enter 550ms ease both;
+          animation: ix-auth-card-enter 750ms cubic-bezier(.2,.7,.2,1) both;
+          animation-delay: 250ms;
         }
 
         .ix-auth-mobile-brand {
@@ -236,6 +310,8 @@ export default function AuthShell({ headline, text, children }) {
         .ix-auth-card {
           width: 100%;
           min-width: 0;
+          animation: ix-auth-form-enter 650ms ease both;
+          animation-delay: 350ms;
         }
 
         .ix-auth-card input,
@@ -255,16 +331,95 @@ export default function AuthShell({ headline, text, children }) {
           transform: translateY(-1px);
         }
 
+        .ix-auth-card button:active:not(:disabled) {
+          transform: translateY(0) scale(.99);
+        }
+
         .ix-auth-card button:focus-visible,
         .ix-auth-brand:focus-visible {
           outline: 3px solid #69c99a;
           outline-offset: 3px;
         }
 
-        @keyframes ix-auth-enter {
+        /* Entrance and ambient animation keyframes */
+        @keyframes ix-auth-panel-enter {
           from {
             opacity: 0;
-            transform: translateY(12px);
+            transform: translateX(-18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
+          }
+        }
+
+        @keyframes ix-auth-main-enter {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes ix-auth-card-enter {
+          from {
+            opacity: 0;
+            transform: translateY(20px) scale(.99);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+          }
+        }
+
+        @keyframes ix-auth-message-enter {
+          from {
+            opacity: 0;
+            transform: translateY(18px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes ix-auth-item-enter {
+          from {
+            opacity: 0;
+            transform: translateY(10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes ix-auth-brand-enter {
+          from {
+            opacity: 0;
+            transform: translateY(-8px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes ix-auth-orbit {
+          from { transform: translate3d(0, 0, 0) rotate(0deg); }
+          to { transform: translate3d(-18px, 14px, 0) rotate(9deg); }
+        }
+
+        @keyframes ix-auth-dot-pulse {
+          0%, 100% {
+            box-shadow: 0 0 0 4px rgba(139, 240, 183, 0.12);
+          }
+          50% {
+            box-shadow: 0 0 0 7px rgba(139, 240, 183, 0.04);
+          }
+        }
+
+        @keyframes ix-auth-form-enter {
+          from {
+            opacity: 0;
+            transform: translateY(8px);
           }
           to {
             opacity: 1;
@@ -302,6 +457,7 @@ export default function AuthShell({ headline, text, children }) {
             min-height: auto;
             gap: 24px;
             padding: 25px 22px 27px;
+            animation-name: ix-auth-mobile-panel-enter;
           }
 
           .ix-auth-side::before {
@@ -325,6 +481,7 @@ export default function AuthShell({ headline, text, children }) {
           .ix-auth-brand-mark {
             width: 38px;
             height: 38px;
+            flex-basis: 38px;
           }
 
           .ix-auth-message {
@@ -347,10 +504,7 @@ export default function AuthShell({ headline, text, children }) {
             line-height: 1.7;
           }
 
-          .ix-auth-benefits {
-            display: none;
-          }
-
+          .ix-auth-benefits,
           .ix-auth-footer {
             display: none;
           }
@@ -369,6 +523,59 @@ export default function AuthShell({ headline, text, children }) {
             border-radius: 17px;
             background: #ffffff;
             box-shadow: 0 8px 30px rgba(20, 59, 43, 0.045);
+            animation-name: ix-auth-mobile-card-enter;
+          }
+
+          .ix-auth-mobile-brand {
+            display: inline-flex;
+            margin-bottom: 24px;
+            color: var(--auth-dark) !important;
+            animation-delay: 180ms;
+          }
+
+          .ix-auth-mobile-brand .ix-auth-brand-mark {
+            border-color: #dcefe4;
+            background: #eaf7ef;
+            box-shadow: none;
+          }
+
+          .ix-auth-mobile-brand .ix-auth-brand-subtitle {
+            color: #6b8476;
+          }
+
+          .ix-auth-mobile-brand:hover .ix-auth-brand-mark {
+            background: #dff3e7;
+            box-shadow: 0 5px 14px rgba(8, 127, 91, .1);
+          }
+
+          .ix-auth-mobile-brand:focus-visible {
+            outline-color: #69c99a;
+          }
+
+          .ix-auth-card {
+            animation-delay: 280ms;
+          }
+        }
+
+        @keyframes ix-auth-mobile-panel-enter {
+          from {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes ix-auth-mobile-card-enter {
+          from {
+            opacity: 0;
+            transform: translateY(16px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
           }
         }
 
@@ -395,8 +602,10 @@ export default function AuthShell({ headline, text, children }) {
           .ix-auth *::before,
           .ix-auth *::after {
             animation-duration: 0.01ms !important;
+            animation-delay: 0ms !important;
             animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
+            scroll-behavior: auto !important;
           }
         }
       `}</style>
@@ -406,6 +615,7 @@ export default function AuthShell({ headline, text, children }) {
           <span className="ix-auth-brand-mark">
             <Logo />
           </span>
+
           <span className="ix-auth-brand-name">
             InsureX
             <span className="ix-auth-brand-subtitle">
@@ -428,10 +638,12 @@ export default function AuthShell({ headline, text, children }) {
               <span className="ix-auth-benefit-icon">✓</span>
               Manage policies in one place
             </div>
+
             <div className="ix-auth-benefit">
               <span className="ix-auth-benefit-icon">✓</span>
               Keep track of claims and payments
             </div>
+
             <div className="ix-auth-benefit">
               <span className="ix-auth-benefit-icon">✓</span>
               Access your insurance account conveniently
@@ -452,6 +664,7 @@ export default function AuthShell({ headline, text, children }) {
             <span className="ix-auth-brand-mark">
               <Logo />
             </span>
+
             <span className="ix-auth-brand-name">
               InsureX
               <span className="ix-auth-brand-subtitle">
