@@ -461,12 +461,7 @@ function RefundModal({
         <div className="ix-payment-detail-summary">
           <ShieldCheck size={26} />
 
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
+          <div className="ix-payment-detail-main">
             <strong>
               {purchase.coveredTypes ||
                 'Insurance policy'}
@@ -529,13 +524,7 @@ function RefundModal({
             }
           />
 
-          <div
-            className="muted"
-            style={{
-              textAlign: 'right',
-              fontSize: 12,
-            }}
-          >
+          <div className="muted ix-payment-char-count">
             {reason.length}/500 characters
           </div>
         </div>
@@ -646,21 +635,13 @@ export function PurchaseDetail({
         </div>
       }
     >
-      <div
-        className="stack"
-        style={{ gap: 18 }}
-      >
+      <div className="stack ix-payment-detail-stack">
         {/* PURCHASE SUMMARY */}
 
         <div className="ix-payment-detail-summary">
           <ShieldCheck size={24} />
 
-          <div
-            style={{
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
+          <div className="ix-payment-detail-main">
             <h3>
               {p.coveredTypes ||
                 'Insurance policy'}
@@ -1482,11 +1463,8 @@ export default function MyPurchases() {
 
       {summary.pendingCount > 0 && (
         <div
-          className="alert info"
+          className="alert info ix-payment-alert"
           role="status"
-          style={{
-            marginBottom: 16,
-          }}
         >
           <RefreshCw size={17} />
 
@@ -1578,267 +1556,6 @@ export default function MyPurchases() {
         </Panel>
       </div>
 
-      {/* RESPONSIVE STYLES */}
-
-      <style>{`
-
-        /* InsureX emerald theme: explicit contrast independent of app theme variables. */
-        .ix-purchase-card-grid { color:#153b31; }
-        .ix-purchase-card { background:linear-gradient(155deg,#ffffff 0%,#f4fbf7 100%) !important; border:1px solid #b8dccc !important; color:#153b31 !important; box-shadow:0 5px 18px rgba(13,86,58,.07); }
-        .ix-purchase-card:hover { border-color:#2f9366 !important; box-shadow:0 17px 36px rgba(14,96,61,.17) !important; }
-        .ix-purchase-card-title h3, .ix-purchase-card-facts strong { color:#103e2d !important; }
-        .ix-purchase-card .muted, .ix-purchase-card-note { color:#426b5b !important; opacity:1 !important; }
-        .ix-purchase-card-icon { background:#d9f5e6 !important; color:#147447 !important; }
-        .ix-purchase-card-facts { background:#eaf8f0 !important; border:1px solid #d1ebdd; }
-        .ix-purchase-card-statuses { padding:4px 0; }
-        .ix-purchase-card-actions { border-top-color:#cbe6d7 !important; }
-        .ix-purchase-card-actions button { font-weight:650; }
-        .ix-purchase-card-actions button:not(:disabled) { border-color:#218254; }
-        .ix-purchase-card-actions button:not(:disabled):hover { box-shadow:0 4px 12px rgba(23,112,73,.16); }
-        .ix-purchase-card-actions button:disabled { opacity:.7; }
-        .ix-payment-summary-grid > * { background:linear-gradient(140deg,#ffffff,#eef9f2); border:1px solid #c5e5d2; border-radius:16px; color:#174734; }
-        .ix-payment-summary-grid .payment-summary { color:#17683e; }
-        .ix-payment-summary-grid .payment-summary strong { color:#0d422d !important; font-weight:800; overflow-wrap:anywhere; }
-        .ix-payment-summary-grid .payment-summary .muted { color:#426b58 !important; opacity:1 !important; }
-        .ix-payment-detail-summary { background:#f0faf4; color:#153f2d; border-color:#c5e4d2 !important; }
-        .ix-payment-detail-summary h3, .ix-payment-detail-summary strong { color:#103e2d; }
-        .ix-payment-detail-summary .muted { color:#456c59 !important; opacity:1 !important; }
-        .ix-payment-confirm { color:#204735; }
-        .ix-payment-confirm input { accent-color:#17814f; }
-        .ix-purchase-card .badge { font-weight:700; }
-        @media (prefers-reduced-motion: reduce) { .ix-purchase-card,.ix-payment-summary-grid > * { animation:none !important; } }
-
-        .ix-purchase-card-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,350px),1fr)); gap:16px; padding:18px; }
-        .ix-purchase-card { display:flex; flex-direction:column; gap:16px; min-width:0; padding:20px; background:var(--surface,#fff); border:1px solid var(--line,#e3e9e8); border-radius:18px; }
-        /* Motion: subtle entrance, hover lift, and accessible reduced-motion fallback */
-        @keyframes ixPurchaseReveal { from { opacity:0; transform:translateY(14px) scale(.985); } to { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes ixPaymentSummaryReveal { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-        .ix-purchase-card { animation:ixPurchaseReveal .46s cubic-bezier(.2,.8,.2,1) both; animation-delay:calc(min(var(--ix-card-index, 0), 8) * 55ms); transition:transform .24s ease,box-shadow .24s ease,border-color .24s ease; will-change:transform; }
-        .ix-purchase-card:hover { transform:translateY(-5px); border-color:#b8d8ce; box-shadow:0 14px 32px rgba(24,66,57,.11); }
-        .ix-purchase-card:focus-within { border-color:#67a99a; box-shadow:0 0 0 3px rgba(55,139,119,.12); }
-        .ix-purchase-card-icon { transition:transform .25s ease,background-color .25s ease; }
-        .ix-purchase-card:hover .ix-purchase-card-icon { transform:rotate(-5deg) scale(1.08); background:#d8eee6; }
-        .ix-purchase-card-actions button { transition:transform .18s ease,filter .18s ease; }
-        .ix-purchase-card-actions button:not(:disabled):hover { transform:translateY(-2px); filter:brightness(.98); }
-        .ix-payment-summary-grid > * { animation:ixPaymentSummaryReveal .42s ease-out both; }
-        .ix-payment-summary-grid > :nth-child(2) { animation-delay:65ms; }
-        .ix-payment-summary-grid > :nth-child(3) { animation-delay:130ms; }
-        .ix-payment-summary-grid > :nth-child(4) { animation-delay:195ms; }
-        @media (prefers-reduced-motion:reduce) {
-          .ix-purchase-card,.ix-payment-summary-grid > * { animation:none !important; }
-          .ix-purchase-card,.ix-purchase-card-icon,.ix-purchase-card-actions button { transition:none !important; will-change:auto; }
-          .ix-purchase-card:hover,.ix-purchase-card:hover .ix-purchase-card-icon,.ix-purchase-card-actions button:not(:disabled):hover { transform:none; }
-        }
-        .ix-purchase-card-head, .ix-purchase-card-heading { display:flex; align-items:flex-start; gap:12px; min-width:0; }
-        .ix-purchase-card-head { justify-content:space-between; flex-wrap:wrap; }
-        .ix-purchase-card-icon { display:grid; place-items:center; width:42px; height:42px; flex-shrink:0; border-radius:12px; background:#eaf3f0; color:#21685b; }
-        .ix-purchase-card-title { min-width:0; }
-        .ix-purchase-card-title h3 { margin:3px 0; font-size:17px; line-height:1.35; overflow-wrap:anywhere; }
-        .ix-purchase-card-statuses { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; }
-        .ix-purchase-card-statuses > div, .ix-purchase-card-facts > div { display:flex; flex-direction:column; align-items:flex-start; gap:6px; min-width:0; }
-        .ix-purchase-card-facts { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:16px; padding:16px; border-radius:12px; background:var(--surface-2,#f6f9f8); }
-        .ix-purchase-card-facts strong { font-size:15px; overflow-wrap:anywhere; }
-        .ix-purchase-card-note { display:flex; align-items:flex-start; gap:8px; font-size:13px; line-height:1.5; color:var(--ink-2,#536b68); }
-        .ix-purchase-card-note svg { flex-shrink:0; margin-top:2px; }
-        .ix-purchase-card-actions { display:flex; flex-wrap:wrap; align-items:center; gap:9px; padding-top:14px; margin-top:auto; border-top:1px solid var(--line,#e3e9e8); }
-        .ix-purchase-card-actions .btn { display:inline-flex; align-items:center; justify-content:center; gap:7px; }
-        @media(max-width:640px) { .ix-purchase-card-grid { padding:12px; gap:12px; } .ix-purchase-card { padding:16px; } .ix-purchase-card-actions > * { flex:1 1 100%; } }
-
-        .ix-payment-summary-grid {
-          display: grid;
-          grid-template-columns:
-            repeat(auto-fit, minmax(190px, 1fr));
-          gap: 14px;
-          margin-bottom: 20px;
-        }
-
-        .ix-payment-detail-summary {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 14px;
-          padding: 16px;
-          border: 1px solid
-            var(--line, #e3e9e8);
-          border-radius: 14px;
-        }
-
-        .ix-payment-detail-summary h3,
-        .ix-payment-detail-summary p {
-          margin: 0;
-        }
-
-        .ix-payment-modal-actions {
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        .ix-payment-confirm {
-          display: flex;
-          align-items: flex-start;
-          gap: 10px;
-          font-size: 13px;
-          line-height: 1.6;
-        }
-
-        .ix-payment-confirm input {
-          margin-top: 4px;
-          flex-shrink: 0;
-        }
-
-        .ix-payments-table-scroll {
-          width: 100%;
-          max-width: 100%;
-          min-width: 0;
-          overflow-x: auto;
-          overscroll-behavior-x: contain;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .ix-payments-table-scroll .table-wrap {
-          width: 100%;
-          max-width: 100%;
-          overflow-x: auto;
-        }
-
-        .ix-payments-table-scroll table {
-          width: 100%;
-          min-width: 1180px;
-          border-collapse: collapse;
-        }
-
-        .ix-payments-table-scroll th,
-        .ix-payments-table-scroll td {
-          padding: 14px 16px;
-          vertical-align: middle;
-          white-space: nowrap;
-        }
-
-        .ix-payments-table-scroll .purchase-ref,
-        .ix-payments-table-scroll .purchase-plan {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          justify-content: center;
-          gap: 4px;
-          min-width: 0;
-          line-height: 1.4;
-        }
-
-        .ix-payments-table-scroll .purchase-ref > b,
-        .ix-payments-table-scroll .purchase-plan > b {
-          font-weight: 700;
-          color: var(--ink);
-        }
-
-        .ix-payments-table-scroll .purchase-ref > span,
-        .ix-payments-table-scroll .purchase-plan > span {
-          font-size: 13px;
-          color: var(--ink-2);
-        }
-
-        .ix-payments-table-scroll .badge {
-          display: inline-flex;
-          align-items: center;
-          width: max-content;
-          max-width: none;
-          white-space: nowrap;
-          flex-shrink: 0;
-        }
-
-        .ix-payment-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          flex-wrap: nowrap;
-          gap: 6px;
-          white-space: nowrap;
-        }
-
-        .ix-payment-actions > * {
-          flex-shrink: 0;
-        }
-
-        @media (max-width: 640px) {
-          .ix-payment-summary-grid {
-            grid-template-columns:
-              repeat(2, minmax(0, 1fr));
-            gap: 10px;
-          }
-
-          .ix-payment-detail-summary {
-            padding: 12px;
-          }
-
-          .ix-payment-modal-actions {
-            justify-content: stretch;
-          }
-
-          .ix-payment-modal-actions > * {
-            flex: 1;
-          }
-        }
-
-        @media (max-width: 380px) {
-          .ix-payment-summary-grid {
-            grid-template-columns: 1fr;
-          }
-        }
-        /* Unified premium controls and responsive polish */
-        .ix-purchase-card-grid { align-items:stretch; }
-        .ix-purchase-card { contain:layout style; }
-        .ix-purchase-card-title h3 { letter-spacing:-.025em; }
-        .ix-purchase-card-facts .muted, .ix-purchase-card-statuses .muted { font-size:12px; font-weight:600; }
-        .ix-purchase-card-actions { align-items:stretch; }
-        .ix-purchase-card-actions > * { min-height:38px; }
-        .ix-purchase-card-actions button:focus-visible { outline:3px solid #52b788; outline-offset:3px; }
-        .ix-payment-summary-grid .payment-summary svg { flex-shrink:0; filter:drop-shadow(0 3px 5px rgba(17,112,68,.12)); }
-        .ix-payment-summary-grid > * { min-width:0; }
-        .ix-payment-modal-actions button:focus-visible { outline:3px solid #52b788; outline-offset:2px; }
-        @media(max-width:640px) {
-          .ix-purchase-card-statuses { gap:8px; }
-          .ix-purchase-card-facts { padding:12px; gap:12px; }
-          .ix-purchase-card-title h3 { font-size:16px; }
-          .ix-purchase-card-actions button { width:100%; }
-        }
-        /* Enhanced green motion system: decorative only, no API/state changes */
-        @keyframes ixGreenGlow { 0%,100% { box-shadow:0 8px 25px rgba(14,96,61,.08); } 50% { box-shadow:0 12px 35px rgba(14,126,75,.19); } }
-        @keyframes ixGreenShimmer { 0% { transform:translateX(-150%) skewX(-18deg); } 100% { transform:translateX(350%) skewX(-18deg); } }
-        @keyframes ixGreenFloat { 0%,100% { transform:translateY(0) rotate(0deg); } 50% { transform:translateY(-4px) rotate(4deg); } }
-        @keyframes ixGreenPop { 0% { opacity:0; transform:translateY(15px) scale(.92); } 75% { opacity:1; transform:translateY(-2px) scale(1.025); } 100% { opacity:1; transform:translateY(0) scale(1); } }
-        @keyframes ixGreenSweep { from { background-position:180% 50%; } to { background-position:-80% 50%; } }
-        .ix-purchase-card { position:relative; isolation:isolate; overflow:hidden; animation:ixGreenPop .65s cubic-bezier(.2,.9,.2,1) both !important; animation-delay:calc(min(var(--ix-card-index,0),8) * 75ms) !important; transition:transform .35s cubic-bezier(.2,.8,.2,1),box-shadow .35s ease,border-color .35s ease !important; }
-        .ix-purchase-card::before { content:''; position:absolute; inset:0 auto 0 -40%; width:24%; background:linear-gradient(90deg,transparent,rgba(70,194,126,.12),transparent); transform:translateX(-150%) skewX(-18deg); pointer-events:none; z-index:0; }
-        .ix-purchase-card:hover::before { animation:ixGreenShimmer .9s ease-out 1; }
-        .ix-purchase-card:hover { transform:translateY(-9px) scale(1.012) !important; box-shadow:0 24px 45px rgba(10,92,57,.20) !important; border-color:#198c58 !important; }
-        .ix-purchase-card:active { transform:translateY(-3px) scale(1.002) !important; }
-        .ix-purchase-card > * { position:relative; z-index:1; }
-        .ix-purchase-card-icon { animation:ixGreenFloat 3.6s ease-in-out infinite; box-shadow:0 5px 15px rgba(24,129,79,.12); }
-        .ix-purchase-card:hover .ix-purchase-card-icon { animation-play-state:paused; transform:rotate(-9deg) scale(1.16) !important; }
-        .ix-purchase-card-facts { transition:background-color .3s ease,transform .3s ease,border-color .3s ease !important; }
-        .ix-purchase-card:hover .ix-purchase-card-facts { background-color:#dcf5e7 !important; border-color:#a3dbbb !important; transform:translateY(-2px); }
-        .ix-purchase-card-statuses .badge { transition:transform .25s ease,box-shadow .25s ease; }
-        .ix-purchase-card:hover .ix-purchase-card-statuses .badge { transform:translateY(-2px); box-shadow:0 4px 12px rgba(20,111,71,.10); }
-        .ix-purchase-card-actions button:not(:disabled) { transition:transform .2s ease,box-shadow .2s ease,filter .2s ease !important; }
-        .ix-purchase-card-actions button:not(:disabled):hover { transform:translateY(-3px) scale(1.025) !important; box-shadow:0 8px 17px rgba(16,106,64,.22) !important; }
-        .ix-purchase-card-actions button:not(:disabled):active { transform:scale(.97) !important; }
-        .ix-payment-summary-grid > * { animation:ixGreenPop .6s cubic-bezier(.2,.9,.2,1) both !important; }
-        .ix-payment-summary-grid > :nth-child(1) { animation-delay:0ms !important; }
-        .ix-payment-summary-grid > :nth-child(2) { animation-delay:100ms !important; }
-        .ix-payment-summary-grid > :nth-child(3) { animation-delay:200ms !important; }
-        .ix-payment-summary-grid > :nth-child(4) { animation-delay:300ms !important; }
-        .ix-payment-summary-grid > * { transition:transform .3s ease,box-shadow .3s ease; }
-        .ix-payment-summary-grid > *:hover { transform:translateY(-6px); box-shadow:0 14px 28px rgba(17,106,67,.15); }
-        @media (prefers-reduced-motion:reduce) {
-          .ix-purchase-card,.ix-payment-summary-grid > *,.ix-purchase-card-icon,.ix-purchase-card::before { animation:none !important; transition:none !important; }
-          .ix-purchase-card:hover,.ix-purchase-card:active,.ix-payment-summary-grid > *:hover,.ix-purchase-card:hover .ix-purchase-card-icon,.ix-purchase-card:hover .ix-purchase-card-facts,.ix-purchase-card-actions button:not(:disabled):hover { transform:none !important; }
-        }
-
-      `}</style>
-
       {/* PURCHASE HISTORY */}
 
       <Panel flush>
@@ -1873,13 +1590,7 @@ export default function MyPurchases() {
         >
           {() =>
             rows.length === 0 ? (
-              <div
-                className="empty"
-                style={{
-                  padding: 28,
-                  textAlign: 'center',
-                }}
-              >
+              <div className="empty ix-payments-no-matches">
                 <h4>
                   No matching purchases
                 </h4>
@@ -1898,12 +1609,12 @@ export default function MyPurchases() {
               </div>
             ) : (
               <div className="ix-purchase-card-grid" aria-label="Payment and purchase history">
-                {rows.map((p, index) => {
+                {rows.map((p) => {
                   const policyNumber = getPolicyNumber(p)
                   const uncertain = uncertainRefundIds.has(String(p.purchaseId))
                   const showRefundAction = isPaid(p) && isRefundNotRequested(p)
                   return (
-                    <article className="ix-purchase-card" key={String(p.purchaseId)} style={{ '--ix-card-index': index }}>
+                    <article className="ix-purchase-card" key={String(p.purchaseId)}>
                       <div className="ix-purchase-card-head">
                         <div className="ix-purchase-card-heading">
                           <div className="ix-purchase-card-icon"><ShieldCheck size={22} /></div>
