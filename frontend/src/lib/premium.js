@@ -1,8 +1,3 @@
-/* =========================================================
-   INSUREX — PREMIUM CONFIGURATION
-   Based on the supplied policies database records
-========================================================= */
-
 export const PLANS = [
   {
     key: 'HLT-BASIC',
@@ -12,8 +7,7 @@ export const PLANS = [
     coverage: 300000,
     yearly: 2999,
     active: true,
-    blurb:
-      'Entry-level health coverage for eligible medical and hospitalization expenses.',
+    blurb: 'Entry-level health coverage for eligible medical and hospitalization expenses.',
   },
   {
     key: 'HLT-FAMILY',
@@ -23,8 +17,7 @@ export const PLANS = [
     coverage: 500000,
     yearly: 5999,
     active: true,
-    blurb:
-      'Family health coverage for eligible hospitalization and medical expenses.',
+    blurb: 'Family health coverage for eligible hospitalization and medical expenses.',
   },
   {
     key: 'HLT-PREMIUM',
@@ -34,8 +27,7 @@ export const PLANS = [
     coverage: 1000000,
     yearly: 9999,
     active: true,
-    blurb:
-      'Higher-limit health coverage for eligible medical and hospitalization expenses.',
+    blurb: 'Higher-limit coverage for eligible medical and hospitalization expenses.',
   },
   {
     key: 'LIF-ESSENTIAL',
@@ -45,8 +37,7 @@ export const PLANS = [
     coverage: 1000000,
     yearly: 3999,
     active: true,
-    blurb:
-      'Basic life protection with a benefit payable on a covered death.',
+    blurb: 'Basic life protection with a benefit payable on a covered death.',
   },
   {
     key: 'LIF-FAMILY',
@@ -56,8 +47,7 @@ export const PLANS = [
     coverage: 2500000,
     yearly: 7999,
     active: true,
-    blurb:
-      'Life protection designed to provide financial support to beneficiaries.',
+    blurb: 'Life protection designed to provide financial support to beneficiaries.',
   },
   {
     key: 'LIF-PREMIUM',
@@ -67,8 +57,7 @@ export const PLANS = [
     coverage: 5000000,
     yearly: 12999,
     active: true,
-    blurb:
-      'Higher-value life protection for beneficiaries, subject to policy terms.',
+    blurb: 'Higher-value life protection for beneficiaries, subject to policy terms.',
   },
   {
     key: 'MTR-BIKE',
@@ -78,8 +67,7 @@ export const PLANS = [
     coverage: 100000,
     yearly: 1499,
     active: true,
-    blurb:
-      'Sample two-wheeler coverage for eligible vehicle damage, subject to policy terms.',
+    blurb: 'Two-wheeler coverage for eligible vehicle damage, subject to policy terms.',
   },
   {
     key: 'MTR-CAR',
@@ -89,8 +77,7 @@ export const PLANS = [
     coverage: 500000,
     yearly: 4999,
     active: true,
-    blurb:
-      'Sample car insurance coverage for eligible vehicle damage, subject to policy terms.',
+    blurb: 'Car insurance coverage for eligible vehicle damage, subject to policy terms.',
   },
   {
     key: 'MTR-COMP',
@@ -100,8 +87,7 @@ export const PLANS = [
     coverage: 1000000,
     yearly: 8999,
     active: true,
-    blurb:
-      'Sample enhanced motor coverage for eligible damage and specified risks.',
+    blurb: 'Enhanced motor coverage for eligible damage and specified risks.',
   },
   {
     key: 'ACCIDENT',
@@ -111,26 +97,21 @@ export const PLANS = [
     coverage: 1000000,
     yearly: 1499,
     active: false,
-    blurb:
-      'Archived accident insurance plan retained for historical purchases.',
+    blurb: 'Archived accident insurance plan retained for historical purchases.',
   },
 ]
 
-/* =========================================================
-   COVERAGE CONFIGURATION
-========================================================= */
+export const ACTIVE_PLANS = PLANS.filter((plan) => plan.active)
 
-// These limits are retained for compatibility with existing UI.
-// Individual plans have their own actual coverage amounts.
 export const COVERAGE_MIN = 100000
-export const COVERAGE_MAX = 5000000
+export const COVERAGE_MAX = 10000000
 export const COVERAGE_STEP = 100000
-
 export const MAX_YEARS = 5
+export const MULTI_YEAR_DISCOUNT_RATE = 5
+export const GST_RATE = 0
 
-/* =========================================================
-   NORMALIZATION
-========================================================= */
+const round2 = (value) =>
+  Math.round((Number(value) + Number.EPSILON) * 100) / 100
 
 const normalize = (value = '') =>
   String(value)
@@ -139,35 +120,29 @@ const normalize = (value = '') =>
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
 
-const r2 = (number) =>
-  Math.round((number + Number.EPSILON) * 100) / 100
-
-/* =========================================================
-   PLAN LOOKUP
-========================================================= */
+function matchesAlias(type, alias) {
+  return (
+    type === alias ||
+    type === `${alias} insurance` ||
+    type.startsWith(`${alias} `)
+  )
+}
 
 /**
- * Finds a plan using its code, key, name, or policy type.
- *
- * If a broad category has multiple plans, returns null
- * rather than silently selecting the wrong premium.
- *
- * Examples:
- * planFor('HLT-BASIC')       -> Basic Health
- * planFor('Basic Health')    -> Basic Health
- * planFor('Health')          -> null (multiple tiers)
- * planFor('Medical')         -> null (ambiguous category)
+ * Find a plan using its code, key, or label.
+ * For a broad category such as "Health", use plansForType()
+ * because that category contains multiple tiers.
  */
-export function planFor(value = '') {
-  const requested = normalize(value)
+export function planFor(identifier = '') {
+  const value = normalize(identifier)
 
-  if (!requested) return null
+  if (!value) return null
 
-  const exactMatch = PLANS.find(
+  const exactMatch = ACTIVE_PLANS.find(
     (plan) =>
-      normalize(plan.key) === requested ||
-      normalize(plan.code) === requested ||
-      normalize(plan.label) === requested,
+      normalize(plan.key) === value ||
+      normalize(plan.code) === value ||
+      normalize(plan.label) === value
   )
 
   if (exactMatch) return exactMatch
@@ -179,148 +154,104 @@ export function planFor(value = '') {
     accident: ['accident', 'personal accident'],
   }
 
-  const matchingPlans = PLANS.filter((plan) => {
-    const type = normalize(plan.type)
-    const label = normalize(plan.label)
+  const matchingPlans = ACTIVE_PLANS.filter((plan) => {
+    const planType = normalize(plan.type)
 
-    if (
-      type === requested ||
-      label === requested
-    ) {
-      return true
-    }
-
-    return Object.entries(aliases).some(
-      ([category, names]) => {
-        const matchesCategory = names.some(
-          (name) =>
-            requested === name ||
-            requested === `${name} insurance`,
-        )
-
-        return (
-          matchesCategory &&
-          normalize(plan.type) === category
-        )
-      },
+    return (aliases[planType] || [planType]).some((alias) =>
+      matchesAlias(value, alias)
     )
   })
 
-  // A category can contain multiple coverage tiers.
-  // Do not guess which tier the customer intended.
-  return matchingPlans.length === 1
-    ? matchingPlans[0]
-    : null
+  return matchingPlans.length === 1 ? matchingPlans[0] : null
 }
 
-/* =========================================================
-   AVAILABLE PLANS
-========================================================= */
-
-/**
- * Returns only plans that are currently active.
- * The archived Accident plan is excluded.
- */
 export function activePlans() {
-  return PLANS.filter((plan) => plan.active)
+  return [...ACTIVE_PLANS]
 }
 
-/**
- * Returns all available plans for a given category.
- *
- * Examples:
- * plansForType('Health') -> 3 health tiers
- * plansForType('Motor')  -> 3 motor tiers
- */
 export function plansForType(type = '') {
-  const requested = normalize(type)
+  const value = normalize(type)
 
-  if (!requested) return activePlans()
+  if (!value) return [...ACTIVE_PLANS]
 
-  return PLANS.filter(
-    (plan) =>
-      plan.active &&
-      (
-        normalize(plan.type) === requested ||
-        normalize(plan.label) === requested
-      ),
-  )
+  const aliases = {
+    health: ['health', 'medical'],
+    life: ['life'],
+    motor: ['motor', 'vehicle', 'auto'],
+    accident: ['accident', 'personal accident'],
+  }
+
+  const acceptedAliases = aliases[value] || [value]
+
+  return ACTIVE_PLANS.filter((plan) => {
+    const planType = normalize(plan.type)
+
+    return acceptedAliases.some(
+      (alias) =>
+        planType === alias ||
+        planType === `${alias} insurance` ||
+        planType.startsWith(`${alias} `)
+    )
+  })
 }
 
-/* =========================================================
-   PREMIUM ESTIMATION
-========================================================= */
-
 /**
- * Calculates the premium for a specific plan.
+ * Proportional premium estimate:
  *
- * The database premiums are treated as yearly premiums
- * for each plan's listed coverage amount.
+ * annual premium = listed annual premium
+ *                 * selected coverage / listed plan coverage
  *
- * Multi-year discount retained from the previous
- * implementation: 5% for 2 or more years.
+ * base premium = estimated annual premium * duration
+ * discount = 5% of base premium for durations of 2+ years
+ * GST = GST_RATE
  *
- * GST remains 0%, matching the previous configuration.
- *
- * IMPORTANT:
- * Pass a plan code or exact plan name to avoid selecting
- * the wrong premium when multiple tiers exist.
+ * This is an estimate. The backend remains authoritative for checkout.
  */
-export function estimate(
-  planIdentifier,
-  coverage,
-  years,
-) {
+export function estimate(planIdentifier, coverage, years = 1) {
   const plan = planFor(planIdentifier)
+  const selectedCoverage = Number(coverage)
+  const selectedYears = Number(years)
 
-  if (!plan || !plan.active) return null
-
-  const requestedCoverage = Number(coverage)
-  const requestedYears = Number(years)
+  if (!plan) return null
 
   if (
-    !Number.isFinite(requestedCoverage) ||
-    !Number.isFinite(requestedYears) ||
-    requestedCoverage <= 0 ||
-    !Number.isInteger(requestedYears) ||
-    requestedYears < 1 ||
-    requestedYears > MAX_YEARS
+    !Number.isFinite(selectedCoverage) ||
+    selectedCoverage <= 0 ||
+    !Number.isFinite(selectedYears) ||
+    !Number.isInteger(selectedYears) ||
+    selectedYears < 1 ||
+    selectedYears > MAX_YEARS
   ) {
     return null
   }
 
-  // A plan's stored premium is for its specified coverage.
-  // Scale proportionally only if the caller requests a
-  // different coverage amount.
-  const base = r2(
-    plan.yearly *
-      (requestedCoverage / plan.coverage) *
-      requestedYears,
+  const annualPremium = round2(
+    plan.yearly * (selectedCoverage / plan.coverage)
   )
 
+  const base = round2(annualPremium * selectedYears)
+
   const discount =
-    requestedYears >= 2
-      ? r2(base * 0.05)
+    selectedYears >= 2
+      ? round2((base * MULTI_YEAR_DISCOUNT_RATE) / 100)
       : 0
 
-  const taxable = r2(base - discount)
-
-  const gstRate = 0
-  const gst = r2((taxable * gstRate) / 100)
-
-  const total = r2(taxable + gst)
+  const taxable = round2(base - discount)
+  const gst = round2((taxable * GST_RATE) / 100)
+  const total = round2(taxable + gst)
 
   return {
     planCode: plan.code,
     planName: plan.label,
-    coverage: requestedCoverage,
-    years: requestedYears,
+    coverage: selectedCoverage,
+    years: selectedYears,
+    annualPremium,
     base,
     discount,
     taxable,
-    gstRate,
+    gstRate: GST_RATE,
     gst,
     total,
-    perYear: r2(total / requestedYears),
+    perYear: round2(total / selectedYears),
   }
 }
