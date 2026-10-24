@@ -124,6 +124,7 @@ export default function Landing() {
           --ix-muted: #687d73;
           --ix-border: #e3eee7;
           --ix-white: #ffffff;
+
           width: 100%;
           min-height: 100vh;
           overflow: hidden;
@@ -165,8 +166,6 @@ export default function Landing() {
           gap: 24px;
         }
 
-        /* ORIGINAL INSUREX LOGO */
-
         .ix-brand {
           display: inline-flex;
           flex-shrink: 0;
@@ -182,6 +181,7 @@ export default function Landing() {
           display: grid;
           width: 39px;
           height: 39px;
+          flex-shrink: 0;
           place-items: center;
           border-radius: 12px;
           color: #ffffff;
@@ -243,6 +243,14 @@ export default function Landing() {
             box-shadow 180ms ease,
             background 180ms ease,
             border-color 180ms ease;
+        }
+
+        .ix-btn:focus-visible,
+        .ix-nav-link:focus-visible,
+        .ix-text-link:focus-visible,
+        .ix-footer-links a:focus-visible {
+          outline: 3px solid rgba(8, 127, 91, 0.32);
+          outline-offset: 4px;
         }
 
         .ix-btn:hover {
@@ -316,6 +324,7 @@ export default function Landing() {
         .ix-pill-dot {
           width: 7px;
           height: 7px;
+          flex-shrink: 0;
           border-radius: 50%;
           background: #13a56f;
           box-shadow: 0 0 0 4px #d9f4e4;
@@ -372,6 +381,7 @@ export default function Landing() {
           display: grid;
           width: 19px;
           height: 19px;
+          flex-shrink: 0;
           place-items: center;
           border-radius: 50%;
           color: var(--ix-green);
@@ -417,6 +427,7 @@ export default function Landing() {
             rgba(8, 35, 23, 0.02) 30%,
             rgba(8, 35, 23, 0.66) 100%
           );
+          pointer-events: none;
         }
 
         .ix-hero-caption {
@@ -459,6 +470,7 @@ export default function Landing() {
 
         .ix-section {
           padding-block: 78px;
+          scroll-margin-top: 20px;
         }
 
         .ix-section-soft {
@@ -661,6 +673,7 @@ export default function Landing() {
         .ix-plans-section {
           padding-block: 76px;
           background: #f7fbf8;
+          scroll-margin-top: 20px;
         }
 
         .ix-plan-grid {
@@ -1133,11 +1146,7 @@ export default function Landing() {
 
       <header className="ix-nav">
         <div className="ix-container ix-nav-inner">
-          <Link
-            className="ix-brand"
-            to="/"
-            aria-label="InsureX home"
-          >
+          <Link className="ix-brand" to="/" aria-label="InsureX home">
             <span className="ix-brand-mark" aria-hidden="true">
               ◈
             </span>
@@ -1187,7 +1196,7 @@ export default function Landing() {
       <section className="ix-container ix-hero">
         <div className="ix-hero-copy">
           <div className="ix-pill">
-            <span className="ix-pill-dot" />
+            <span className="ix-pill-dot" aria-hidden="true" />
             INSURANCE, MADE SIMPLER
           </div>
 
@@ -1215,12 +1224,16 @@ export default function Landing() {
 
           <div className="ix-trust-row">
             <span className="ix-trust-item">
-              <span className="ix-trust-check">✓</span>
+              <span className="ix-trust-check" aria-hidden="true">
+                ✓
+              </span>
               Easy policy access
             </span>
 
             <span className="ix-trust-item">
-              <span className="ix-trust-check">✓</span>
+              <span className="ix-trust-check" aria-hidden="true">
+                ✓
+              </span>
               Convenient management
             </span>
           </div>
@@ -1391,9 +1404,7 @@ export default function Landing() {
       <section className="ix-cta">
         <div className="ix-container ix-cta-inner">
           <div>
-            <h2>
-              Take the next step towards feeling prepared.
-            </h2>
+            <h2>Take the next step towards feeling prepared.</h2>
 
             <p>
               Explore insurance plans, access your account, and manage your
