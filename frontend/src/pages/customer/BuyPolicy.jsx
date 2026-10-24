@@ -169,15 +169,18 @@ function calculatePremium(plan, coverage, years) {
   const discount = roundMoney(base * discountRate / 100)
   const taxable = roundMoney(base - discount)
 
-  // Estimate only. Confirm the legally applicable GST treatment with the
-  // backend/business rules before using this value for a real payment.
+  // GST estimate for Indian insurance products as of October 2026:
+  // eligible individual life and individual health policies are exempt;
+  // group policies and other taxable insurance products use 18% here.
+  // The backend must implement the same classification before charging.
   const planType = String(
-    `${plan?.coveredType ?? ''} ${plan?.planName ?? ''} ${plan?.planCode ?? ''}`,
+    `${plan?.coveredType ?? ''} ${plan?.planName ?? ''} ${plan?.planCode ?? ''} ${plan?.category ?? ''}`,
   ).toLowerCase()
-  const isMotorOrAccident =
-    /motor|vehicle|car|bike|two[- ]?wheeler|accident/.test(planType) ||
-    /^(mtr|acc)/i.test(String(plan?.planCode ?? ''))
-  const gstRate = isMotorOrAccident ? 18 : 0
+  const isGroupPolicy = /\bgroup\b|corporate|employer|employee/.test(planType)
+  const isIndividualHealthOrLife =
+    /health|medical|hospital|life|family floater|senior citizen/.test(planType) &&
+    !isGroupPolicy
+  const gstRate = isIndividualHealthOrLife ? 0 : 18
   const gst = roundMoney(taxable * gstRate / 100)
   const total = roundMoney(taxable + gst)
 
@@ -1159,7 +1162,7 @@ export default function BuyPolicy() {
                             <dt>InsureX discount ({est.discountRate ?? 5}%)</dt>
                             <dd>− {inr(est.discount)}</dd>
 
-                            <dt>Estimated GST ({est.gstRate ?? 0}%)</dt>
+                            <dt>{(est.gstRate ?? 0) === 0 ? 'GST (exempt)' : `Estimated GST (${est.gstRate}%)`}</dt>
                             <dd>{inr(est.gst)}</dd>
                           </>
                         )}
@@ -1169,9 +1172,12 @@ export default function BuyPolicy() {
                       </dl>
 
                       <p className="ix-estimate-note">
-                        This is an indicative estimate. The final amount shown
-                        by the secure payment order is determined by InsureX's
-                        backend.
+                        {est.gstRate === 0
+                          ? 'GST is shown as exempt for eligible individual health/life policies. Confirm the product classification and applicable tax treatment with InsureX before charging.'
+                          : `GST is estimated at ${est.gstRate}% for this policy type.`}{' '}
+                        This is an indicative estimate. The secure payment order
+                        amount is determined by InsureX's backend, which must
+                        apply the same discount and GST rules.
                       </p>
                     </Panel>
                   )}
@@ -1285,7 +1291,7 @@ export default function BuyPolicy() {
                             <dt>InsureX discount ({est.discountRate ?? 5}%)</dt>
                             <dd>− {inr(est.discount)}</dd>
 
-                            <dt>Estimated GST ({est.gstRate ?? 0}%)</dt>
+                            <dt>{(est.gstRate ?? 0) === 0 ? 'GST (exempt)' : `Estimated GST (${est.gstRate}%)`}</dt>
                             <dd>{inr(est.gst)}</dd>
                           </>
                         )}
