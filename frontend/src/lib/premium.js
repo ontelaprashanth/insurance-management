@@ -3,7 +3,20 @@
  * InsureX Premium Calculator
  *
  * Baseline values match the supplied database plan records.
- * Premiums for adjustable coverage are proportional estimates.
+ * Adjustable coverage premiums are proportional estimates.
+ *
+ * Multi-year discount:
+ * - 5% discount applies to ALL durations from 1–5 years.
+ * - This is an InsureX pricing rule, not a government discount.
+ *
+ * GST assumptions:
+ * - Health: 0% for qualifying exempt policies.
+ * - Life: 0% for qualifying exempt policies.
+ * - Motor: 18% estimate.
+ * - Accident: 18% estimate.
+ *
+ * These are frontend estimates, not authoritative tax calculations.
+ * Verify each policy's actual classification before charging customers.
  */
 
 export const PLANS = [
@@ -159,14 +172,24 @@ export const COVERAGE_STEP = 100000;
 
 export const MAX_YEARS = 5;
 
-// This is a frontend estimate rule, not a database-defined discount.
+// InsureX pricing discount applied to every duration.
 export const MULTI_YEAR_DISCOUNT_RATE = 5;
 
-// The database records supplied do not specify a GST rate.
-export const GST_RATE = 0;
+// Estimated category-based GST rates.
+export const GST_RATES = {
+  health: 0,
+  life: 0,
+  motor: 18,
+  accident: 18,
+};
+
+// Fallback for categories that are not classified.
+export const GST_RATE = 18;
 
 const round2 = (value) =>
-  Math.round((Number(value) + Number.EPSILON) * 100) / 100;
+  Math.round(
+    (Number(value) + Number.EPSILON) * 100,
+  ) / 100;
 
 const normalize = (value) =>
   String(value ?? '')
@@ -194,8 +217,57 @@ function matchesAlias(type, alias) {
 }
 
 /**
+ * Returns the estimated GST rate for a plan or category.
+ *
+ * Health/life are treated as exempt only when the actual policy
+ * qualifies for the applicable exemption.
+ */
+export function gstRateForPlan(planOrType) {
+  const type =
+    typeof planOrType === 'object' && planOrType !== null
+      ? planOrType.type
+      : planOrType;
+
+  const normalizedType = normalize(type);
+
+  if (
+    CATEGORY_ALIASES.health.some((alias) =>
+      matchesAlias(normalizedType, alias),
+    )
+  ) {
+    return GST_RATES.health;
+  }
+
+  if (
+    CATEGORY_ALIASES.life.some((alias) =>
+      matchesAlias(normalizedType, alias),
+    )
+  ) {
+    return GST_RATES.life;
+  }
+
+  if (
+    CATEGORY_ALIASES.motor.some((alias) =>
+      matchesAlias(normalizedType, alias),
+    )
+  ) {
+    return GST_RATES.motor;
+  }
+
+  if (
+    CATEGORY_ALIASES.accident.some((alias) =>
+      matchesAlias(normalizedType, alias),
+    )
+  ) {
+    return GST_RATES.accident;
+  }
+
+  return GST_RATE;
+}
+
+/**
  * Finds an active plan by code, key, name, label, or category.
- * When a category has multiple plans, its first active plan is the default.
+ * A category with multiple plans defaults to its first active plan.
  */
 export function planFor(identifier) {
   if (identifier == null || identifier === '') {
@@ -216,9 +288,9 @@ export function planFor(identifier) {
     return exactMatch;
   }
 
-  const aliases = Object.entries(CATEGORY_ALIASES);
-
-  for (const [, categoryAliases] of aliases) {
+  for (const [, categoryAliases] of Object.entries(
+    CATEGORY_ALIASES,
+  )) {
     if (
       categoryAliases.some(
         (alias) =>
@@ -248,29 +320,34 @@ export function activePlans() {
 export function plansForType(type) {
   const value = normalize(type);
 
-  const aliases = Object.entries(CATEGORY_ALIASES).find(
-    ([category, categoryAliases]) =>
-      normalize(category) === value ||
-      categoryAliases.some(
-        (alias) =>
-          normalize(alias) === value ||
-          `${normalize(alias)} insurance` === value,
-      ),
-  )?.[1] ?? [value];
+  const aliases =
+    Object.entries(CATEGORY_ALIASES).find(
+      ([category, categoryAliases]) =>
+        normalize(category) === value ||
+        categoryAliases.some(
+          (alias) =>
+            normalize(alias) === value ||
+            `${normalize(alias)} insurance` === value,
+        ),
+    )?.[1] ?? [value];
 
   return ACTIVE_PLANS.filter((plan) =>
-    aliases.some((alias) => matchesAlias(plan.type, alias)),
+    aliases.some((alias) =>
+      matchesAlias(plan.type, alias),
+    ),
   );
 }
 
 /**
- * Calculates an estimated premium using the selected database plan's
- * listed coverage and yearly premium as the baseline.
+ * Calculates an estimated premium using the plan's listed coverage
+ * and yearly premium as the baseline.
  *
- * Example:
- * Basic Health:
- * ₹3,00,000 coverage = ₹2,999 per year
- * ₹6,00,000 coverage = approximately ₹5,998 per year
+ * annualPremium = listed yearly premium × selected coverage / listed coverage
+ * base = annualPremium × years
+ * discount = 5% of base for every duration from 1 to 5 years
+ * taxable = base - discount
+ * GST = taxable × category GST rate
+ * total = taxable + GST
  */
 export function estimate(
   planIdentifier,
@@ -304,23 +381,25 @@ export function estimate(
     (plan.yearly * selectedCoverage) / plan.coverage,
   );
 
-  const base = round2(annualPremium * selectedYears);
+  const base = round2(
+    annualPremium * selectedYears,
+  );
 
-  const discount =
-    selectedYears >= 2
-      ? round2(
-          (base * MULTI_YEAR_DISCOUNT_RATE) / 100,
-        )
-      : 0;
+  // Apply the 5% InsureX discount for every selected duration.
+  const discountRate = MULTI_YEAR_DISCOUNT_RATE;
+
+  const discount = round2(
+    (base * discountRate) / 100,
+  );
 
   const taxable = round2(base - discount);
+  const gstRate = gstRateForPlan(plan);
 
   const gst = round2(
-    (taxable * GST_RATE) / 100,
+    (taxable * gstRate) / 100,
   );
 
   const total = round2(taxable + gst);
-
   const perYear = round2(total / selectedYears);
 
   return {
@@ -328,22 +407,27 @@ export function estimate(
     planCode: plan.code,
     planName: plan.name,
     planType: plan.type,
+
     coverage: selectedCoverage,
     years: selectedYears,
+
     listedCoverage: plan.coverage,
     listedAnnualPremium: plan.yearly,
+
     annualPremium,
     base,
+
     discount,
-    discountRate:
-      selectedYears >= 2
-        ? MULTI_YEAR_DISCOUNT_RATE
-        : 0,
+    discountRate,
+
     taxable,
-    gstRate: GST_RATE,
+
+    gstRate,
     gst,
+
     total,
     perYear,
+
     isEstimate: true,
   };
 }
