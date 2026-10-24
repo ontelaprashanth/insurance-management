@@ -1,7 +1,6 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Logo } from '../../components/ui'
 import { useAuth } from '../../auth/AuthContext'
 import { PLANS } from '../../lib/premium'
 import { inr } from '../../lib/format'
@@ -99,6 +98,7 @@ function StoryCard({ story, index }) {
         <span className="ix-eyebrow">{story.eyebrow}</span>
         <h3>{story.title}</h3>
         <p>{story.description}</p>
+
         <Link className="ix-text-link" to="/app/plans">
           Explore plans <span aria-hidden="true">→</span>
         </Link>
@@ -149,8 +149,6 @@ export default function Landing() {
           margin-inline: auto;
         }
 
-        /* SHARED INSUREX BRANDING */
-
         .ix-nav {
           position: relative;
           z-index: 5;
@@ -167,6 +165,8 @@ export default function Landing() {
           gap: 24px;
         }
 
+        /* ORIGINAL INSUREX LOGO */
+
         .ix-brand {
           display: inline-flex;
           flex-shrink: 0;
@@ -176,33 +176,21 @@ export default function Landing() {
           font-size: 22px;
           font-weight: 850;
           letter-spacing: -0.9px;
-          transition: transform 180ms ease;
         }
 
-        .ix-brand:hover {
-          transform: translateY(-1px);
-        }
-
-        .ix-brand .logo {
-          display: block;
+        .ix-brand-mark {
+          display: grid;
           width: 39px;
           height: 39px;
-          flex-shrink: 0;
+          place-items: center;
           border-radius: 12px;
+          color: #ffffff;
+          background: linear-gradient(145deg, #0ba875, #066747);
           box-shadow: 0 5px 14px rgba(8, 127, 91, 0.18);
-          transition: box-shadow 180ms ease;
+          font-size: 21px;
         }
 
-        .ix-brand:hover .logo {
-          box-shadow: 0 7px 18px rgba(8, 127, 91, 0.24);
-        }
-
-        .ix-brand-name {
-          display: block;
-          white-space: nowrap;
-        }
-
-        .ix-brand-name small {
+        .ix-brand span small {
           display: block;
           margin-top: 1px;
           color: #7b9085;
@@ -235,8 +223,6 @@ export default function Landing() {
           align-items: center;
           gap: 10px;
         }
-
-        /* BUTTONS */
 
         .ix-btn {
           display: inline-flex;
@@ -469,7 +455,7 @@ export default function Landing() {
           line-height: 1.7;
         }
 
-        /* SECTION HEADINGS */
+        /* SECTIONS */
 
         .ix-section {
           padding-block: 78px;
@@ -493,7 +479,7 @@ export default function Landing() {
         }
 
         .ix-section-heading h2 {
-          margin: 12px 0 12px;
+          margin: 12px 0;
           color: #153b2c;
           font-size: clamp(28px, 3.3vw, 39px);
           font-weight: 850;
@@ -508,7 +494,7 @@ export default function Landing() {
           line-height: 1.85;
         }
 
-        /* PROTECTION STORY CARDS */
+        /* PROTECTION CARDS */
 
         .ix-story-grid {
           display: grid;
@@ -588,7 +574,7 @@ export default function Landing() {
         }
 
         .ix-story-body h3 {
-          margin: 10px 0 10px;
+          margin: 10px 0;
           color: #193c2e;
           font-size: 20px;
           font-weight: 800;
@@ -635,9 +621,7 @@ export default function Landing() {
           border: 1px solid var(--ix-border);
           border-radius: 15px;
           background: #ffffff;
-          transition:
-            transform 200ms ease,
-            box-shadow 200ms ease;
+          transition: transform 200ms ease, box-shadow 200ms ease;
         }
 
         .ix-feature-card:hover {
@@ -672,7 +656,7 @@ export default function Landing() {
           line-height: 1.85;
         }
 
-        /* AVAILABLE PLANS */
+        /* PLANS */
 
         .ix-plans-section {
           padding-block: 76px;
@@ -693,9 +677,7 @@ export default function Landing() {
           border: 1px solid var(--ix-border);
           border-radius: 16px;
           background: #ffffff;
-          transition:
-            transform 200ms ease,
-            box-shadow 200ms ease;
+          transition: transform 200ms ease, box-shadow 200ms ease;
         }
 
         .ix-plan-card:hover {
@@ -739,7 +721,7 @@ export default function Landing() {
           width: 100%;
         }
 
-        /* CALL TO ACTION */
+        /* CTA */
 
         .ix-cta {
           position: relative;
@@ -914,8 +896,6 @@ export default function Landing() {
           }
         }
 
-        /* SMALLER SCREENS */
-
         @media (max-width: 800px) {
           .ix-nav-inner {
             min-height: 72px;
@@ -1009,12 +989,12 @@ export default function Landing() {
             font-size: 20px;
           }
 
-          .ix-brand .logo {
+          .ix-brand-mark {
             width: 35px;
             height: 35px;
           }
 
-          .ix-brand-name small {
+          .ix-brand span small {
             font-size: 8px;
             letter-spacing: 1.7px;
           }
@@ -1136,8 +1116,6 @@ export default function Landing() {
           }
         }
 
-        /* ACCESSIBILITY */
-
         @media (prefers-reduced-motion: reduce) {
           .ix-landing *,
           .ix-landing *::before,
@@ -1160,18 +1138,17 @@ export default function Landing() {
             to="/"
             aria-label="InsureX home"
           >
-            <Logo size={39} />
+            <span className="ix-brand-mark" aria-hidden="true">
+              ◈
+            </span>
 
-            <span className="ix-brand-name">
+            <span>
               InsureX
               <small>INSURANCE PLATFORM</small>
             </span>
           </Link>
 
-          <nav
-            className="ix-nav-links"
-            aria-label="Main navigation"
-          >
+          <nav className="ix-nav-links" aria-label="Main navigation">
             <a className="ix-nav-link" href="#protection">
               Protection
             </a>
@@ -1187,25 +1164,16 @@ export default function Landing() {
 
           <div className="ix-nav-actions">
             {user ? (
-              <Link
-                className="ix-btn ix-btn-primary"
-                to={dashboardPath}
-              >
+              <Link className="ix-btn ix-btn-primary" to={dashboardPath}>
                 Dashboard <span aria-hidden="true">→</span>
               </Link>
             ) : (
               <>
-                <Link
-                  className="ix-btn ix-btn-outline"
-                  to="/login"
-                >
+                <Link className="ix-btn ix-btn-outline" to="/login">
                   Sign in
                 </Link>
 
-                <Link
-                  className="ix-btn ix-btn-primary"
-                  to="/register"
-                >
+                <Link className="ix-btn ix-btn-primary" to="/register">
                   Get started
                 </Link>
               </>
@@ -1236,17 +1204,11 @@ export default function Landing() {
           </p>
 
           <div className="ix-hero-actions">
-            <Link
-              className="ix-btn ix-btn-primary"
-              to="/app/plans"
-            >
+            <Link className="ix-btn ix-btn-primary" to="/app/plans">
               Explore insurance <span aria-hidden="true">→</span>
             </Link>
 
-            <Link
-              className="ix-btn ix-btn-outline"
-              to="/login"
-            >
+            <Link className="ix-btn ix-btn-outline" to="/login">
               Access your account
             </Link>
           </div>
@@ -1296,16 +1258,10 @@ export default function Landing() {
 
       {/* PROTECTION CATEGORIES */}
 
-      <section
-        className="ix-section ix-section-soft"
-        id="protection"
-      >
+      <section className="ix-section ix-section-soft" id="protection">
         <div className="ix-container">
           <div className="ix-section-heading">
-            <span className="ix-eyebrow">
-              EXPLORE YOUR OPTIONS
-            </span>
-
+            <span className="ix-eyebrow">EXPLORE YOUR OPTIONS</span>
             <h2>Protection for life's priorities</h2>
 
             <p>
@@ -1331,10 +1287,7 @@ export default function Landing() {
       <section className="ix-section" id="benefits">
         <div className="ix-container">
           <div className="ix-section-heading">
-            <span className="ix-eyebrow">
-              THE INSUREX EXPERIENCE
-            </span>
-
+            <span className="ix-eyebrow">THE INSUREX EXPERIENCE</span>
             <h2>Insurance management, made convenient</h2>
 
             <p>
@@ -1345,14 +1298,8 @@ export default function Landing() {
 
           <div className="ix-feature-grid">
             {FEATURES.map((feature) => (
-              <article
-                className="ix-feature-card"
-                key={feature.title}
-              >
-                <div
-                  className="ix-feature-icon"
-                  aria-hidden="true"
-                >
+              <article className="ix-feature-card" key={feature.title}>
+                <div className="ix-feature-icon" aria-hidden="true">
                   {feature.icon}
                 </div>
 
@@ -1370,10 +1317,7 @@ export default function Landing() {
         <section className="ix-plans-section" id="plans">
           <div className="ix-container">
             <div className="ix-section-heading">
-              <span className="ix-eyebrow">
-                FIND YOUR COVER
-              </span>
-
+              <span className="ix-eyebrow">FIND YOUR COVER</span>
               <h2>Explore available insurance plans</h2>
 
               <p>
@@ -1431,10 +1375,7 @@ export default function Landing() {
                       {planDescription}
                     </p>
 
-                    <Link
-                      className="ix-btn ix-btn-outline"
-                      to="/app/plans"
-                    >
+                    <Link className="ix-btn ix-btn-outline" to="/app/plans">
                       View plan <span aria-hidden="true">→</span>
                     </Link>
                   </article>
@@ -1461,18 +1402,12 @@ export default function Landing() {
           </div>
 
           <div className="ix-cta-actions">
-            <Link
-              className="ix-btn ix-btn-light"
-              to="/app/plans"
-            >
+            <Link className="ix-btn ix-btn-light" to="/app/plans">
               Explore plans <span aria-hidden="true">→</span>
             </Link>
 
             {!user && (
-              <Link
-                className="ix-btn ix-btn-outline"
-                to="/register"
-              >
+              <Link className="ix-btn ix-btn-outline" to="/register">
                 Create account
               </Link>
             )}
@@ -1490,10 +1425,7 @@ export default function Landing() {
             Your insurance journey, in one place.
           </p>
 
-          <nav
-            className="ix-footer-links"
-            aria-label="Footer navigation"
-          >
+          <nav className="ix-footer-links" aria-label="Footer navigation">
             <Link to="/">Home</Link>
             <Link to="/app/plans">Insurance plans</Link>
             <Link to="/login">Sign in</Link>
