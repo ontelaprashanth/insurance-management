@@ -14,6 +14,47 @@ const IMAGES = {
     'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1000&q=85',
 }
 
+/* Original InsureX brand logo — no external image required. */
+function InsureXLogo({ size = 42 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 40 40"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="InsureX logo"
+      style={{
+        display: 'block',
+        width: size,
+        height: size,
+        flexShrink: 0,
+      }}
+    >
+      <rect
+        x="1"
+        y="1"
+        width="38"
+        height="38"
+        rx="11"
+        fill="#1F5B5D"
+      />
+      <path
+        d="M20 7.5L30 11.3V19.4C30 25.2 25.8 29.7 20 32.5C14.2 29.7 10 25.2 10 19.4V11.3L20 7.5Z"
+        fill="#E9A23B"
+      />
+      <path
+        d="M15.2 20.2L18.5 23.5L25.2 16.8"
+        stroke="#0F3D3E"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
 const STORIES = [
   {
     eyebrow: 'HEALTH INSURANCE',
@@ -187,14 +228,6 @@ export default function Landing() {
           overflow: hidden;
           border-radius: 11px;
           background: #ffffff;
-        }
-
-        .ix-brand-logo {
-          display: block;
-          width: 100%;
-          height: 100%;
-          object-fit: contain;
-          object-position: center;
         }
 
         .ix-brand-text {
@@ -1162,15 +1195,8 @@ export default function Landing() {
       <header className="ix-nav">
         <div className="ix-container ix-nav-inner">
           <Link className="ix-brand" to="/" aria-label="InsureX home">
-            <span className="ix-brand-logo-wrap" aria-hidden="true">
-              <img
-                className="ix-brand-logo"
-                src="/logo.png"
-                alt=""
-                onError={(event) => {
-                  event.currentTarget.style.display = 'none'
-                }}
-              />
+            <span className="ix-brand-logo-wrap">
+              <InsureXLogo size={42} />
             </span>
 
             <span className="ix-brand-text">
