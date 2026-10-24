@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { claims, policies, purchases } from '../../api/endpoints'
@@ -33,256 +34,6 @@ const BLOCKING_CLAIM_STATUSES = new Set([
   'SETTLED',
 ])
 
-const claimFormStyles = `
-  @keyframes ixClaimEnter {
-    from { opacity: 0; transform: translateY(18px) scale(.985); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
-  }
-
-  @keyframes ixClaimGlow {
-    0%, 100% { transform: translate(-15%, -30%) scale(1); opacity: .5; }
-    50% { transform: translate(8%, -15%) scale(1.1); opacity: .8; }
-  }
-
-  @keyframes ixClaimSweep {
-    from { transform: translateX(-130%) skewX(-20deg); }
-    to { transform: translateX(330%) skewX(-20deg); }
-  }
-
-  .ix-claim-form {
-    --ix-green-deep: #103e2d;
-    --ix-green: #17814f;
-    --ix-green-light: #e7f7ee;
-    width: 100%;
-    color: #17392e;
-  }
-
-  .ix-claim-hero {
-    position: relative;
-    isolation: isolate;
-    overflow: hidden;
-    margin-bottom: 18px;
-    padding: 22px 24px;
-    border-radius: 18px;
-    color: #fff;
-    background: linear-gradient(120deg, #103e2d 0%, #176a48 58%, #1e935b 100%);
-    box-shadow: 0 14px 30px rgba(16, 62, 45, .14);
-    animation: ixClaimEnter .5s cubic-bezier(.2,.8,.2,1) both;
-  }
-
-  .ix-claim-hero::before {
-    content: '';
-    position: absolute;
-    z-index: -1;
-    top: -130px;
-    right: -70px;
-    width: 230px;
-    height: 230px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgba(180,255,211,.28), transparent 70%);
-    animation: ixClaimGlow 7s ease-in-out infinite;
-  }
-
-  .ix-claim-hero::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    width: 36%;
-    pointer-events: none;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.08), transparent);
-    transform: translateX(-130%) skewX(-20deg);
-  }
-
-  .ix-claim-hero:hover::after {
-    animation: ixClaimSweep 1.1s ease-out;
-  }
-
-  .ix-claim-eyebrow {
-    margin-bottom: 8px;
-    color: #c8f5da;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: .13em;
-    text-transform: uppercase;
-  }
-
-  .ix-claim-title {
-    margin: 0 0 6px;
-    color: #fff;
-    font-size: clamp(19px, 3vw, 24px);
-    line-height: 1.25;
-    font-weight: 800;
-  }
-
-  .ix-claim-subtitle {
-    max-width: 590px;
-    margin: 0;
-    color: #e1f7e9;
-    font-size: 13px;
-    line-height: 1.65;
-  }
-
-  .ix-claim-form .ix-claim-section {
-    margin-bottom: 14px;
-    padding: 18px;
-    border: 1px solid #d9e9df;
-    border-radius: 16px;
-    background: #fff;
-    box-shadow: 0 4px 18px rgba(16, 62, 45, .045);
-    animation: ixClaimEnter .52s cubic-bezier(.2,.8,.2,1) both;
-    animation-delay: calc(var(--ix-claim-index, 0) * 90ms);
-    transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
-  }
-
-  .ix-claim-form .ix-claim-section:hover,
-  .ix-claim-form .ix-claim-section:focus-within {
-    border-color: #8fcdae;
-    box-shadow: 0 12px 28px rgba(16, 100, 62, .10);
-    transform: translateY(-2px);
-  }
-
-  .ix-claim-section-head {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 14px;
-  }
-
-  .ix-claim-section-icon {
-    display: grid;
-    flex: 0 0 34px;
-    width: 34px;
-    height: 34px;
-    place-items: center;
-    border-radius: 11px;
-    color: #137346;
-    background: #e2f5e9;
-    font-size: 13px;
-    font-weight: 900;
-    transition: transform .35s ease, background .35s ease;
-  }
-
-  .ix-claim-section:hover .ix-claim-section-icon {
-    transform: rotate(-8deg) scale(1.08);
-    background: #c9eed8;
-  }
-
-  .ix-claim-section-title {
-    margin: 0;
-    color: #103e2d;
-    font-size: 15px;
-    font-weight: 800;
-  }
-
-  .ix-claim-section-note {
-    margin: 3px 0 0;
-    color: #526b60;
-    font-size: 12px;
-    line-height: 1.5;
-  }
-
-  .ix-claim-form .form-grid {
-    gap: 14px;
-  }
-
-  .ix-claim-form label {
-    color: #204637;
-    font-weight: 650;
-  }
-
-  .ix-claim-form input,
-  .ix-claim-form textarea,
-  .ix-claim-form select {
-    color: #17392e;
-    border-color: #cbded2;
-    background: #fff;
-    transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
-  }
-
-  .ix-claim-form input:focus,
-  .ix-claim-form textarea:focus,
-  .ix-claim-form select:focus {
-    border-color: #17814f;
-    box-shadow: 0 0 0 3px rgba(23, 129, 79, .12);
-    outline-color: #17814f;
-  }
-
-  .ix-claim-form input:disabled {
-    background: #f1f7f3;
-    color: #3e5b4e;
-    opacity: 1;
-  }
-
-  .ix-claim-form .alert.error {
-    border: 1px solid #f1c3c3;
-    border-radius: 12px;
-    color: #8c2020;
-    background: #fff0f0;
-    animation: ixClaimEnter .3s ease both;
-  }
-
-  .ix-claim-helper {
-    padding: 11px 13px;
-    border: 1px solid #d2ecdc;
-    border-radius: 12px;
-    color: #4d6859;
-    background: #eff9f3;
-    font-size: 12px;
-    line-height: 1.65;
-  }
-
-  .ix-claim-form-footer {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    gap: 10px;
-  }
-
-  .ix-claim-form-footer > * {
-    transition: transform .22s ease, box-shadow .22s ease;
-  }
-
-  .ix-claim-form-footer > *:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 7px 17px rgba(16,62,45,.12);
-  }
-
-  .ix-claim-form-footer > *:active:not(:disabled) {
-    transform: translateY(0) scale(.98);
-  }
-
-  @media (max-width: 640px) {
-    .ix-claim-hero {
-      padding: 18px;
-      border-radius: 14px;
-    }
-
-    .ix-claim-form .ix-claim-section {
-      padding: 14px;
-      border-radius: 13px;
-    }
-
-    .ix-claim-form-footer {
-      width: 100%;
-    }
-
-    .ix-claim-form-footer > * {
-      flex: 1 1 120px;
-    }
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .ix-claim-form *,
-    .ix-claim-form *::before,
-    .ix-claim-form *::after,
-    .ix-claim-form-footer > * {
-      animation: none !important;
-      transition: none !important;
-      transform: none !important;
-    }
-  }
-`
-
 function normalize(value) {
   return String(value ?? '').trim().toUpperCase()
 }
@@ -308,8 +59,6 @@ function claimIsBlocking(claim) {
     return false
   }
 
-  // Fail closed for unknown statuses until the backend's status
-  // vocabulary has been confirmed.
   return BLOCKING_CLAIM_STATUSES.has(status) || true
 }
 
@@ -553,8 +302,6 @@ export default function ClaimForm({ policy, onClose }) {
 
     if (Object.keys(e).length > 0) return
 
-    // Refresh server-authoritative records before submission.
-    // Backend must still enforce ownership and atomic eligibility checks.
     try {
       const [policyResult, claimResult, purchaseResult] =
         await Promise.all([
@@ -601,7 +348,6 @@ export default function ClaimForm({ policy, onClose }) {
         return
       }
 
-      // Validate the incident against the freshly fetched policy dates.
       if (
         f.incidentDate < String(freshPolicy.startDate).slice(0, 10) ||
         f.incidentDate >= String(freshPolicy.expiryDate).slice(0, 10)
@@ -658,8 +404,6 @@ export default function ClaimForm({ policy, onClose }) {
         </div>
       }
     >
-      <style>{claimFormStyles}</style>
-
       <div className="ix-claim-form">
         <div className="ix-claim-hero">
           <div className="ix-claim-eyebrow">
@@ -677,21 +421,13 @@ export default function ClaimForm({ policy, onClose }) {
         </div>
 
         {serverError && (
-          <div
-            className="alert error"
-            role="alert"
-            style={{ marginBottom: 14 }}
-          >
+          <div className="alert error ix-claim-alert" role="alert">
             {serverError}
           </div>
         )}
 
         {eligibilityError && (
-          <div
-            className="alert error"
-            role="alert"
-            style={{ marginBottom: 14 }}
-          >
+          <div className="alert error ix-claim-alert" role="alert">
             Could not verify policy, purchase and claim records.
             Close and reopen the form or try again.
           </div>
@@ -701,19 +437,12 @@ export default function ClaimForm({ policy, onClose }) {
           f.policyNumber &&
           selectedPolicyError &&
           !eligibilityError && (
-            <div
-              className="alert error"
-              role="alert"
-              style={{ marginBottom: 14 }}
-            >
+            <div className="alert error ix-claim-alert" role="alert">
               {selectedPolicyError}
             </div>
           )}
 
-        <section
-          className="ix-claim-section"
-          style={{ '--ix-claim-index': 1 }}
-        >
+        <section className="ix-claim-section ix-claim-section-1">
           <div className="ix-claim-section-head">
             <span className="ix-claim-section-icon" aria-hidden="true">
               01
@@ -797,10 +526,7 @@ export default function ClaimForm({ policy, onClose }) {
           </div>
         </section>
 
-        <section
-          className="ix-claim-section"
-          style={{ '--ix-claim-index': 2 }}
-        >
+        <section className="ix-claim-section ix-claim-section-2">
           <div className="ix-claim-section-head">
             <span className="ix-claim-section-icon" aria-hidden="true">
               02
@@ -839,10 +565,7 @@ export default function ClaimForm({ policy, onClose }) {
           </div>
         </section>
 
-        <section
-          className="ix-claim-section"
-          style={{ '--ix-claim-index': 3 }}
-        >
+        <section className="ix-claim-section ix-claim-section-3">
           <div className="ix-claim-section-head">
             <span className="ix-claim-section-icon" aria-hidden="true">
               03
@@ -870,10 +593,7 @@ export default function ClaimForm({ policy, onClose }) {
             </div>
           </div>
 
-          <p
-            className="ix-claim-helper"
-            style={{ margin: '12px 0 0' }}
-          >
+          <p className="ix-claim-helper">
             Review the information before submitting. Claim approval
             and payment depend on the policy terms and backend review.
           </p>
