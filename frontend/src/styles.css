@@ -1,27 +1,25 @@
 /* =========================================================================
    INSUREX — style.css  (merged: base + page-level "ix-" styles)
 
-   PART A  Base / shell / shared components   (from your old style.css)
-   PART B  Page-level ix- styles              (from your new style.css)
-   PART C  Added: loading / error / empty states
-   PART E  Admin Broadcast page (Broadcast.jsx)
-   PART F  Admin Claims page (Claims.jsx)
-   PART G  Admin Dashboard page (Dashboard.jsx)
-   PART H  Admin Policies page (Policies.jsx)
-   PART I  Admin Policy Holders page (PolicyHolders.jsx)
-   PART J  Admin Purchases page (Purchases.jsx)
-   PART D  Fluid layout, mobile-first polish, touch targets, bottom-sheet
-           modals, safe-area support, accessibility  (overrides, last)
+   PART A    Base / shell / shared components
+   PART B    Page-level ix- styles (customer pages)
+   PART C    Loading / error / empty states
+   PART D    Fluid layout, mobile polish, touch targets, bottom-sheet modals,
+             safe-area support, accessibility (global refinements)
+   PART E-J  Admin pages: Broadcast, Claims, Dashboard, Policies,
+             Policy Holders, Purchases (scoped to their own page classes)
+   PART K    Admin pages: Settlements, Users, Reviews
 
    REQUIRED in index.html <head> for mobile + notch support:
    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
    Import ONCE at app level (main.jsx):  import './style.css'
-   The old file can be deleted; this one replaces both.
 
-   FONT: Schibsted Grotesk is loaded with @import below, so no change to
-   index.html is needed. (For best speed you may instead use <link> tags in
-   index.html and delete the @import line.)
+   FONT: Schibsted Grotesk is loaded with @import below. For best speed use
+   <link rel="preconnect"> + <link> tags in index.html and delete the @import.
+
+   NOTE: native CSS nesting is used once (stagger block, section 3.1).
+   Needs Chrome 120+, Safari 17.2+, Firefox 117+.
    ========================================================================= */
 
 @import url('https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400..900&display=swap');
@@ -146,6 +144,7 @@ input, select, textarea { font-family: inherit; }
 .alert { padding: 12px 14px; border-radius: var(--r-ctl); font-size: 14px; border: 1px solid; }
 .alert.error { background: var(--red-soft); border-color: #efc2b9; color: #8a2a1b; }
 .alert.ok { background: var(--green-soft); border-color: #b7dfc7; color: #1d5f3a; }
+.alert.success { background: var(--green-soft); border-color: #b7dfc7; color: #1d5f3a; }
 .alert.info { background: var(--lagoon-soft); border-color: #b5dad6; color: #0f5a5a; }
 .alert.warn { background: var(--marigold-soft); border-color: #f0d49d; color: #6b4608; }
 
@@ -360,7 +359,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
    - Entrance animations use fill-mode "backwards" so hover lifts still work.
    - Stagger order comes from --ix-i, set with :nth-child (no inline styles).
    - Mobile breakpoints: 1200 / 900 / 640 / 480 / 380.
-   - prefers-reduced-motion disables all motion (bottom of file).
+   - prefers-reduced-motion disables all motion (bottom of Part B).
    ######################################################################### */
 
 
@@ -394,12 +393,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   --ix-font: var(--font);
 }
 
-/* Make every ix- page, and the form controls inside it, use the base font */
-[class*="ix-"],
-[class*="ix-"] button,
-[class*="ix-"] input,
-[class*="ix-"] select,
-[class*="ix-"] textarea {
+/* Make every ix- page, and the form controls inside it, use the base font.
+   FIX: matches whole class tokens only (not "prefix-", "matrix-", etc.). */
+:is([class^="ix-"], [class*=" ix-"]),
+:is([class^="ix-"], [class*=" ix-"]) :is(button, input, select, textarea) {
   font-family: var(--ix-font);
 }
 
@@ -462,7 +459,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
    03. SHARED BUILDING BLOCKS
    ========================================================================= */
 
-/* ---- 3.1 Stagger index (replaces inline --ix-*-index styles) ---- */
+/* ---- 3.1 Stagger index (FIX: one nested block instead of eight copies) ---- */
 
 :where(
   .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
@@ -473,84 +470,16 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   .ix-review-stats, .ix-review-grid,
   .ix-refunds-summary,
   .ix-notification-grid
-) > * { --ix-i: 0; }
-
-:where(
-  .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
-  .ix-plans-grid,
-  .ix-policy-summary-grid, .ix-policy-card-grid, .ix-claimed-list,
-  .ix-payment-summary-grid, .ix-purchase-card-grid,
-  .ix-claims-stats, .ix-claims-cards,
-  .ix-review-stats, .ix-review-grid,
-  .ix-refunds-summary,
-  .ix-notification-grid
-) > :nth-child(2) { --ix-i: 1; }
-
-:where(
-  .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
-  .ix-plans-grid,
-  .ix-policy-summary-grid, .ix-policy-card-grid, .ix-claimed-list,
-  .ix-payment-summary-grid, .ix-purchase-card-grid,
-  .ix-claims-stats, .ix-claims-cards,
-  .ix-review-stats, .ix-review-grid,
-  .ix-refunds-summary,
-  .ix-notification-grid
-) > :nth-child(3) { --ix-i: 2; }
-
-:where(
-  .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
-  .ix-plans-grid,
-  .ix-policy-summary-grid, .ix-policy-card-grid, .ix-claimed-list,
-  .ix-payment-summary-grid, .ix-purchase-card-grid,
-  .ix-claims-stats, .ix-claims-cards,
-  .ix-review-stats, .ix-review-grid,
-  .ix-refunds-summary,
-  .ix-notification-grid
-) > :nth-child(4) { --ix-i: 3; }
-
-:where(
-  .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
-  .ix-plans-grid,
-  .ix-policy-summary-grid, .ix-policy-card-grid, .ix-claimed-list,
-  .ix-payment-summary-grid, .ix-purchase-card-grid,
-  .ix-claims-stats, .ix-claims-cards,
-  .ix-review-stats, .ix-review-grid,
-  .ix-refunds-summary,
-  .ix-notification-grid
-) > :nth-child(5) { --ix-i: 4; }
-
-:where(
-  .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
-  .ix-plans-grid,
-  .ix-policy-summary-grid, .ix-policy-card-grid, .ix-claimed-list,
-  .ix-payment-summary-grid, .ix-purchase-card-grid,
-  .ix-claims-stats, .ix-claims-cards,
-  .ix-review-stats, .ix-review-grid,
-  .ix-refunds-summary,
-  .ix-notification-grid
-) > :nth-child(6) { --ix-i: 5; }
-
-:where(
-  .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
-  .ix-plans-grid,
-  .ix-policy-summary-grid, .ix-policy-card-grid, .ix-claimed-list,
-  .ix-payment-summary-grid, .ix-purchase-card-grid,
-  .ix-claims-stats, .ix-claims-cards,
-  .ix-review-stats, .ix-review-grid,
-  .ix-refunds-summary,
-  .ix-notification-grid
-) > :nth-child(7) { --ix-i: 6; }
-
-:where(
-  .ix-dash-stats, .ix-dash-sections, .ix-dash-list, .ix-dash-policies,
-  .ix-plans-grid,
-  .ix-policy-summary-grid, .ix-policy-card-grid, .ix-claimed-list,
-  .ix-payment-summary-grid, .ix-purchase-card-grid,
-  .ix-claims-stats, .ix-claims-cards,
-  .ix-review-stats, .ix-review-grid,
-  .ix-refunds-summary,
-  .ix-notification-grid
-) > :nth-child(n + 8) { --ix-i: 7; }
+) {
+  > *                 { --ix-i: 0; }
+  > :nth-child(2)     { --ix-i: 1; }
+  > :nth-child(3)     { --ix-i: 2; }
+  > :nth-child(4)     { --ix-i: 3; }
+  > :nth-child(5)     { --ix-i: 4; }
+  > :nth-child(6)     { --ix-i: 5; }
+  > :nth-child(7)     { --ix-i: 6; }
+  > :nth-child(n + 8) { --ix-i: 7; }
+}
 
 /* ---- 3.2 Entrance animation for every card / tile / row ---- */
 
@@ -780,9 +709,9 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
     background-color .2s ease, filter .2s ease;
 }
 
-/* ---- 3.9 Keyboard focus ---- */
+/* ---- 3.9 Keyboard focus (FIX: whole class tokens only) ---- */
 
-[class*="ix-"] :focus-visible {
+:is([class^="ix-"], [class*=" ix-"]) :focus-visible {
   outline: 3px solid var(--ix-focus);
   outline-offset: 2px;
 }
@@ -839,7 +768,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ix-dash,
 .ix-dash * { box-sizing: border-box; }
 
-/* FIX: links only; buttons styled as links (.btn) keep their own colours */
+/* links only; buttons styled as links (.btn) keep their own colours */
 .ix-dash a:not(.btn) {
   color: #126b42;
   text-decoration: none;
@@ -2828,8 +2757,46 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 }
 
 
+/* =========================================================================
+   15. TOUCH DEVICES — no hover lifts (they stick on tap)
+   ========================================================================= */
+
+@media (hover: none) {
+  :is(
+    .ix-plan-card, .ix-policy-card, .ix-claimed-card, .ix-purchase-card,
+    .ix-claim-card, .ix-review-card, .ix-dash-policy,
+    .ix-dash-stat, .ix-claims-stat, .ix-review-stat,
+    .ix-dash-section, .ix-dash-item,
+    .ix-profile-section > *
+  ):hover { transform: none; }
+
+  :is(
+    .ix-policy-summary-grid, .ix-payment-summary-grid, .ix-refunds-summary
+  ) > *:hover { transform: none; }
+}
+
+
+/* =========================================================================
+   16. REDUCED MOTION — respect the user's OS setting
+   ========================================================================= */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    animation-delay: 0ms !important;
+    transition-duration: .01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .ix-notification-item.ix-notification-exiting { opacity: .35; }
+}
+
+
 /* #########################################################################
-   PART C — ADDED: LOADING / ERROR / EMPTY STATES
+   PART C — LOADING / ERROR / EMPTY STATES
    Generic, reusable on Dashboard, Policies, Purchases, Claims, Reviews,
    Refunds (Plans keeps its own .ix-plans-state).
 
@@ -2883,47 +2850,10 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
 .ix-skeleton-line.short { width: 55%; }
 
 
-/* =========================================================================
-   15. TOUCH DEVICES — no hover lifts (they stick on tap)
-   ========================================================================= */
-
-@media (hover: none) {
-  :is(
-    .ix-plan-card, .ix-policy-card, .ix-claimed-card, .ix-purchase-card,
-    .ix-claim-card, .ix-review-card, .ix-dash-policy,
-    .ix-dash-stat, .ix-claims-stat, .ix-review-stat,
-    .ix-dash-section, .ix-dash-item,
-    .ix-profile-section > *
-  ):hover { transform: none; }
-
-  :is(
-    .ix-policy-summary-grid, .ix-payment-summary-grid, .ix-refunds-summary
-  ) > *:hover { transform: none; }
-}
-
-
-/* =========================================================================
-   16. REDUCED MOTION — respect the user's OS setting
-   ========================================================================= */
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: .01ms !important;
-    animation-iteration-count: 1 !important;
-    animation-delay: 0ms !important;
-    transition-duration: .01ms !important;
-    scroll-behavior: auto !important;
-  }
-
-  .ix-notification-item.ix-notification-exiting { opacity: .35; }
-}
-
-
 /* #########################################################################
    PART D — FLUID LAYOUT · MOBILE POLISH · UI REFINEMENT
-   Loaded last on purpose: it refines the rules above without rewriting them.
+   Global refinements. Parts E–K come after it and are scoped to their own
+   page classes, so they do not override these.
    ######################################################################### */
 
 /* ---- D1. Fluid tokens ---- */
@@ -3016,6 +2946,19 @@ p { text-wrap: pretty; }
 }
 .panel-head, .toolbar { padding-inline: clamp(14px, 2vw, 20px); }
 .panel-body { padding: clamp(14px, 2vw, 22px); }
+
+/* App-wide green primary button in modal footers (moved here from Part H) */
+.modal-foot > .btn.dark {
+  border: 1px solid var(--ix-green-600);
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 6px 14px rgba(13, 122, 74, .16);
+}
+.modal-foot > .btn.dark:not(:disabled):hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 20px rgba(13, 122, 74, .24);
+}
 
 /* Coarse pointers (phones / tablets): 44px targets, 16px inputs (stops iOS zoom) */
 @media (pointer: coarse) {
@@ -4501,8 +4444,8 @@ p { text-wrap: pretty; }
   gap: 8px;
 }
 
-.ix-policies-modal-actions .btn.dark,
-.modal-foot > .btn.dark {
+/* the app-wide ".modal-foot > .btn.dark" rule now lives in Part D */
+.ix-policies-modal-actions .btn.dark {
   border: 1px solid var(--ix-green-600);
   background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
   color: #fff;
@@ -4510,8 +4453,7 @@ p { text-wrap: pretty; }
   box-shadow: 0 6px 14px rgba(13, 122, 74, .16);
 }
 
-.ix-policies-modal-actions .btn.dark:not(:disabled):hover,
-.modal-foot > .btn.dark:not(:disabled):hover {
+.ix-policies-modal-actions .btn.dark:not(:disabled):hover {
   filter: brightness(1.05);
   box-shadow: 0 10px 20px rgba(13, 122, 74, .24);
 }
@@ -4636,7 +4578,7 @@ p { text-wrap: pretty; }
    2) replace the outer <> </> of PolicyHolders() with
       <div className="ix-admin-holders-page"> </div>
    HolderForm / details / confirm dialogs render in a portal and use the
-   shared ".modal" rules (Parts F and H) plus .ix-holders-modal-actions.
+   shared ".modal" rules (Parts D and F) plus .ix-holders-modal-actions.
    ######################################################################### */
 
 .ix-admin-holders-page { min-width: 0; color: var(--ix-deep); }
@@ -5016,7 +4958,7 @@ p { text-wrap: pretty; }
 
 /* ---- J4. Panel + toolbar ---- */
 
-.ix-admin-purchases-page > .panel:last-of-type,
+/* FIX: removed the dead ":last-of-type" selector (it matches by element type, not class) */
 .ix-admin-purchases-page > .panel:has(.ix-admin-purchases-toolbar) {
   overflow: hidden;
   border: 1px solid var(--ix-line);
@@ -5216,4 +5158,595 @@ p { text-wrap: pretty; }
 
 @media (hover: none) {
   .ix-admin-purchases-summary > *:hover { transform: none; }
+}
+
+
+/* #########################################################################
+   PART K — ADMIN SETTLEMENTS · USERS · REVIEWS
+   Append to the end of style.css (after Part J).
+
+   In each component:
+   1) delete the inline <style>{`...`}</style> block
+   2) replace the outer <> </> with a wrapper div:
+        Settlements.jsx -> <div className="ix-admin-settlements-page">
+        Users.jsx       -> <div className="ix-admin-users-page">
+        Reviews.jsx     -> <div className="ix-admin-reviews-page">
+   Class names inside the components stay exactly as they are.
+   ######################################################################### */
+
+
+/* ---- K0. Shared fixes -------------------------------------------------- */
+
+/* .alert.success is defined in Part A (Settlements uses it) */
+
+/* alerts with an icon (and optional button) lay out as a row */
+:is(.ix-admin-settlements-page, .ix-admin-users-page, .ix-admin-reviews-page) > .alert,
+.modal .alert:has(> svg) {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+:is(.ix-admin-settlements-page, .ix-admin-users-page, .ix-admin-reviews-page) > .alert > svg,
+.modal .alert:has(> svg) > svg { flex: none; margin-top: 3px; }
+
+:is(.ix-admin-settlements-page, .ix-admin-users-page, .ix-admin-reviews-page) > .alert > span,
+.modal .alert:has(> svg) > span { flex: 1 1 200px; min-width: 0; }
+
+.modal .alert.success { line-height: 1.55; }
+
+.ix-admin-settlements-page,
+.ix-admin-users-page,
+.ix-admin-reviews-page { min-width: 0; color: var(--ix-deep); }
+
+.ix-admin-settlements-page,
+.ix-admin-settlements-page *,
+.ix-admin-users-page,
+.ix-admin-users-page *,
+.ix-admin-reviews-page,
+.ix-admin-reviews-page * { box-sizing: border-box; }
+
+/* shared green primary button for the three pages + their modals */
+:is(.ix-settlement-actions, .ix-settlement-modal-actions,
+    .ix-users-modal-actions, .ix-reviews-modal-actions) .btn.dark {
+  border: 1px solid var(--ix-green-600);
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 6px 14px rgba(13, 122, 74, .16);
+}
+
+:is(.ix-settlement-actions, .ix-settlement-modal-actions,
+    .ix-users-modal-actions, .ix-reviews-modal-actions) .btn.dark:not(:disabled):hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 20px rgba(13, 122, 74, .24);
+}
+
+:is(.ix-settlement-actions, .ix-users-actions, .ix-reviews-actions) .btn { border-color: #bfdcca; }
+:is(.ix-settlement-actions, .ix-users-actions, .ix-reviews-actions) .btn:not(:disabled):not(.dark):not(.danger):hover {
+  background: var(--ix-green-tint);
+  border-color: #8bcaa4;
+}
+
+:is(.ix-settlement-actions, .ix-users-actions, .ix-reviews-actions) .btn.ghost {
+  border-color: transparent;
+  color: #537565;
+}
+
+:is(.ix-settlement-actions, .ix-users-actions, .ix-reviews-actions) .btn.ghost:not(:disabled):hover {
+  background: var(--red-soft);
+  color: #a63825;
+}
+
+:is(.ix-settlement-modal-actions, .ix-users-modal-actions, .ix-reviews-modal-actions) {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* panel + toolbar look shared by all three */
+:is(.ix-admin-settlements-page, .ix-admin-users-page) > .panel {
+  overflow: hidden;
+  border: 1px solid var(--ix-line);
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fff 0%, #f6fcf8 100%);
+  box-shadow: var(--ix-shadow-sm);
+  animation: ixRise .6s var(--ix-ease) 120ms backwards;
+}
+
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .search { flex: 1 1 240px; max-width: 420px; }
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .input { border-color: #bfdcca; }
+
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .input:focus {
+  border-color: #21975e;
+  box-shadow: 0 0 0 3px rgba(33, 151, 94, .14);
+}
+
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-color: #bfdcca;
+  border-radius: 999px;
+}
+
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .seg::-webkit-scrollbar { display: none; }
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .seg button { flex: none; transition: background-color .2s ease, color .2s ease; }
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .seg button:hover { background: var(--ix-green-tint); }
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .seg button + button { border-left-color: #d3e8db; }
+
+:is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .seg button[aria-pressed='true'] {
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+}
+
+:is(.ix-admin-settlements-page, .ix-admin-users-page, .ix-admin-reviews-page) .empty h4 { color: var(--ix-deep); }
+:is(.ix-admin-settlements-page, .ix-admin-users-page, .ix-admin-reviews-page) .empty p { color: var(--ix-muted); }
+
+/* shared table look */
+:is(.ix-settlement-table, .ix-users-table-wrap) { animation: ixFade .5s ease; overscroll-behavior-x: contain; }
+:is(.ix-settlement-table, .ix-users-table-wrap) .table-wrap { background: none; }
+:is(.ix-settlement-table, .ix-users-table-wrap) table { color: #1a4332; }
+
+:is(.ix-settlement-table, .ix-users-table-wrap) thead th {
+  border-bottom: 1px solid #bfdfcb;
+  background: #e8f6ed;
+  color: #205a3d;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+:is(.ix-settlement-table, .ix-users-table-wrap) tbody tr { transition: background-color .2s ease; }
+:is(.ix-settlement-table, .ix-users-table-wrap) tbody tr:nth-child(even) td { background: #f8fcf9; }
+:is(.ix-settlement-table, .ix-users-table-wrap) tbody tr:hover td { background: #e9f8ef; }
+:is(.ix-settlement-table, .ix-users-table-wrap) tbody td { border-bottom: 1px solid var(--ix-line-soft); }
+:is(.ix-settlement-table, .ix-users-table-wrap) td strong,
+:is(.ix-settlement-table, .ix-users-table-wrap) td b { color: #0c4b30; }
+:is(.ix-settlement-table, .ix-users-table-wrap) .faint { color: #537565; }
+
+.ix-settlement-table tbody tr { cursor: pointer; }
+
+
+/* ---- K1. SETTLEMENTS --------------------------------------------------- */
+
+/* Six tiles: separate cards instead of the joined .ledger strip */
+.ix-settlement-ledger {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(14px, 2vw, 20px) !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.ix-settlement-ledger > div {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 18px);
+  border: 1px solid var(--ix-line) !important;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #ecf9f1 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-settlement-ledger > div:nth-child(2) { animation-delay: 70ms; }
+.ix-settlement-ledger > div:nth-child(3) { animation-delay: 140ms; }
+.ix-settlement-ledger > div:nth-child(4) { animation-delay: 210ms; }
+.ix-settlement-ledger > div:nth-child(5) { animation-delay: 280ms; }
+.ix-settlement-ledger > div:nth-child(6) { animation-delay: 350ms; }
+
+.ix-settlement-ledger > div::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(53, 179, 103, .10), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.ix-settlement-ledger > div:hover {
+  transform: translateY(-4px);
+  border-color: #8bcaa4 !important;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-settlement-ledger > div:hover::before { animation: ixShimmer .8s ease; }
+
+/* status accents follow the tile order in Settlements.jsx:
+   Pending, Processing, Failed, Settled, Rejected, All */
+.ix-settlement-ledger > div:nth-child(1) { border-left: 4px solid var(--marigold) !important; }
+.ix-settlement-ledger > div:nth-child(2) { border-left: 4px solid var(--blue) !important; }
+.ix-settlement-ledger > div:nth-child(3) { border-left: 4px solid var(--red) !important; }
+.ix-settlement-ledger > div:nth-child(4) { border-left: 4px solid var(--ix-green) !important; }
+.ix-settlement-ledger > div:nth-child(5) { border-left: 4px solid #9db3a9 !important; }
+
+.ix-settlement-ledger .label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-settlement-ledger .value {
+  margin-top: 6px;
+  color: var(--ix-deep);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ix-settlement-ledger .sub { margin-top: 6px; color: var(--ix-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+
+.ix-settlement-toolbar {
+  padding: 15px clamp(14px, 2vw, 18px);
+  border-bottom: 1px solid #d5e9db;
+  background: linear-gradient(115deg, #f4fbf6, #fff);
+}
+
+.ix-settlement-table:focus-visible { outline-offset: -3px; }
+
+/* rows: Settlement · Claim · Amount · Date · Status · actions */
+@media (max-width: 700px) {
+  .ix-settlement-toolbar { align-items: stretch; padding: 12px; }
+  .ix-settlement-toolbar .search { flex-basis: 100%; max-width: none; }
+
+  .ix-settlement-table { overflow: visible; }
+  .ix-settlement-table table { min-width: 0 !important; }
+
+  .ix-settlement-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .ix-settlement-table table,
+  .ix-settlement-table tbody { display: block; width: 100%; }
+
+  .ix-settlement-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 14px;
+    margin: 12px;
+    padding: 16px;
+    border: 1px solid var(--ix-line);
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #f4fbf7 100%);
+    box-shadow: var(--ix-shadow-sm);
+  }
+
+  .ix-settlement-table tbody tr:nth-child(even) td,
+  .ix-settlement-table tbody tr:hover td { background: transparent; }
+
+  .ix-settlement-table td {
+    display: block;
+    padding: 0;
+    border: 0 !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-settlement-table td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: #476b58;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  .ix-settlement-table td:nth-child(1)::before { content: 'Settlement'; }
+  .ix-settlement-table td:nth-child(2)::before { content: 'Claim'; }
+  .ix-settlement-table td:nth-child(3)::before { content: 'Amount'; }
+  .ix-settlement-table td:nth-child(4)::before { content: 'Date'; }
+  .ix-settlement-table td:nth-child(5)::before { content: 'Status'; }
+
+  .ix-settlement-table td:nth-child(1) { font-size: 15px; }
+
+  .ix-settlement-table td:nth-child(6) {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid #d6e9de !important;
+  }
+
+  /* up to four actions: let them wrap instead of scrolling */
+  .ix-settlement-actions { flex-wrap: wrap; justify-content: stretch; }
+  .ix-settlement-actions > * { flex: 1 1 calc(50% - 6px); }
+
+  .ix-settlement-modal-actions { width: 100%; }
+  .ix-settlement-modal-actions > * { flex: 1 1 auto; }
+}
+
+@media (max-width: 360px) {
+  .ix-settlement-ledger { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* ---- K2. USERS --------------------------------------------------------- */
+
+.ix-users-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(14px, 2vw, 20px);
+}
+
+.ix-users-summary-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 18px);
+  border: 1px solid var(--ix-line);
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #ecf9f1 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-users-summary-card:nth-child(2) { animation-delay: 70ms; border-left: 4px solid var(--ix-green); }
+.ix-users-summary-card:nth-child(3) { animation-delay: 140ms; border-left: 4px solid #9db3a9; }
+.ix-users-summary-card:nth-child(4) { animation-delay: 210ms; border-left: 4px solid var(--blue); }
+
+.ix-users-summary-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(53, 179, 103, .10), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.ix-users-summary-card:hover {
+  transform: translateY(-4px);
+  border-color: #8bcaa4;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-users-summary-card:hover::before { animation: ixShimmer .8s ease; }
+
+.ix-users-summary-card .label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-users-summary-card .value {
+  margin-top: 6px;
+  color: var(--ix-deep);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ix-users-toolbar {
+  padding: 15px clamp(14px, 2vw, 18px);
+  border-bottom: 1px solid #d5e9db;
+  background: linear-gradient(115deg, #f4fbf6, #fff);
+}
+
+/* the form-grid password field spans both columns; keep modal inputs on theme */
+.modal-body .form-grid .field .hint { color: #537565; }
+
+/* rows: ID · User · Mobile · Role · Joined · Status · actions */
+@media (max-width: 700px) {
+  .ix-users-toolbar { align-items: stretch; padding: 12px; }
+  .ix-users-toolbar .search { flex-basis: 100%; max-width: none; }
+
+  .ix-users-table-wrap { overflow: visible; }
+  .ix-users-table-wrap table { min-width: 0 !important; }
+
+  .ix-users-table-wrap thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .ix-users-table-wrap table,
+  .ix-users-table-wrap tbody { display: block; width: 100%; }
+
+  .ix-users-table-wrap tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 14px;
+    margin: 12px;
+    padding: 16px;
+    border: 1px solid var(--ix-line);
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #f4fbf7 100%);
+    box-shadow: var(--ix-shadow-sm);
+  }
+
+  .ix-users-table-wrap tbody tr:nth-child(even) td,
+  .ix-users-table-wrap tbody tr:hover td { background: transparent; }
+
+  .ix-users-table-wrap td {
+    display: block;
+    padding: 0;
+    border: 0 !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-users-table-wrap td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: #476b58;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  .ix-users-table-wrap td:nth-child(1)::before { content: 'ID'; }
+  .ix-users-table-wrap td:nth-child(2)::before { content: 'User'; }
+  .ix-users-table-wrap td:nth-child(3)::before { content: 'Mobile'; }
+  .ix-users-table-wrap td:nth-child(4)::before { content: 'Role'; }
+  .ix-users-table-wrap td:nth-child(5)::before { content: 'Joined'; }
+  .ix-users-table-wrap td:nth-child(6)::before { content: 'Status'; }
+
+  .ix-users-table-wrap td:nth-child(2) { grid-column: 1 / -1; font-size: 15px; }
+
+  .ix-users-table-wrap td:nth-child(7) {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid #d6e9de !important;
+  }
+
+  /* View / Edit / Activate / Delete in a 2 x 2 grid */
+  .ix-users-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ix-users-modal-actions { width: 100%; }
+  .ix-users-modal-actions > * { flex: 1 1 auto; }
+}
+
+@media (max-width: 360px) {
+  .ix-users-summary { grid-template-columns: minmax(0, 1fr); }
+}
+
+
+/* ---- K3. ADMIN REVIEWS ------------------------------------------------- */
+/* Note: plural "ix-reviews-*" = admin page; singular "ix-review-*" = customer page. */
+
+.ix-reviews-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(14px, 2vw, 20px);
+}
+
+.ix-reviews-summary-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 18px);
+  border: 1px solid var(--ix-line);
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #ecf9f1 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-reviews-summary-card:nth-child(2) { animation-delay: 70ms; }
+.ix-reviews-summary-card:nth-child(3) { animation-delay: 140ms; border-left: 4px solid var(--marigold); }
+.ix-reviews-summary-card:nth-child(4) { animation-delay: 210ms; border-left: 4px solid var(--ix-green); }
+
+.ix-reviews-summary-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(53, 179, 103, .10), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.ix-reviews-summary-card:hover {
+  transform: translateY(-4px);
+  border-color: #8bcaa4;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-reviews-summary-card:hover::before { animation: ixShimmer .8s ease; }
+
+.ix-reviews-summary-card .label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-reviews-summary-card .value {
+  margin-top: 6px;
+  color: var(--ix-deep);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ix-reviews-toolbar { gap: 12px; margin-bottom: clamp(14px, 2vw, 18px); }
+
+.ix-reviews-list { gap: clamp(12px, 1.6vw, 16px); }
+
+/* each review is a <Panel> */
+.ix-reviews-list > .panel {
+  position: relative;
+  overflow: hidden;
+  padding: clamp(16px, 1.9vw, 20px);
+  border: 1px solid var(--ix-line);
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fff 0%, #f4fbf7 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .28s var(--ix-ease), box-shadow .28s ease, border-color .28s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-reviews-list > .panel:hover {
+  transform: translateY(-3px);
+  border-color: #44ac79;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-reviews-person strong { color: #103e2a; }
+.ix-reviews-person-email { color: #537565 !important; }
+
+.ix-reviews-message { color: #244c38; font-size: 14px; }
+
+.ix-reviews-reply {
+  border-color: #bce3cd;
+  background: #eaf8ef;
+}
+
+.ix-reviews-reply strong { color: #126b44; font-size: 13px; font-weight: 800; }
+.ix-reviews-reply p { color: #244e39; font-size: 13px; }
+
+.ix-reviews-actions { padding-top: 14px; border-top: 1px solid #d6e9de; }
+
+/* reply modal */
+.ix-reviews-original {
+  border-color: #c5e4d2;
+  background: linear-gradient(120deg, #eef9f2, #fff);
+}
+
+.ix-reviews-original-header strong { color: var(--ix-deep); }
+.ix-reviews-original .faint { color: #537565; }
+.ix-reviews-character-count { color: var(--ix-muted); font-variant-numeric: tabular-nums; }
+
+@media (max-width: 640px) {
+  .ix-reviews-toolbar .search { flex-basis: 100%; max-width: none; }
+  .ix-reviews-summary { gap: 10px; }
+  .ix-reviews-actions > * { flex: 1 1 auto; }
+  .ix-reviews-modal-actions { width: 100%; }
+  .ix-reviews-modal-actions > * { flex: 1 1 auto; }
+}
+
+@media (max-width: 360px) {
+  .ix-reviews-summary { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (pointer: coarse) {
+  :is(.ix-settlement-toolbar, .ix-users-toolbar, .ix-reviews-toolbar) .seg button { height: 44px; }
+}
+
+@media (hover: none) {
+  .ix-settlement-ledger > div:hover,
+  .ix-users-summary-card:hover,
+  .ix-reviews-summary-card:hover,
+  .ix-reviews-list > .panel:hover { transform: none; }
 }
