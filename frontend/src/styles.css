@@ -4,6 +4,11 @@
    PART A  Base / shell / shared components   (from your old style.css)
    PART B  Page-level ix- styles              (from your new style.css)
    PART C  Added: loading / error / empty states
+   PART D  Fluid layout, mobile-first polish, touch targets, bottom-sheet
+           modals, safe-area support, accessibility  (overrides, last)
+
+   REQUIRED in index.html <head> for mobile + notch support:
+   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 
    Import ONCE at app level (main.jsx):  import './style.css'
    The old file can be deleted; this one replaces both.
@@ -2907,4 +2912,356 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 14px; }
   }
 
   .ix-notification-item.ix-notification-exiting { opacity: .35; }
+}
+
+
+/* #########################################################################
+   PART D — FLUID LAYOUT · MOBILE POLISH · UI REFINEMENT
+   Loaded last on purpose: it refines the rules above without rewriting them.
+   ######################################################################### */
+
+/* ---- D1. Fluid tokens ---- */
+
+:root {
+  --ink-3: #687d7f;                      /* was #7b9092 — now passes AA contrast */
+  --pad-page: clamp(14px, 3.2vw, 36px);
+  --pad-card: clamp(16px, 1.9vw, 22px);
+  --gap-fluid: clamp(10px, 1.6vw, 18px);
+  --fs-body: clamp(14px, 0.9rem + 0.1vw, 15.5px);
+  --fs-h1: clamp(1.5rem, 1.05rem + 1.7vw, 2.05rem);
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --safe-l: env(safe-area-inset-left, 0px);
+  --safe-r: env(safe-area-inset-right, 0px);
+}
+
+/* ---- D2. Base refinements ---- */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+  scroll-behavior: smooth;
+  scroll-padding-top: 84px;
+}
+
+body {
+  font-size: var(--fs-body);
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: clip;
+  text-rendering: optimizeLegibility;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* soft ambient background (fixed, no repaint on scroll) */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(900px 420px at 92% -8%, rgba(28, 140, 140, .10), transparent 70%),
+    radial-gradient(760px 380px at -8% 4%, rgba(233, 162, 59, .08), transparent 70%);
+}
+
+::selection { background: rgba(28, 140, 140, .22); }
+::placeholder { color: #8a9c9e; opacity: 1; }
+
+img, video, canvas { max-width: 100%; height: auto; }
+h1, h2, h3, h4 { text-wrap: balance; }
+p { text-wrap: pretty; }
+
+* { scrollbar-width: thin; scrollbar-color: #b6c7c2 transparent; }
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #b6c7c2; border-radius: 10px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: #93aaa4; background-clip: content-box; border: 3px solid transparent; }
+
+.skip-link {
+  position: fixed; left: 12px; top: -60px; z-index: 300;
+  padding: 10px 16px; border-radius: 8px;
+  background: var(--fjord); color: #fff; font-weight: 700;
+  transition: top .2s ease;
+}
+.skip-link:focus { top: calc(12px + var(--safe-t)); text-decoration: none; }
+
+/* ---- D3. Controls: nicer feel, touch friendly ---- */
+
+.btn {
+  letter-spacing: -.005em;
+  touch-action: manipulation;
+  transition: background .18s ease, border-color .18s ease, box-shadow .18s ease,
+    transform .12s ease, filter .18s ease;
+}
+.btn.primary { box-shadow: 0 1px 0 rgba(255, 255, 255, .35) inset, 0 5px 12px rgba(201, 131, 26, .22); }
+.btn.primary:hover { box-shadow: 0 1px 0 rgba(255, 255, 255, .4) inset, 0 8px 18px rgba(201, 131, 26, .30); }
+.btn.dark { box-shadow: 0 5px 12px rgba(15, 61, 62, .20); }
+.btn.dark:hover { box-shadow: 0 8px 18px rgba(15, 61, 62, .28); }
+.btn.danger { box-shadow: 0 5px 12px rgba(212, 80, 60, .22); }
+
+.input, .select, .textarea { border-radius: 8px; }
+.input:focus, .select:focus, .textarea:focus { box-shadow: 0 0 0 4px rgba(28, 140, 140, .16); }
+
+.badge { letter-spacing: .005em; }
+
+.panel {
+  border-radius: clamp(12px, 1.2vw, 16px);
+  transition: box-shadow .25s ease, border-color .25s ease;
+}
+.panel-head, .toolbar { padding-inline: clamp(14px, 2vw, 20px); }
+.panel-body { padding: clamp(14px, 2vw, 22px); }
+
+/* Coarse pointers (phones / tablets): 44px targets, 16px inputs (stops iOS zoom) */
+@media (pointer: coarse) {
+  .btn { min-height: 44px; }
+  .btn.sm { min-height: 40px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .input, .select { height: 48px; font-size: 16px; }
+  .textarea { font-size: 16px; }
+  .seg button { height: 44px; }
+  .pill-tabs button { padding: 14px; }
+  .stars button { padding: 6px; }
+  .nav a { padding: 12px 10px; }
+  .chip { height: 40px; }
+  .ix-refunds-filter-select,
+  .ix-profile-page input:not([type=checkbox]),
+  .ix-profile-page select,
+  .ix-profile-page textarea { font-size: 16px; }
+  .dial input[type='range'] { height: 8px; touch-action: manipulation; }
+  .dial input[type='range']::-webkit-slider-thumb { width: 30px; height: 30px; }
+}
+
+/* ---- D4. App shell ---- */
+
+.sidebar {
+  height: 100vh;
+  height: 100dvh;
+  padding-bottom: calc(20px + var(--safe-b));
+  overscroll-behavior: contain;
+}
+
+.nav a { transition: background .15s ease, color .15s ease, transform .15s ease; }
+.nav a:hover { transform: translateX(2px); }
+
+.content {
+  max-width: 1280px;
+  padding: clamp(18px, 3vw, 32px) var(--pad-page) calc(clamp(40px, 6vw, 64px) + var(--safe-b));
+  animation: ixFade .35s ease;
+}
+
+.page-head { margin-bottom: clamp(16px, 2.4vw, 26px); gap: 12px 16px; }
+.page-head h1 { font-size: var(--fs-h1); }
+.page-head > * { min-width: 0; }
+
+@media (max-width: 920px) {
+  .sidebar {
+    width: min(86vw, 300px);
+    padding-top: calc(20px + var(--safe-t));
+    padding-left: calc(14px + var(--safe-l));
+    transition: transform .28s var(--ix-ease);
+  }
+
+  .scrim { backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px); animation: ixFade .2s ease; }
+
+  .topbar {
+    padding: calc(10px + var(--safe-t)) calc(16px + var(--safe-r)) 10px calc(16px + var(--safe-l));
+    background: rgba(15, 61, 62, .92);
+    backdrop-filter: saturate(1.4) blur(10px);
+    -webkit-backdrop-filter: saturate(1.4) blur(10px);
+  }
+
+  .content {
+    padding-left: calc(var(--pad-page) + var(--safe-l));
+    padding-right: calc(var(--pad-page) + var(--safe-r));
+  }
+}
+
+/* ---- D5. Tables: scroll shadows tell people there is more to swipe ---- */
+
+.table-wrap {
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  background:
+    linear-gradient(to right, #fff 30%, rgba(255, 255, 255, 0)) left center / 40px 100% no-repeat local,
+    linear-gradient(to left, #fff 30%, rgba(255, 255, 255, 0)) right center / 40px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, rgba(15, 61, 62, .16), transparent) left center / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, rgba(15, 61, 62, .16), transparent) right center / 12px 100% no-repeat scroll;
+}
+
+/* Opt-in: stacked "cards" on phones.
+   <table className="tbl tbl-stack"> + <td data-label="Amount"> */
+@media (max-width: 640px) {
+  .tbl-stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .tbl-stack, .tbl-stack tbody, .tbl-stack tr, .tbl-stack td { display: block; width: 100%; }
+  .tbl-stack tr { padding: 12px 14px; border-bottom: 8px solid var(--mist); }
+  .tbl-stack td { display: flex; justify-content: space-between; gap: 16px; padding: 8px 0; border: 0; text-align: right; }
+  .tbl-stack td::before { content: attr(data-label); flex: none; color: var(--ink-2); font-weight: 600; text-align: left; }
+  .tbl-stack .actions { justify-content: flex-end; }
+}
+
+/* ---- D6. Modals become bottom sheets on phones; toasts go full width ---- */
+
+@keyframes ixSheet { from { transform: translateY(100%); } to { transform: none; } }
+
+.modal { max-height: 92vh; max-height: 92dvh; }
+.modal-body { overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+
+@media (max-width: 640px) {
+  .modal-back { place-items: end stretch; padding: 0; }
+
+  .modal,
+  .modal.wide {
+    max-width: none;
+    border-radius: 22px 22px 0 0;
+    animation: ixSheet .3s var(--ix-ease);
+  }
+
+  .modal::before {
+    content: '';
+    flex: none;
+    width: 42px;
+    height: 4px;
+    margin: 8px auto 0;
+    border-radius: 4px;
+    background: var(--line-2);
+  }
+
+  .modal-head { padding: 12px 16px; }
+  .modal-body { padding: 16px; }
+
+  .modal-foot {
+    position: sticky;
+    bottom: 0;
+    padding: 12px 16px calc(12px + var(--safe-b));
+    border-radius: 0;
+  }
+
+  .modal-foot > * { flex: 1 1 auto; }
+
+  .toasts {
+    left: calc(12px + var(--safe-l));
+    right: calc(12px + var(--safe-r));
+    bottom: calc(12px + var(--safe-b));
+    max-width: none;
+  }
+
+  .toast { min-width: 0; width: 100%; }
+}
+
+/* ---- D7. Fluid grids (no hard breakpoints: columns appear as space allows) ---- */
+
+.ix-dash-stats    { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: var(--gap-fluid); }
+.ix-dash-sections { grid-template-columns: repeat(auto-fit, minmax(min(100%, 400px), 1fr)); gap: var(--gap-fluid); }
+.ix-dash-policies { grid-template-columns: repeat(auto-fill, minmax(min(100%, 230px), 1fr)); gap: var(--gap-fluid); }
+.ix-claims-stats  { grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr)); gap: var(--gap-fluid); }
+.ix-review-stats  { grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: var(--gap-fluid); }
+.ix-policy-summary-grid,
+.ix-payment-summary-grid,
+.ix-refunds-summary { gap: var(--gap-fluid); }
+
+.ix-policy-card-grid,
+.ix-claimed-list,
+.ix-purchase-card-grid,
+.ix-claims-cards {
+  padding: clamp(12px, 2vw, 18px);
+  gap: clamp(12px, 1.6vw, 16px);
+}
+
+.ix-plans-grid,
+.ix-review-grid { gap: clamp(12px, 1.6vw, 17px); }
+
+/* fluid card padding */
+:is(.ix-plan-card, .ix-policy-card, .ix-claimed-card, .ix-purchase-card,
+    .ix-claim-card, .ix-review-card) { padding: var(--pad-card); }
+
+/* fluid hero blocks */
+:is(.ix-plans-hero, .ix-profile-hero, .ix-buy-hero) {
+  padding: clamp(16px, 2.6vw, 26px) clamp(16px, 3vw, 28px);
+  border-radius: clamp(16px, 2vw, 22px);
+}
+
+.ix-policy-card-identity h3 { font-size: clamp(19px, 1.2vw + 13px, 23px); }
+.ix-plan-name { font-size: clamp(17px, 1vw + 12px, 20px); }
+.ix-plan-cta { min-height: 46px; }
+
+/* never let long values push a card wider than the screen */
+:is(.ix-dash, .ix-plans-page, .ix-buy-page, .ix-claims-page, .ix-reviews,
+    .ix-notifications-page, .ix-profile-page) { max-width: 100%; }
+:is(.ix-dash, .ix-plans-page, .ix-buy-page, .ix-claims-page, .ix-reviews,
+    .ix-notifications-page, .ix-profile-page) :is(h1, h2, h3, h4, p, strong, b) { overflow-wrap: anywhere; }
+
+/* ---- D8. Page-specific mobile polish ---- */
+
+/* Buy flow: swipeable step pills that bleed to the screen edge */
+.ix-buy-page .ix-steps-list {
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  margin-inline: calc(-1 * var(--pad-page));
+  padding-inline: var(--pad-page);
+}
+.ix-buy-page .ix-steps-list .step { scroll-snap-align: center; }
+
+@media (max-width: 640px) {
+  .ix-plans-hero { align-items: flex-start; }
+  .ix-plans-count { font-size: 12.5px; }
+  .ix-claims-filters { padding-bottom: 2px; }
+  .ix-refunds-table table { min-width: 880px; }
+  .ix-notification-title b { font-size: 14.5px; }
+  .ix-notification-message { font-size: 13.5px; line-height: 1.7; }
+  .ix-purchase-card-statuses > div,
+  .ix-purchase-card-facts > div { gap: 4px; }
+  .ix-review-text { font-size: 14px; }
+}
+
+/* Very small phones */
+@media (max-width: 360px) {
+  .ix-policy-card-details,
+  .ix-claimed-meta,
+  .ix-claim-card-meta,
+  .ix-purchase-card-statuses,
+  .ix-purchase-card-facts { grid-template-columns: minmax(0, 1fr); }
+  .ix-profile-hero-mark { white-space: normal; }
+}
+
+/* ---- D9. Landing + auth fluid spacing ---- */
+
+.land-nav, .plans, .land-foot { padding-inline: var(--pad-page); }
+.land-hero {
+  gap: clamp(24px, 5vw, 56px);
+  padding: clamp(24px, 5vw, 48px) var(--pad-page) clamp(40px, 7vw, 72px);
+}
+.plans { padding-bottom: clamp(48px, 8vw, 80px); }
+.plans h2 { font-size: clamp(24px, 2vw + 14px, 30px); }
+.auth-side { padding: clamp(28px, 4vw, 48px); }
+.dial { padding: clamp(20px, 3vw, 28px); }
+
+@media (max-width: 860px) {
+  .auth-main {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding: calc(40px + var(--safe-t)) 20px calc(32px + var(--safe-b));
+  }
+}
+
+/* ---- D10. Touch feedback (replaces hover on touch screens) ---- */
+
+@media (hover: none) {
+  :is(.ix-plan-card, .ix-policy-card, .ix-claimed-card, .ix-purchase-card,
+      .ix-claim-card, .ix-review-card, .ix-dash-policy, .ix-dash-item):active {
+    transform: scale(.985);
+    transition-duration: .1s;
+  }
+  .btn:active { transform: scale(.97); }
+  .nav a:hover { transform: none; }
+}
+
+/* ---- D11. Print (receipts, policy copies) ---- */
+
+@media print {
+  body::before { display: none; }
+  body { background: #fff; }
+  .sidebar, .topbar, .scrim, .toasts { display: none !important; }
+  .shell { display: block; }
+  .content { max-width: none; padding: 0; animation: none; }
+  * { animation: none !important; box-shadow: none !important; }
 }
