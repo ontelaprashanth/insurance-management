@@ -5,6 +5,11 @@
    PART B  Page-level ix- styles              (from your new style.css)
    PART C  Added: loading / error / empty states
    PART E  Admin Broadcast page (Broadcast.jsx)
+   PART F  Admin Claims page (Claims.jsx)
+   PART G  Admin Dashboard page (Dashboard.jsx)
+   PART H  Admin Policies page (Policies.jsx)
+   PART I  Admin Policy Holders page (PolicyHolders.jsx)
+   PART J  Admin Purchases page (Purchases.jsx)
    PART D  Fluid layout, mobile-first polish, touch targets, bottom-sheet
            modals, safe-area support, accessibility  (overrides, last)
 
@@ -3664,4 +3669,1551 @@ p { text-wrap: pretty; }
 @media (hover: none) {
   .ix-broadcast-summary-card:hover { transform: none; }
   .ix-broadcast-item:active { background: #f1faf5; }
+}
+
+
+/* #########################################################################
+   PART F — ADMIN CLAIMS  (Claims.jsx)
+   Same green "ix" look. In the component:
+   1) delete the inline <style>{`...`}</style> block
+   2) wrap the page:  <div className="ix-admin-claims-page"> ... </div>
+      (replace the outer <> </>)
+   3) on the stats row use  className="ledger ix-admin-claims-ledger"
+      (you can drop its inline style={{ marginBottom: 20 }})
+   Modals render outside the page, so their styles use their own classes.
+   ######################################################################### */
+
+.ix-admin-claims-page { min-width: 0; color: var(--ix-deep); }
+.ix-admin-claims-page,
+.ix-admin-claims-page * { box-sizing: border-box; }
+
+.ix-admin-claims-page > .alert {
+  margin-bottom: 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* ---- F1. Stat tiles (turns the joined .ledger into separate cards) ---- */
+
+.ix-admin-claims-page .ledger {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(14px, 2vw, 20px) !important;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  overflow: visible;
+}
+
+.ix-admin-claims-page .ledger > div {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 18px);
+  border: 1px solid var(--ix-line) !important;
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #ecf9f1 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-admin-claims-page .ledger > div:nth-child(2) { animation-delay: 70ms; }
+.ix-admin-claims-page .ledger > div:nth-child(3) { animation-delay: 140ms; }
+.ix-admin-claims-page .ledger > div:nth-child(4) { animation-delay: 210ms; }
+
+.ix-admin-claims-page .ledger > div::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(53, 179, 103, .10), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.ix-admin-claims-page .ledger > div:hover {
+  transform: translateY(-4px);
+  border-color: #8bcaa4 !important;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-admin-claims-page .ledger > div:hover::before { animation: ixShimmer .8s ease; }
+
+.ix-admin-claims-page .ledger .label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-admin-claims-page .ledger .value {
+  color: var(--ix-deep);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* "Awaiting review" tile gets a soft amber accent so it stands out */
+.ix-admin-claims-page .ledger > div:first-child { border-left: 4px solid var(--marigold) !important; }
+
+/* ---- F2. Panel + toolbar ---- */
+
+.ix-admin-claims-page > .panel {
+  overflow: hidden;
+  border: 1px solid var(--ix-line);
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fff 0%, #f6fcf8 100%);
+  box-shadow: var(--ix-shadow-sm);
+  animation: ixRise .6s var(--ix-ease) 120ms backwards;
+}
+
+.ix-admin-claims-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 15px clamp(14px, 2vw, 18px);
+  border-bottom: 1px solid #d5e9db;
+  background: linear-gradient(115deg, #f4fbf6, #fff);
+}
+
+.ix-admin-claims-toolbar .search { flex: 1 1 240px; max-width: 420px; }
+
+.ix-admin-claims-toolbar .search .input { border-color: #bfdcca; }
+
+.ix-admin-claims-toolbar .input:focus {
+  border-color: #21975e;
+  box-shadow: 0 0 0 3px rgba(33, 151, 94, .14);
+}
+
+.ix-admin-claims-toolbar .seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-color: #bfdcca;
+  border-radius: 999px;
+}
+
+.ix-admin-claims-toolbar .seg::-webkit-scrollbar { display: none; }
+.ix-admin-claims-toolbar .seg button { flex: none; transition: background-color .2s ease, color .2s ease; }
+.ix-admin-claims-toolbar .seg button:hover { background: var(--ix-green-tint); }
+.ix-admin-claims-toolbar .seg button + button { border-left-color: #d3e8db; }
+
+.ix-admin-claims-toolbar .seg button[aria-pressed='true'] {
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+}
+
+/* ---- F3. Table ---- */
+
+.ix-admin-claims-table {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  animation: ixFade .5s ease;
+}
+
+.ix-admin-claims-table:focus-visible { outline-offset: -3px; }
+
+.ix-admin-claims-table .table-wrap { max-width: 100%; overflow-x: auto; background: none; }
+
+.ix-admin-claims-table table {
+  width: 100%;
+  min-width: 1050px;
+  border-collapse: collapse;
+  color: #1a4332;
+}
+
+.ix-admin-claims-table th,
+.ix-admin-claims-table td {
+  padding: 14px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.ix-admin-claims-table thead th {
+  border-bottom: 1px solid #bfdfcb;
+  background: #e8f6ed;
+  color: #205a3d;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.ix-admin-claims-table tbody tr { cursor: pointer; transition: background-color .2s ease; }
+.ix-admin-claims-table tbody tr:nth-child(even) td { background: #f8fcf9; }
+.ix-admin-claims-table tbody tr:hover td { background: #e9f8ef; }
+.ix-admin-claims-table tbody td { border-bottom: 1px solid var(--ix-line-soft); }
+.ix-admin-claims-table td strong { color: #0c4b30; }
+
+.ix-admin-claims-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ix-admin-claims-actions .btn { flex-shrink: 0; }
+
+.ix-admin-claims-actions .btn.ghost { color: #537565; }
+
+.ix-admin-claims-actions .btn.ghost:hover {
+  background: var(--red-soft);
+  color: #a63825;
+}
+
+/* green primary buttons (table + modals) */
+.ix-admin-claims-actions .btn.dark,
+.ix-claims-modal-actions .btn.dark {
+  border: 1px solid var(--ix-green-600);
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 6px 14px rgba(13, 122, 74, .16);
+}
+
+.ix-admin-claims-actions .btn.dark:not(:disabled):hover,
+.ix-claims-modal-actions .btn.dark:not(:disabled):hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 20px rgba(13, 122, 74, .24);
+}
+
+.ix-claims-modal-actions .btn.primary { font-weight: 750; }
+
+.ix-admin-claims-page .empty h4 { color: var(--ix-deep); }
+.ix-admin-claims-page .empty p { color: var(--ix-muted); }
+
+/* ---- F4. Modals (Decision + ClaimView render in a portal) ---- */
+
+.ix-claims-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.modal .alert { line-height: 1.55; overflow-wrap: anywhere; border-radius: 12px; }
+
+.modal .alert.info {
+  background: var(--ix-green-tint);
+  border-color: var(--ix-line);
+  color: var(--ix-muted);
+}
+
+.modal .alert.info strong { color: var(--ix-deep); }
+
+.modal .alert:has(> .btn) {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.modal-body .field > label { color: #244a36; font-weight: 700; }
+
+.modal-body .input:focus,
+.modal-body .select:focus,
+.modal-body .textarea:focus {
+  border-color: #21975e;
+  box-shadow: 0 0 0 3px rgba(33, 151, 94, .14);
+}
+
+/* ---- F5. Phones: table rows become cards (labels match the 8 columns) ---- */
+
+@media (max-width: 700px) {
+  .ix-admin-claims-toolbar { align-items: stretch; padding: 12px; }
+  .ix-admin-claims-toolbar .search { flex-basis: 100%; max-width: none; }
+
+  .ix-admin-claims-table { overflow: visible; }
+  .ix-admin-claims-table table { min-width: 0; }
+
+  .ix-admin-claims-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .ix-admin-claims-table table,
+  .ix-admin-claims-table tbody { display: block; width: 100%; }
+
+  .ix-admin-claims-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 14px;
+    margin: 12px;
+    padding: 16px;
+    border: 1px solid var(--ix-line);
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #f4fbf7 100%);
+    box-shadow: var(--ix-shadow-sm);
+  }
+
+  .ix-admin-claims-table tbody tr:nth-child(even) td,
+  .ix-admin-claims-table tbody tr:hover td { background: transparent; }
+
+  .ix-admin-claims-table tbody tr:active { transform: scale(.985); }
+
+  .ix-admin-claims-table td {
+    display: block;
+    padding: 0;
+    border: 0 !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-admin-claims-table td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: #476b58;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  .ix-admin-claims-table td:nth-child(1)::before { content: 'Claim'; }
+  .ix-admin-claims-table td:nth-child(2)::before { content: 'Policy'; }
+  .ix-admin-claims-table td:nth-child(3)::before { content: 'Type'; }
+  .ix-admin-claims-table td:nth-child(4)::before { content: 'Filed'; }
+  .ix-admin-claims-table td:nth-child(5)::before { content: 'Claimed'; }
+  .ix-admin-claims-table td:nth-child(6)::before { content: 'Approved'; }
+  .ix-admin-claims-table td:nth-child(7)::before { content: 'Status'; }
+
+  .ix-admin-claims-table td:nth-child(1),
+  .ix-admin-claims-table td:nth-child(7) { font-size: 15px; }
+
+  .ix-admin-claims-table td:nth-child(8) {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid #d6e9de !important;
+  }
+
+  .ix-admin-claims-actions > * { flex: 1 1 0; }
+
+  .ix-claims-modal-actions { width: 100%; justify-content: stretch; }
+  .ix-claims-modal-actions > * { flex: 1 1 auto; }
+}
+
+@media (pointer: coarse) {
+  .ix-admin-claims-toolbar .seg button { height: 44px; }
+}
+
+@media (hover: none) {
+  .ix-admin-claims-page .ledger > div:hover { transform: none; }
+}
+
+
+/* #########################################################################
+   PART G — ADMIN DASHBOARD  (Dashboard.jsx)
+   Same green "ix" look. In the component:
+   1) delete the inline <style>{`...`}</style> block
+   2) replace the outer <> </> with  <div className="ix-admin-dashboard-page"> </div>
+   3) on <div className="two-col" style={{ marginBottom: 20 }}> you may drop
+      the inline style (spacing is handled here)
+   ######################################################################### */
+
+@keyframes ixBarGrow { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+
+.ix-admin-dashboard-page { min-width: 0; color: var(--ix-deep); }
+.ix-admin-dashboard-page,
+.ix-admin-dashboard-page * { box-sizing: border-box; }
+
+/* ---- G1. Error notices (alert + Retry button) ---- */
+
+.ix-admin-dashboard-page > .alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 14px;
+  margin-bottom: 12px;
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ix-admin-dashboard-header-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+/* ---- G2. Summary tiles ---- */
+
+.ix-admin-dashboard-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(14px, 2vw, 20px);
+}
+
+.ix-admin-stat-link {
+  display: block;
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+  border-radius: 16px;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-admin-stat-link:hover { text-decoration: none; }
+.ix-admin-dashboard-summary > :nth-child(2) { animation-delay: 70ms; }
+.ix-admin-dashboard-summary > :nth-child(3) { animation-delay: 140ms; }
+.ix-admin-dashboard-summary > :nth-child(4) { animation-delay: 210ms; }
+
+.ix-admin-stat {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  height: 100%;
+  min-width: 0;
+  padding: clamp(15px, 1.9vw, 20px);
+  border: 1px solid var(--ix-line);
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #ecf9f1 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+
+.ix-admin-stat::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(53, 179, 103, .10), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.ix-admin-stat-link:hover .ix-admin-stat {
+  transform: translateY(-4px);
+  border-color: #8bcaa4;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-admin-stat-link:hover .ix-admin-stat::before { animation: ixShimmer .8s ease; }
+
+/* small arrow hints that the tile is a link */
+.ix-admin-stat-link .ix-admin-stat::after {
+  content: '→';
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  color: var(--ix-green);
+  font-weight: 800;
+  opacity: 0;
+  transform: translateX(-6px);
+  transition: opacity .2s ease, transform .2s ease;
+}
+
+.ix-admin-stat-link:hover .ix-admin-stat::after { opacity: 1; transform: none; }
+
+.ix-admin-stat-label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-admin-stat-value {
+  margin-top: 8px;
+  color: var(--ix-deep);
+  font-size: clamp(23px, 2.2vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ix-admin-stat-sub { margin-top: 8px; color: var(--ix-muted); font-size: 12px; line-height: 1.45; overflow-wrap: anywhere; }
+
+/* ---- G3. Panels ---- */
+
+.ix-admin-dashboard-page .panel {
+  overflow: hidden;
+  margin-bottom: clamp(14px, 2vw, 20px);
+  border: 1px solid var(--ix-line);
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fff 0%, #f6fcf8 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: box-shadow .28s ease, border-color .28s ease;
+  animation: ixRise .6s var(--ix-ease) 120ms backwards;
+}
+
+.ix-admin-dashboard-page .panel:hover { border-color: #b6dac4; box-shadow: var(--ix-shadow-md); }
+.ix-admin-dashboard-page .panel:last-child { margin-bottom: 0; }
+
+.ix-admin-dashboard-page .panel-head {
+  border-bottom-color: var(--ix-line-soft);
+  background: linear-gradient(110deg, #f5fbf7, #fff);
+}
+
+.ix-admin-dashboard-page .panel-head h3 { color: var(--ix-deep); font-weight: 800; }
+
+.ix-admin-dashboard-page .two-col {
+  margin-bottom: clamp(14px, 2vw, 20px) !important;
+  gap: clamp(14px, 1.8vw, 20px);
+  align-items: start;
+}
+
+.ix-admin-dashboard-page .two-col .panel { margin-bottom: 0; }
+
+.ix-admin-dashboard-page .btn.sm:not(.dark) { border-color: #bfdcca; }
+.ix-admin-dashboard-page .btn.sm:not(.dark):hover { background: var(--ix-green-tint); border-color: #8bcaa4; }
+
+.ix-admin-dashboard-page .btn.dark {
+  border: 1px solid var(--ix-green-600);
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 5px 12px rgba(13, 122, 74, .16);
+}
+
+.ix-admin-dashboard-page .btn.dark:hover {
+  filter: brightness(1.05);
+  box-shadow: 0 9px 18px rgba(13, 122, 74, .24);
+}
+
+.ix-admin-dashboard-page .empty h4 { color: var(--ix-deep); }
+.ix-admin-dashboard-page .empty p { color: var(--ix-muted); }
+
+.ix-admin-queue-state { padding: 26px 18px; color: var(--ix-muted); text-align: center; }
+
+/* ---- G4. Claims review queue ---- */
+
+.ix-admin-dashboard-queue { display: grid; gap: 0; }
+
+.ix-admin-dashboard-queue-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px clamp(14px, 2vw, 18px);
+  border-top: 1px solid var(--ix-line-soft);
+  transition: background-color .2s ease;
+  animation: ixRise .5s var(--ix-ease) backwards;
+}
+
+.ix-admin-dashboard-queue-item:first-child { border-top: 0; }
+.ix-admin-dashboard-queue-item:nth-child(2) { animation-delay: 50ms; }
+.ix-admin-dashboard-queue-item:nth-child(3) { animation-delay: 100ms; }
+.ix-admin-dashboard-queue-item:nth-child(4) { animation-delay: 150ms; }
+.ix-admin-dashboard-queue-item:nth-child(n + 5) { animation-delay: 200ms; }
+.ix-admin-dashboard-queue-item:hover { background: #f1faf5; }
+
+.ix-admin-dashboard-queue-main { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.ix-admin-dashboard-queue-main strong { color: #103e2a; }
+.ix-admin-dashboard-queue-main .faint { color: #537565; }
+
+.ix-admin-dashboard-queue-amount {
+  color: var(--ix-deep);
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ---- G5. Claims by status bars ---- */
+
+.ix-admin-dashboard-bars { display: grid; gap: 18px; }
+
+.ix-admin-dashboard-bar-row {
+  display: grid;
+  grid-template-columns: minmax(64px, 76px) minmax(0, 1fr) minmax(28px, 36px);
+  gap: 12px;
+  align-items: center;
+  color: #244a36;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ix-admin-dashboard-bar-track {
+  height: 12px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e1eee6;
+  box-shadow: inset 0 1px 2px rgba(14, 92, 56, .08);
+}
+
+.ix-admin-dashboard-bar-fill {
+  height: 100%;
+  min-width: 4px;
+  border-radius: inherit;
+  transform-origin: left center;
+  transition: width .4s var(--ix-ease);
+  animation: ixBarGrow .8s var(--ix-ease) backwards;
+}
+
+.ix-admin-dashboard-bar-row:nth-child(2) .ix-admin-dashboard-bar-fill { animation-delay: .1s; }
+.ix-admin-dashboard-bar-row:nth-child(3) .ix-admin-dashboard-bar-fill { animation-delay: .2s; }
+.ix-admin-dashboard-bar-row strong { color: var(--ix-deep); font-variant-numeric: tabular-nums; }
+
+/* ---- G6. Settlements strip (becomes four tiles) ---- */
+
+.ix-admin-dashboard-settlements {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
+  gap: 12px;
+  padding: clamp(12px, 2vw, 18px);
+}
+
+.ix-admin-dashboard-settlement-stat {
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 18px);
+  border: 1px solid var(--ix-line-soft);
+  border-radius: 14px;
+  background: #f4fbf7;
+  transition: background-color .25s ease, border-color .25s ease, transform .25s ease;
+}
+
+.ix-admin-dashboard-settlement-stat:hover { transform: translateY(-3px); border-color: #b6dec4; background: #ecf9f1; }
+
+.ix-admin-dashboard-settlement-stat .label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-admin-dashboard-settlement-stat .value {
+  margin-top: 8px;
+  color: var(--ix-deep);
+  font-size: clamp(21px, 2vw, 26px);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+.ix-admin-dashboard-settlement-stat .sub { margin-top: 8px; color: var(--ix-muted); font-size: 12px; line-height: 1.5; }
+
+/* ---- G7. Responsive ---- */
+
+@media (max-width: 600px) {
+  .ix-admin-dashboard-summary { gap: 10px; }
+
+  .ix-admin-dashboard-queue-item { flex-wrap: wrap; }
+  .ix-admin-dashboard-queue-main { flex-basis: 100%; }
+  .ix-admin-dashboard-queue-item .btn { margin-left: auto; }
+
+  .ix-admin-dashboard-bar-row { gap: 10px; font-size: 13px; }
+}
+
+@media (max-width: 360px) {
+  .ix-admin-dashboard-summary { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (hover: none) {
+  .ix-admin-stat-link:hover .ix-admin-stat,
+  .ix-admin-dashboard-settlement-stat:hover { transform: none; }
+  .ix-admin-stat-link .ix-admin-stat::after { display: none; }
+  .ix-admin-stat-link:active .ix-admin-stat { transform: scale(.985); }
+}
+
+
+/* #########################################################################
+   PART H — ADMIN POLICIES  (Policies.jsx)
+   Same green "ix" look. In the component:
+   1) delete the inline <style>{`...`}</style> block
+   2) replace the outer <> </> of Policies() with
+      <div className="ix-admin-policies-page"> </div>
+   The PolicyForm / details / confirm dialogs render in a portal, so their
+   styles use their own classes (and the shared ".modal" rules from Part F).
+   ######################################################################### */
+
+.ix-admin-policies-page { min-width: 0; color: var(--ix-deep); }
+.ix-admin-policies-page,
+.ix-admin-policies-page * { box-sizing: border-box; }
+
+.ix-admin-policies-page > .alert {
+  margin-bottom: 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* ---- H1. Summary tiles ---- */
+
+.ix-policies-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 160px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(14px, 2vw, 20px);
+}
+
+.ix-policies-summary-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 18px);
+  border: 1px solid var(--ix-line);
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #ecf9f1 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-policies-summary-card:nth-child(2) { animation-delay: 70ms; }
+.ix-policies-summary-card:nth-child(3) { animation-delay: 140ms; }
+.ix-policies-summary-card:nth-child(4) { animation-delay: 210ms; }
+
+.ix-policies-summary-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(53, 179, 103, .10), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.ix-policies-summary-card:hover {
+  transform: translateY(-4px);
+  border-color: #8bcaa4;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-policies-summary-card:hover::before { animation: ixShimmer .8s ease; }
+
+/* status accents: Active = green, Inactive = grey, Expired = red */
+.ix-policies-summary-card:nth-child(2) { border-left: 4px solid var(--ix-green); }
+.ix-policies-summary-card:nth-child(3) { border-left: 4px solid #9db3a9; }
+.ix-policies-summary-card:nth-child(4) { border-left: 4px solid var(--red); }
+
+.ix-policies-summary-card .label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-policies-summary-card .value {
+  margin-top: 6px;
+  color: var(--ix-deep);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- H2. Panel + toolbar ---- */
+
+.ix-admin-policies-page > .panel {
+  overflow: hidden;
+  border: 1px solid var(--ix-line);
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fff 0%, #f6fcf8 100%);
+  box-shadow: var(--ix-shadow-sm);
+  animation: ixRise .6s var(--ix-ease) 120ms backwards;
+}
+
+.ix-admin-policies-page .toolbar {
+  padding: 15px clamp(14px, 2vw, 18px);
+  border-bottom: 1px solid #d5e9db;
+  background: linear-gradient(115deg, #f4fbf6, #fff);
+}
+
+.ix-admin-policies-page .toolbar .search { flex: 1 1 240px; max-width: 420px; }
+.ix-admin-policies-page .toolbar .input { border-color: #bfdcca; }
+
+.ix-admin-policies-page .toolbar .input:focus {
+  border-color: #21975e;
+  box-shadow: 0 0 0 3px rgba(33, 151, 94, .14);
+}
+
+.ix-admin-policies-page .toolbar > .btn:last-child { margin-left: auto; }
+
+.ix-admin-policies-page .seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-color: #bfdcca;
+  border-radius: 999px;
+}
+
+.ix-admin-policies-page .seg::-webkit-scrollbar { display: none; }
+.ix-admin-policies-page .seg button { flex: none; transition: background-color .2s ease, color .2s ease; }
+.ix-admin-policies-page .seg button:hover { background: var(--ix-green-tint); }
+.ix-admin-policies-page .seg button + button { border-left-color: #d3e8db; }
+
+.ix-admin-policies-page .seg button[aria-pressed='true'] {
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+}
+
+.ix-admin-policies-page .empty h4 { color: var(--ix-deep); }
+.ix-admin-policies-page .empty p { color: var(--ix-muted); }
+
+/* ---- H3. Table ---- */
+
+.ix-policies-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  animation: ixFade .5s ease;
+}
+
+.ix-policies-table-wrap .table-wrap { max-width: 100%; overflow-x: auto; background: none; }
+
+.ix-policies-table-wrap table {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: collapse;
+  color: #1a4332;
+}
+
+.ix-policies-table-wrap th,
+.ix-policies-table-wrap td {
+  padding: 13px 14px;
+  vertical-align: middle;
+}
+
+.ix-policies-table-wrap td { white-space: nowrap; }
+
+.ix-policies-table-wrap thead th {
+  border-bottom: 1px solid #bfdfcb;
+  background: #e8f6ed;
+  color: #205a3d;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.ix-policies-table-wrap tbody tr { cursor: pointer; transition: background-color .2s ease; }
+.ix-policies-table-wrap tbody tr:nth-child(even) td { background: #f8fcf9; }
+.ix-policies-table-wrap tbody tr:hover td { background: #e9f8ef; }
+.ix-policies-table-wrap tbody td { border-bottom: 1px solid var(--ix-line-soft); }
+.ix-policies-table-wrap td strong { color: #0c4b30; }
+.ix-policies-table-wrap .faint { color: #537565; }
+
+.ix-policies-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 7px;
+  white-space: nowrap;
+}
+
+.ix-policies-actions .btn { flex-shrink: 0; border-color: #bfdcca; }
+.ix-policies-actions .btn:not(:disabled):hover { background: var(--ix-green-tint); border-color: #8bcaa4; }
+.ix-policies-actions .btn.ghost { border-color: transparent; color: #537565; }
+.ix-policies-actions .btn.ghost:not(:disabled):hover { background: var(--red-soft); color: #a63825; }
+
+/* ---- H4. Modals (create/edit form, details, confirm) ---- */
+
+.ix-policies-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ix-policies-modal-actions .btn.dark,
+.modal-foot > .btn.dark {
+  border: 1px solid var(--ix-green-600);
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 6px 14px rgba(13, 122, 74, .16);
+}
+
+.ix-policies-modal-actions .btn.dark:not(:disabled):hover,
+.modal-foot > .btn.dark:not(:disabled):hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 20px rgba(13, 122, 74, .24);
+}
+
+/* "Active and available" checkbox row becomes a tidy toggle card */
+.modal-body form.form-grid > label.row.full {
+  padding: 12px 14px;
+  border: 1px solid var(--ix-line);
+  border-radius: 12px;
+  background: var(--ix-green-tint);
+  color: #244a36;
+  font-weight: 650;
+  cursor: pointer;
+  transition: border-color .2s ease, background-color .2s ease;
+}
+
+.modal-body form.form-grid > label.row.full:hover { border-color: #8bcaa4; background: #e9f8ef; }
+.modal-body input[type='checkbox'] { width: 18px; height: 18px; accent-color: var(--ix-green); }
+
+/* preview block */
+.modal-body form.form-grid > .alert.info.full { line-height: 1.6; }
+.modal-body form.form-grid > .alert.info.full strong { color: var(--ix-deep); }
+
+.modal-body .field .hint { color: #537565; }
+
+/* ---- H5. Phones: table rows become cards (labels match the 9 columns) ---- */
+
+@media (max-width: 700px) {
+  .ix-admin-policies-page .toolbar { align-items: stretch; padding: 12px; }
+  .ix-admin-policies-page .toolbar .search { flex-basis: 100%; max-width: none; }
+  .ix-admin-policies-page .toolbar > .btn:last-child { margin-left: 0; width: 100%; }
+
+  .ix-policies-table-wrap { overflow: visible; }
+  .ix-policies-table-wrap table { min-width: 0 !important; }
+
+  .ix-policies-table-wrap thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .ix-policies-table-wrap table,
+  .ix-policies-table-wrap tbody { display: block; width: 100%; }
+
+  .ix-policies-table-wrap tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 14px;
+    margin: 12px;
+    padding: 16px;
+    border: 1px solid var(--ix-line);
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #f4fbf7 100%);
+    box-shadow: var(--ix-shadow-sm);
+  }
+
+  .ix-policies-table-wrap tbody tr:nth-child(even) td,
+  .ix-policies-table-wrap tbody tr:hover td { background: transparent; }
+  .ix-policies-table-wrap tbody tr:active { transform: scale(.985); }
+
+  .ix-policies-table-wrap td {
+    display: block;
+    padding: 0;
+    border: 0 !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-policies-table-wrap td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: #476b58;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  .ix-policies-table-wrap td:nth-child(1)::before { content: 'Policy'; }
+  .ix-policies-table-wrap td:nth-child(2)::before { content: 'Cover type'; }
+  .ix-policies-table-wrap td:nth-child(3)::before { content: 'Holder'; }
+  .ix-policies-table-wrap td:nth-child(4)::before { content: 'Starts'; }
+  .ix-policies-table-wrap td:nth-child(5)::before { content: 'Term'; }
+  .ix-policies-table-wrap td:nth-child(6)::before { content: 'Expires'; }
+  .ix-policies-table-wrap td:nth-child(7)::before { content: 'Claims'; }
+  .ix-policies-table-wrap td:nth-child(8)::before { content: 'Status'; }
+
+  .ix-policies-table-wrap td:nth-child(1) { font-size: 15px; }
+  .ix-policies-table-wrap td:nth-child(2),
+  .ix-policies-table-wrap td:nth-child(3) { grid-column: 1 / -1; }
+
+  .ix-policies-table-wrap td:nth-child(9) {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid #d6e9de !important;
+  }
+
+  /* four action buttons in a 2 x 2 grid */
+  .ix-policies-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  .ix-policies-modal-actions { width: 100%; justify-content: stretch; }
+  .ix-policies-modal-actions > * { flex: 1 1 auto; }
+}
+
+@media (pointer: coarse) {
+  .ix-admin-policies-page .seg button { height: 44px; }
+}
+
+@media (hover: none) {
+  .ix-policies-summary-card:hover { transform: none; }
+}
+
+
+/* #########################################################################
+   PART I — ADMIN POLICY HOLDERS  (PolicyHolders.jsx)
+   Same green "ix" look. In the component:
+   1) delete the inline <style>{`...`}</style> block
+   2) replace the outer <> </> of PolicyHolders() with
+      <div className="ix-admin-holders-page"> </div>
+   HolderForm / details / confirm dialogs render in a portal and use the
+   shared ".modal" rules (Parts F and H) plus .ix-holders-modal-actions.
+   ######################################################################### */
+
+.ix-admin-holders-page { min-width: 0; color: var(--ix-deep); }
+.ix-admin-holders-page,
+.ix-admin-holders-page * { box-sizing: border-box; }
+
+.ix-admin-holders-page > .alert {
+  margin-bottom: 14px;
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+/* ---- I1. Summary tiles ---- */
+
+.ix-holders-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 180px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(14px, 2vw, 20px);
+}
+
+.ix-holders-summary-card {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  padding: clamp(14px, 1.8vw, 18px);
+  border: 1px solid var(--ix-line);
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #ecf9f1 100%);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-holders-summary-card:nth-child(2) { animation-delay: 70ms; border-left: 4px solid var(--ix-green); }
+.ix-holders-summary-card:nth-child(3) { animation-delay: 140ms; border-left: 4px solid var(--marigold); }
+
+.ix-holders-summary-card::before {
+  content: '';
+  position: absolute;
+  inset: 0 auto 0 0;
+  z-index: -1;
+  width: 34%;
+  background: linear-gradient(100deg, transparent, rgba(53, 179, 103, .10), transparent);
+  transform: translateX(-140%) skewX(-18deg);
+  pointer-events: none;
+}
+
+.ix-holders-summary-card:hover {
+  transform: translateY(-4px);
+  border-color: #8bcaa4;
+  box-shadow: var(--ix-shadow-md);
+}
+
+.ix-holders-summary-card:hover::before { animation: ixShimmer .8s ease; }
+
+.ix-holders-summary-card .label { color: var(--ix-muted); font-size: 12.5px; font-weight: 650; }
+
+.ix-holders-summary-card .value {
+  margin-top: 6px;
+  color: var(--ix-deep);
+  font-size: clamp(24px, 2.4vw, 30px);
+  font-weight: 800;
+  letter-spacing: -.035em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- I2. Panel + toolbar ---- */
+
+.ix-admin-holders-page > .panel {
+  overflow: hidden;
+  border: 1px solid var(--ix-line);
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fff 0%, #f6fcf8 100%);
+  box-shadow: var(--ix-shadow-sm);
+  animation: ixRise .6s var(--ix-ease) 120ms backwards;
+}
+
+.ix-holders-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 15px clamp(14px, 2vw, 18px);
+  border-bottom: 1px solid #d5e9db;
+  background: linear-gradient(115deg, #f4fbf6, #fff);
+}
+
+.ix-holders-toolbar .search { flex: 1 1 260px; max-width: 420px; }
+.ix-holders-toolbar .input { border-color: #bfdcca; }
+
+.ix-holders-toolbar .input:focus {
+  border-color: #21975e;
+  box-shadow: 0 0 0 3px rgba(33, 151, 94, .14);
+}
+
+.ix-holders-toolbar > .btn:last-child { margin-left: auto; border-color: #bfdcca; }
+.ix-holders-toolbar > .btn:last-child:not(:disabled):hover { background: var(--ix-green-tint); border-color: #8bcaa4; }
+
+.ix-admin-holders-page .empty h4 { color: var(--ix-deep); }
+.ix-admin-holders-page .empty p { color: var(--ix-muted); }
+
+/* ---- I3. Table ---- */
+
+.ix-holders-table-wrap {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  animation: ixFade .5s ease;
+}
+
+.ix-holders-table-wrap .table-wrap { max-width: 100%; overflow-x: auto; background: none; }
+
+.ix-holders-table-wrap table {
+  width: 100%;
+  min-width: 850px;
+  border-collapse: collapse;
+  color: #1a4332;
+}
+
+.ix-holders-table-wrap th,
+.ix-holders-table-wrap td { padding: 13px 14px; vertical-align: middle; }
+
+.ix-holders-table-wrap td { white-space: nowrap; }
+
+.ix-holders-table-wrap thead th {
+  border-bottom: 1px solid #bfdfcb;
+  background: #e8f6ed;
+  color: #205a3d;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  white-space: nowrap;
+}
+
+.ix-holders-table-wrap tbody tr { cursor: pointer; transition: background-color .2s ease; }
+.ix-holders-table-wrap tbody tr:nth-child(even) td { background: #f8fcf9; }
+.ix-holders-table-wrap tbody tr:hover td { background: #e9f8ef; }
+.ix-holders-table-wrap tbody td { border-bottom: 1px solid var(--ix-line-soft); }
+.ix-holders-table-wrap td strong { color: #0c4b30; }
+.ix-holders-table-wrap .faint { color: #537565; }
+
+.ix-holders-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ix-holders-actions .btn { flex-shrink: 0; border-color: #bfdcca; }
+.ix-holders-actions .btn:not(:disabled):hover { background: var(--ix-green-tint); border-color: #8bcaa4; }
+.ix-holders-actions .btn.ghost { border-color: transparent; color: #537565; }
+.ix-holders-actions .btn.ghost:not(:disabled):hover { background: var(--red-soft); color: #a63825; }
+
+/* ---- I4. Modal footer ---- */
+
+.ix-holders-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ix-holders-modal-actions .btn.dark {
+  border: 1px solid var(--ix-green-600);
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+  font-weight: 750;
+  box-shadow: 0 6px 14px rgba(13, 122, 74, .16);
+}
+
+.ix-holders-modal-actions .btn.dark:not(:disabled):hover {
+  filter: brightness(1.05);
+  box-shadow: 0 10px 20px rgba(13, 122, 74, .24);
+}
+
+/* ---- I5. Phones: table rows become cards (labels match the 4 data columns) ---- */
+
+@media (max-width: 700px) {
+  .ix-holders-toolbar { align-items: stretch; padding: 12px; }
+  .ix-holders-toolbar .search { flex-basis: 100%; max-width: none; }
+  .ix-holders-toolbar > .btn:last-child { margin-left: 0; width: 100%; }
+
+  .ix-holders-table-wrap { overflow: visible; }
+  .ix-holders-table-wrap table { min-width: 0 !important; }
+
+  .ix-holders-table-wrap thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .ix-holders-table-wrap table,
+  .ix-holders-table-wrap tbody { display: block; width: 100%; }
+
+  .ix-holders-table-wrap tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 14px;
+    margin: 12px;
+    padding: 16px;
+    border: 1px solid var(--ix-line);
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #f4fbf7 100%);
+    box-shadow: var(--ix-shadow-sm);
+  }
+
+  .ix-holders-table-wrap tbody tr:nth-child(even) td,
+  .ix-holders-table-wrap tbody tr:hover td { background: transparent; }
+  .ix-holders-table-wrap tbody tr:active { transform: scale(.985); }
+
+  .ix-holders-table-wrap td {
+    display: block;
+    padding: 0;
+    border: 0 !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-holders-table-wrap td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: #476b58;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  .ix-holders-table-wrap td:nth-child(1)::before { content: 'ID'; }
+  .ix-holders-table-wrap td:nth-child(2)::before { content: 'Policy holder'; }
+  .ix-holders-table-wrap td:nth-child(3)::before { content: 'Date of birth'; }
+  .ix-holders-table-wrap td:nth-child(4)::before { content: 'Customer account'; }
+
+  .ix-holders-table-wrap td:nth-child(2) { font-size: 15px; }
+  .ix-holders-table-wrap td:nth-child(4) { grid-column: 1 / -1; }
+
+  .ix-holders-table-wrap td:nth-child(5) {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid #d6e9de !important;
+  }
+
+  .ix-holders-actions > * { flex: 1 1 0; }
+
+  .ix-holders-modal-actions { width: 100%; justify-content: stretch; }
+  .ix-holders-modal-actions > * { flex: 1 1 auto; }
+}
+
+@media (max-width: 360px) {
+  .ix-holders-summary { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (hover: none) {
+  .ix-holders-summary-card:hover { transform: none; }
+}
+
+
+/* #########################################################################
+   PART J — ADMIN PURCHASES  (admin/Purchases.jsx)
+   Same green "ix" look. In the component:
+   1) delete the inline <style>{`...`}</style> block
+   2) replace the outer <> </> of Purchases() with
+      <div className="ix-admin-purchases-page"> </div>
+   3) on the pending-refund alert you may delete  style={{ marginBottom: 18 }}
+   The details dialog (PurchaseDetail) is shared with the customer page and
+   keeps its own styles.
+   ######################################################################### */
+
+.ix-admin-purchases-spin { animation: ixSpin .9s linear infinite; }
+
+.ix-admin-purchases-page { min-width: 0; color: var(--ix-deep); }
+.ix-admin-purchases-page,
+.ix-admin-purchases-page * { box-sizing: border-box; }
+
+/* ---- J1. Alerts (icon + text) ---- */
+
+.ix-admin-purchases-page > .alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 14px !important;
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ix-admin-purchases-page > .alert > svg { flex: none; margin-top: 3px; }
+.ix-admin-purchases-page > .alert > span { flex: 1; min-width: 0; }
+
+.ix-admin-purchases-page > .alert.info {
+  background: var(--ix-green-tint);
+  border-color: var(--ix-line);
+  color: var(--ix-muted);
+}
+
+.ix-admin-purchases-page > .alert.info strong { color: var(--ix-deep); }
+
+/* ---- J2. Summary tiles (Panel + .payment-summary) ---- */
+
+.ix-admin-purchases-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
+  gap: var(--gap-fluid, 14px);
+  margin-bottom: clamp(12px, 1.6vw, 16px);
+}
+
+.ix-admin-purchases-summary > * {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  min-width: 0;
+  border: 1px solid var(--ix-line) !important;
+  border-radius: 16px !important;
+  background: linear-gradient(140deg, #fff 20%, #eaf8f0 100%) !important;
+  color: var(--ix-deep);
+  box-shadow: var(--ix-shadow-sm);
+  transition: transform .28s ease, box-shadow .28s ease, border-color .28s ease;
+  animation: ixRise .6s var(--ix-ease) backwards;
+}
+
+.ix-admin-purchases-summary > :nth-child(2) { animation-delay: 70ms; }
+.ix-admin-purchases-summary > :nth-child(3) { animation-delay: 140ms; }
+.ix-admin-purchases-summary > :nth-child(4) { animation-delay: 210ms; }
+
+.ix-admin-purchases-summary > *:hover {
+  transform: translateY(-5px);
+  border-color: #5fb988 !important;
+  box-shadow: var(--ix-shadow-md);
+}
+
+/* ---- J3. Money strip (gross / refunds / requests / pending / failed) ---- */
+
+.ix-admin-refund-summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 12px 0;
+  padding: clamp(14px, 1.8vw, 18px) 0;
+  margin-bottom: clamp(14px, 2vw, 20px);
+  border: 1px solid var(--ix-line);
+  border-radius: 16px;
+  background: linear-gradient(140deg, #fff 30%, #f1faf4 100%);
+  box-shadow: var(--ix-shadow-sm);
+  animation: ixRise .6s var(--ix-ease) 120ms backwards;
+}
+
+.ix-admin-refund-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  padding: 2px clamp(14px, 1.8vw, 20px);
+  border-left: 1px solid var(--ix-line-soft);
+}
+
+.ix-admin-refund-summary > div:first-child { border-left: 0; }
+
+.ix-admin-refund-summary .muted { color: var(--ix-muted) !important; font-size: 12.5px; font-weight: 650; }
+
+.ix-admin-refund-summary strong {
+  color: var(--ix-deep);
+  font-size: clamp(16px, 1.4vw, 19px);
+  font-weight: 800;
+  letter-spacing: -.02em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.ix-admin-refund-summary > div:nth-child(4) strong { color: #8a5a07; }
+.ix-admin-refund-summary > div:nth-child(5) strong { color: #a63825; }
+
+/* ---- J4. Panel + toolbar ---- */
+
+.ix-admin-purchases-page > .panel:last-of-type,
+.ix-admin-purchases-page > .panel:has(.ix-admin-purchases-toolbar) {
+  overflow: hidden;
+  border: 1px solid var(--ix-line);
+  border-radius: 20px;
+  background: linear-gradient(155deg, #fff 0%, #f6fcf8 100%);
+  box-shadow: var(--ix-shadow-sm);
+  animation: ixRise .6s var(--ix-ease) 180ms backwards;
+}
+
+.ix-admin-purchases-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 15px clamp(14px, 2vw, 18px);
+  border-bottom: 1px solid #d5e9db;
+  background: linear-gradient(115deg, #f4fbf6, #fff);
+}
+
+.ix-admin-purchases-toolbar .search { flex: 1 1 280px; max-width: 460px; }
+.ix-admin-purchases-toolbar .input { border-color: #bfdcca; }
+
+.ix-admin-purchases-toolbar .input:focus {
+  border-color: #21975e;
+  box-shadow: 0 0 0 3px rgba(33, 151, 94, .14);
+}
+
+.ix-admin-purchases-toolbar .seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-color: #bfdcca;
+  border-radius: 999px;
+}
+
+.ix-admin-purchases-toolbar .seg::-webkit-scrollbar { display: none; }
+.ix-admin-purchases-toolbar .seg button { flex: none; transition: background-color .2s ease, color .2s ease; }
+.ix-admin-purchases-toolbar .seg button:hover { background: var(--ix-green-tint); }
+.ix-admin-purchases-toolbar .seg button + button { border-left-color: #d3e8db; }
+
+.ix-admin-purchases-toolbar .seg button[aria-pressed='true'] {
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+}
+
+.ix-admin-purchases-page .empty h4 { color: var(--ix-deep); }
+.ix-admin-purchases-page .empty p { color: var(--ix-muted); }
+
+/* ---- J5. Table ---- */
+
+.ix-admin-purchases-table {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  animation: ixFade .5s ease;
+}
+
+.ix-admin-purchases-table:focus-visible { outline-offset: -3px; }
+.ix-admin-purchases-table .table-wrap { width: 100%; max-width: 100%; overflow-x: auto; background: none; }
+
+.ix-admin-purchases-table table {
+  width: 100%;
+  min-width: 1160px;
+  border-collapse: collapse;
+  color: #1a4332;
+}
+
+.ix-admin-purchases-table th,
+.ix-admin-purchases-table td {
+  padding: 14px 15px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.ix-admin-purchases-table thead th {
+  border-bottom: 1px solid #bfdfcb;
+  background: #e8f6ed;
+  color: #205a3d;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .02em;
+}
+
+.ix-admin-purchases-table tbody tr { cursor: pointer; transition: background-color .2s ease; }
+.ix-admin-purchases-table tbody tr:nth-child(even) td { background: #f8fcf9; }
+.ix-admin-purchases-table tbody tr:hover td { background: #e9f8ef; }
+.ix-admin-purchases-table tbody td { border-bottom: 1px solid var(--ix-line-soft); font-variant-numeric: tabular-nums; }
+.ix-admin-purchases-table td b,
+.ix-admin-purchases-table td strong { color: #0c4b30; }
+
+.ix-admin-purchases-customer { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ix-admin-purchases-customer strong { font-weight: 700; }
+.ix-admin-purchases-customer span { color: #527460 !important; font-size: 12px; }
+
+.ix-admin-purchases-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.ix-admin-purchases-actions .btn { flex-shrink: 0; border-color: #bfdcca; }
+.ix-admin-purchases-actions .btn:not(:disabled):hover { background: var(--ix-green-tint); border-color: #8bcaa4; }
+
+/* ---- J6. Phones: table rows become cards (labels match the 8 data columns) ---- */
+
+@media (max-width: 700px) {
+  .ix-admin-purchases-summary { gap: 10px; }
+
+  .ix-admin-refund-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px 0; }
+  .ix-admin-refund-summary > div:nth-child(odd) { border-left: 0; }
+  .ix-admin-refund-summary > div:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  .ix-admin-purchases-toolbar { align-items: stretch; padding: 12px; }
+  .ix-admin-purchases-toolbar .search { flex-basis: 100%; max-width: none; }
+
+  .ix-admin-purchases-table { overflow: visible; }
+  .ix-admin-purchases-table table { min-width: 0 !important; }
+
+  .ix-admin-purchases-table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
+
+  .ix-admin-purchases-table table,
+  .ix-admin-purchases-table tbody { display: block; width: 100%; }
+
+  .ix-admin-purchases-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px 14px;
+    margin: 12px;
+    padding: 16px;
+    border: 1px solid var(--ix-line);
+    border-radius: 16px;
+    background: linear-gradient(155deg, #fff 0%, #f4fbf7 100%);
+    box-shadow: var(--ix-shadow-sm);
+  }
+
+  .ix-admin-purchases-table tbody tr:nth-child(even) td,
+  .ix-admin-purchases-table tbody tr:hover td { background: transparent; }
+  .ix-admin-purchases-table tbody tr:active { transform: scale(.985); }
+
+  .ix-admin-purchases-table td {
+    display: block;
+    padding: 0;
+    border: 0 !important;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+
+  .ix-admin-purchases-table td::before {
+    display: block;
+    margin-bottom: 3px;
+    color: #476b58;
+    font-size: 11.5px;
+    font-weight: 700;
+  }
+
+  .ix-admin-purchases-table td:nth-child(1)::before { content: 'Purchase'; }
+  .ix-admin-purchases-table td:nth-child(2)::before { content: 'Customer'; }
+  .ix-admin-purchases-table td:nth-child(3)::before { content: 'Plan'; }
+  .ix-admin-purchases-table td:nth-child(4)::before { content: 'Cover'; }
+  .ix-admin-purchases-table td:nth-child(5)::before { content: 'Paid'; }
+  .ix-admin-purchases-table td:nth-child(6)::before { content: 'Paid at'; }
+  .ix-admin-purchases-table td:nth-child(7)::before { content: 'Payment'; }
+  .ix-admin-purchases-table td:nth-child(8)::before { content: 'Refund'; }
+
+  .ix-admin-purchases-table td:nth-child(1) { font-size: 15px; }
+  .ix-admin-purchases-table td:nth-child(2),
+  .ix-admin-purchases-table td:nth-child(6) { grid-column: 1 / -1; }
+
+  .ix-admin-purchases-table td:nth-child(9) {
+    grid-column: 1 / -1;
+    padding-top: 12px;
+    border-top: 1px solid #d6e9de !important;
+  }
+
+  .ix-admin-purchases-actions > * { flex: 1 1 100%; }
+}
+
+@media (max-width: 380px) {
+  .ix-admin-purchases-summary { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (pointer: coarse) {
+  .ix-admin-purchases-toolbar .seg button { height: 44px; }
+}
+
+@media (hover: none) {
+  .ix-admin-purchases-summary > *:hover { transform: none; }
 }
