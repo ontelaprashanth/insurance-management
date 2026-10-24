@@ -19,7 +19,6 @@ const C = {
   dark: '#064e3b',
   deep: '#12372a',
   light: '#ecfdf5',
-  pale: '#f0fdf4',
   border: '#dce9e2',
   muted: '#64766d',
   white: '#ffffff',
@@ -35,23 +34,24 @@ const clamp = (value, min, max) => {
 const styles = {
   root: {
     width: '100%',
+    maxWidth: '100%',
     minWidth: 0,
     boxSizing: 'border-box',
-    padding: 'clamp(16px, 3vw, 28px)',
+    padding: 'clamp(14px, 2vw, 22px)',
     color: C.text,
     background: C.white,
     border: `1px solid ${C.border}`,
-    borderRadius: 20,
-    boxShadow: '0 16px 45px rgba(6,95,70,0.09)',
+    borderRadius: 18,
+    boxShadow: '0 12px 34px rgba(6,95,70,0.08)',
     fontFamily: 'inherit',
-    animation: 'none',
+    overflowWrap: 'anywhere',
   },
   header: {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 14,
-    marginBottom: 24,
+    gap: 10,
+    marginBottom: 18,
   },
   heading: {
     flex: 1,
@@ -60,12 +60,13 @@ const styles = {
   eyebrow: {
     display: 'inline-flex',
     alignItems: 'center',
-    gap: 8,
-    marginBottom: 10,
+    flexWrap: 'wrap',
+    gap: 7,
+    marginBottom: 8,
     color: C.green,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 800,
-    letterSpacing: 1.4,
+    letterSpacing: 1.1,
   },
   dot: {
     width: 7,
@@ -73,61 +74,62 @@ const styles = {
     flexShrink: 0,
     borderRadius: '50%',
     background: '#10b981',
-    boxShadow: '0 0 0 4px #d1fae5',
+    boxShadow: '0 0 0 3px #d1fae5',
   },
   title: {
     margin: 0,
     color: C.deep,
-    fontSize: 'clamp(22px, 3vw, 29px)',
+    fontSize: 'clamp(20px, 2.2vw, 26px)',
     fontWeight: 800,
-    letterSpacing: '-0.7px',
+    letterSpacing: '-0.5px',
     lineHeight: 1.25,
     overflowWrap: 'anywhere',
   },
   description: {
-    maxWidth: 490,
-    margin: '9px 0 0',
+    maxWidth: 420,
+    margin: '7px 0 0',
     color: C.muted,
-    fontSize: 13,
-    lineHeight: 1.7,
+    fontSize: 12,
+    lineHeight: 1.6,
   },
   shield: {
     display: 'grid',
-    width: 46,
-    height: 46,
-    flex: '0 0 46px',
+    width: 40,
+    height: 40,
+    flex: '0 0 40px',
     placeItems: 'center',
     color: C.green,
     background: C.light,
     border: '1px solid #d1fae5',
-    borderRadius: 14,
+    borderRadius: 12,
   },
   section: {
-    marginTop: 22,
+    minWidth: 0,
+    marginTop: 17,
   },
   label: {
     display: 'block',
     color: '#53675c',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
   },
   planOptions: {
     display: 'flex',
     flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 11,
+    gap: 7,
+    marginTop: 9,
   },
   planChip: {
     maxWidth: '100%',
-    padding: '9px 12px',
+    padding: '8px 10px',
     color: '#42574b',
     background: C.white,
     border: '1px solid #dce8e0',
-    borderRadius: 10,
+    borderRadius: 9,
     fontFamily: 'inherit',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 650,
-    lineHeight: 1.4,
+    lineHeight: 1.35,
     cursor: 'pointer',
     transition: 'all 180ms ease',
   },
@@ -135,55 +137,63 @@ const styles = {
     color: C.white,
     background: 'linear-gradient(135deg,#047857,#059669)',
     borderColor: 'transparent',
-    boxShadow: '0 5px 14px rgba(4,120,87,0.19)',
+    boxShadow: '0 4px 11px rgba(4,120,87,0.16)',
   },
   premium: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 16,
-    padding: 'clamp(18px, 3vw, 24px)',
+    flexWrap: 'wrap',
+    gap: 12,
+    padding: 'clamp(14px, 2vw, 19px)',
     color: C.white,
-    background: 'linear-gradient(120deg,#064e3b 0%,#047857 55%,#059669 100%)',
-    borderRadius: 16,
+    background:
+      'linear-gradient(120deg,#064e3b 0%,#047857 55%,#059669 100%)',
+    borderRadius: 14,
+  },
+  premiumMain: {
+    flex: '1 1 140px',
+    minWidth: 0,
   },
   premiumLabel: {
     color: '#d1fae5',
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: 700,
   },
   price: {
-    marginTop: 8,
-    fontSize: 'clamp(27px, 4.2vw, 38px)',
+    marginTop: 6,
+    fontSize: 'clamp(23px, 3vw, 32px)',
     fontWeight: 850,
-    letterSpacing: '-1px',
-    lineHeight: 1.2,
+    letterSpacing: '-0.7px',
+    lineHeight: 1.25,
     overflowWrap: 'anywhere',
     fontVariantNumeric: 'tabular-nums',
   },
   caption: {
     display: 'block',
-    marginTop: 7,
+    marginTop: 5,
     color: '#d1fae5',
-    fontSize: 12,
+    fontSize: 11,
   },
   priceTag: {
     display: 'flex',
-    minWidth: 125,
+    minWidth: 0,
+    maxWidth: '100%',
+    flex: '0 1 auto',
     flexDirection: 'column',
-    gap: 7,
-    padding: '13px 15px',
+    gap: 5,
+    padding: '10px 12px',
     background: 'rgba(255,255,255,0.12)',
     border: '1px solid rgba(255,255,255,0.2)',
-    borderRadius: 12,
+    borderRadius: 10,
   },
   priceTagLabel: {
     color: '#d1fae5',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 600,
   },
   priceTagValue: {
-    fontSize: 16,
+    fontSize: 'clamp(13px, 1.6vw, 15px)',
     fontWeight: 800,
     overflowWrap: 'anywhere',
     fontVariantNumeric: 'tabular-nums',
@@ -192,12 +202,13 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 12,
-    marginBottom: 14,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 10,
   },
   controlValue: {
     color: '#065f46',
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: 800,
     textAlign: 'right',
     fontVariantNumeric: 'tabular-nums',
@@ -205,7 +216,9 @@ const styles = {
   range: {
     display: 'block',
     width: '100%',
-    height: 7,
+    maxWidth: '100%',
+    boxSizing: 'border-box',
+    height: 6,
     margin: 0,
     accentColor: C.green,
     cursor: 'pointer',
@@ -213,78 +226,82 @@ const styles = {
   rangeLabels: {
     display: 'flex',
     justifyContent: 'space-between',
-    gap: 10,
-    marginTop: 10,
+    gap: 8,
+    marginTop: 8,
     color: '#78877e',
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 600,
   },
   breakdown: {
-    marginTop: 22,
-    padding: 17,
+    minWidth: 0,
+    marginTop: 17,
+    padding: '13px 14px',
     background: '#f8fbf9',
     border: '1px solid #e4eee7',
-    borderRadius: 14,
+    borderRadius: 12,
   },
   breakdownHeading: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: 10,
-    marginBottom: 12,
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 8,
     color: '#193b2c',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 800,
   },
   estimateTag: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: 5,
-    padding: '5px 8px',
+    padding: '4px 7px',
     color: C.green,
     background: '#dcfce7',
     borderRadius: 7,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 750,
   },
   breakdownRow: {
     display: 'flex',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 16,
-    padding: '10px 0',
+    gap: 12,
+    padding: '8px 0',
     color: '#627268',
-    fontSize: 12,
-    lineHeight: 1.5,
+    fontSize: 11,
+    lineHeight: 1.45,
   },
   breakdownValue: {
-    flex: '0 0 auto',
+    flex: '0 1 auto',
+    minWidth: 0,
     color: '#263d31',
     textAlign: 'right',
-    fontSize: 12,
+    fontSize: 11,
+    overflowWrap: 'anywhere',
     fontVariantNumeric: 'tabular-nums',
   },
   totalRow: {
-    marginTop: 5,
-    paddingTop: 15,
+    marginTop: 4,
+    paddingTop: 12,
     color: '#124a35',
     borderTop: '1px solid #dce9e1',
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 800,
   },
   totalValue: {
     color: C.green,
-    fontSize: 17,
+    fontSize: 15,
     fontWeight: 850,
   },
   discount: {
     color: C.green,
   },
   disclaimer: {
-    margin: '16px 0 0',
+    margin: '12px 0 0',
     color: '#77857c',
-    fontSize: 10.5,
-    lineHeight: 1.75,
+    fontSize: 10,
+    lineHeight: 1.65,
   },
 }
 
@@ -408,7 +425,10 @@ export default function CoverageDial({
     valueStyle = {},
   ) => (
     <div style={{ ...styles.breakdownRow, ...extraStyle }}>
-      <span>{label}</span>
+      <span style={{ minWidth: 0, overflowWrap: 'anywhere' }}>
+        {label}
+      </span>
+
       <strong style={{ ...styles.breakdownValue, ...valueStyle }}>
         {amount}
       </strong>
@@ -439,8 +459,8 @@ export default function CoverageDial({
         <div style={styles.shield} aria-hidden="true">
           <svg
             viewBox="0 0 24 24"
-            width="25"
-            height="25"
+            width="22"
+            height="22"
             fill="none"
             stroke="currentColor"
             strokeWidth="1.8"
@@ -454,7 +474,13 @@ export default function CoverageDial({
       </header>
 
       {showPlans && !lockedPlan && (
-        <div style={{ ...styles.section, marginTop: 0, marginBottom: 22 }}>
+        <div
+          style={{
+            ...styles.section,
+            marginTop: 0,
+            marginBottom: 17,
+          }}
+        >
           <span style={styles.label}>Choose your plan</span>
 
           <div
@@ -473,6 +499,8 @@ export default function CoverageDial({
                   onClick={() => choosePlan(plan.key)}
                   onMouseEnter={() => setHoveredPlan(plan.key)}
                   onMouseLeave={() => setHoveredPlan(null)}
+                  onFocus={() => setHoveredPlan(plan.key)}
+                  onBlur={() => setHoveredPlan(null)}
                   aria-pressed={active}
                   style={{
                     ...styles.planChip,
@@ -481,8 +509,9 @@ export default function CoverageDial({
                       ? {
                           borderColor: '#6ee7b7',
                           color: C.dark,
-                          transform: 'translateY(-2px)',
-                          boxShadow: '0 4px 12px rgba(4,120,87,0.08)',
+                          transform: 'translateY(-1px)',
+                          boxShadow:
+                            '0 4px 10px rgba(4,120,87,0.08)',
                         }
                       : {}),
                   }}
@@ -496,7 +525,7 @@ export default function CoverageDial({
       )}
 
       <div style={styles.premium}>
-        <div style={{ minWidth: 0 }}>
+        <div style={styles.premiumMain}>
           <span style={styles.premiumLabel}>
             Estimated total premium
           </span>
@@ -512,6 +541,7 @@ export default function CoverageDial({
 
         <div style={styles.priceTag}>
           <span style={styles.priceTagLabel}>Average per year</span>
+
           <strong style={styles.priceTagValue} aria-live="polite">
             {inr(perYear)}
           </strong>
@@ -583,6 +613,7 @@ export default function CoverageDial({
       <div style={styles.breakdown}>
         <div style={styles.breakdownHeading}>
           <span>Premium breakdown</span>
+
           <span style={styles.estimateTag}>
             <span aria-hidden="true">✓</span>
             Estimate
