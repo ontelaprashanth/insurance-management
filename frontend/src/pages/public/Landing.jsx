@@ -1,82 +1,81 @@
 
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
-
-import CoverageDial from '../../components/CoverageDial'
+import { useAuth } from '../../auth/AuthContext'
 import { PLANS } from '../../lib/premium'
 import { inr } from '../../lib/format'
-import { useAuth } from '../../auth/AuthContext'
 
-const ACTIVE_PLANS = PLANS.filter((plan) => plan.active !== false)
+const IMAGES = {
+  hero: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1600&q=85',
+  hospital: 'https://images.unsplash.com/photo-1631217868264-e5b90bb7e133?auto=format&fit=crop&w=1000&q=85',
+  accident: 'https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?auto=format&fit=crop&w=1000&q=85',
+  family: 'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1000&q=85',
+  healthcare: 'https://images.unsplash.com/photo-1551076805-e1869033e561?auto=format&fit=crop&w=900&q=85',
+}
 
 const STORIES = [
   {
-    id: 'hospital',
-    eyebrow: 'HEALTH PROTECTION',
-    title: 'Care when it matters most.',
+    eyebrow: 'HEALTH INSURANCE',
+    title: 'Your health comes first.',
     description:
-      'Explore health coverage options and keep your policy information organized.',
-    src: '/videos/hospital-care.mp4',
+      'Explore health insurance options to help prepare for medical needs and unexpected hospital expenses.',
+    image: IMAGES.hospital,
+    alt: 'Healthcare professional providing care in a medical setting',
     icon: '✚',
-    link: 'https://www.pexels.com/search/videos/doctor%20and%20patient/',
-    linkLabel: 'Find hospital footage',
   },
   {
-    id: 'accident',
-    eyebrow: 'ROAD PROTECTION',
-    title: 'Support through the unexpected.',
+    eyebrow: 'VEHICLE INSURANCE',
+    title: 'Protection for every journey.',
     description:
-      'Discover available insurance options to help you prepare for unexpected events.',
-    src: '/videos/road-accident.mp4',
-    icon: '🚘',
-    link: 'https://mixkit.co/free-stock-video/car-accident/',
-    linkLabel: 'Find accident footage',
+      'Discover vehicle insurance options and explore protection for the unexpected on the road.',
+    image: IMAGES.accident,
+    alt: 'Car on the road representing vehicle protection',
+    icon: '↗',
   },
   {
-    id: 'family',
     eyebrow: 'FAMILY PROTECTION',
-    title: 'Protect the life you are building.',
+    title: 'Protect the people you love.',
     description:
-      'Explore coverage options with your family’s future and peace of mind in focus.',
-    src: '/videos/family-protection.mp4',
+      'Explore insurance options with your family’s future, security, and peace of mind in focus.',
+    image: IMAGES.family,
+    alt: 'Family spending quality time together outdoors',
     icon: '♡',
-    link: 'https://mixkit.co/free-stock-video/insurance/',
-    linkLabel: 'Find protection footage',
   },
 ]
 
 const FEATURES = [
   {
     icon: '🛡️',
-    title: 'Explore protection',
+    title: 'Explore insurance plans',
     description:
-      'Review available insurance plans and explore coverage options in one place.',
+      'Review available plans and explore coverage options in one convenient place.',
   },
   {
-    icon: '📊',
-    title: 'Estimate your premium',
+    icon: '📋',
+    title: 'Manage your policies',
     description:
-      'Use the insurance calculator to explore estimated premiums based on your selections.',
+      'Keep track of your policies, purchases, claims, and insurance activity.',
   },
   {
-    icon: '🔐',
-    title: 'Manage your account',
+    icon: '🔔',
+    title: 'Stay informed',
     description:
-      'Sign in to manage policies, purchases, claims, reviews, and notifications.',
+      'Access account notifications and important updates from your dashboard.',
   },
 ]
 
 const STYLES = `
   .ix-landing {
-    --ix-green: #047857;
-    --ix-dark: #064e3b;
-    --ix-text: #142f26;
-    --ix-muted: #62766d;
-    --ix-border: #dce9e2;
+    --green: #047857;
+    --green-dark: #064e3b;
+    --green-light: #ecfdf5;
+    --text: #17372b;
+    --muted: #64776d;
+    --border: #dce9e1;
     min-height: 100vh;
     overflow: hidden;
-    color: var(--ix-text);
-    background: #f7fbf8;
+    color: var(--text);
+    background: #f8fbf9;
     font-family: inherit;
   }
 
@@ -96,62 +95,69 @@ const STYLES = `
     outline-offset: 4px;
   }
 
+  .ix-container {
+    width: 100%;
+    max-width: 1220px;
+    margin: 0 auto;
+    padding-right: 28px;
+    padding-left: 28px;
+  }
+
+  .ix-nav {
+    position: relative;
+    z-index: 5;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 20px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 18px 30px;
+  }
+
   .ix-brand {
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    color: #123b2d;
+    color: var(--green-dark);
   }
 
   .ix-brand-icon {
     display: grid;
     place-items: center;
-    width: 43px;
-    height: 43px;
+    width: 44px;
+    height: 44px;
     border: 1px solid #ccebd9;
-    border-radius: 13px;
-    background: #ecfdf5;
+    border-radius: 14px;
+    background: var(--green-light);
     font-size: 23px;
   }
 
-  .ix-brand-text {
-    display: flex;
-    flex-direction: column;
-    color: #065f46;
-    font-size: 23px;
+  .ix-brand-name {
+    color: var(--green-dark);
+    font-size: 24px;
     font-weight: 900;
-    line-height: 1.1;
+    line-height: 1;
     letter-spacing: -1px;
   }
 
-  .ix-brand-text > span {
-    display: inline;
+  .ix-brand-name span {
     color: #10b981;
   }
 
-  .ix-brand-text small {
-    margin-top: 4px;
-    color: #71847b;
+  .ix-brand small {
+    display: block;
+    margin-top: 5px;
+    color: #73877d;
     font-size: 8px;
-    font-weight: 800;
-    letter-spacing: 1.2px;
-  }
-
-  .ix-nav {
-    position: relative;
-    z-index: 3;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 20px;
-    max-width: 1240px;
-    margin: auto;
-    padding: 19px 30px;
+    font-weight: 850;
+    letter-spacing: 1.25px;
   }
 
   .ix-nav-actions {
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     flex-wrap: wrap;
     gap: 10px;
   }
@@ -160,9 +166,9 @@ const STYLES = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
+    gap: 9px;
     min-height: 44px;
-    padding: 11px 19px;
+    padding: 11px 18px;
     border: 1px solid transparent;
     border-radius: 12px;
     font: inherit;
@@ -178,83 +184,57 @@ const STYLES = `
   }
 
   .ix-btn-primary {
-    color: white;
+    color: #fff;
     background: linear-gradient(135deg, #059669, #047857);
-    box-shadow: 0 7px 20px rgb(4 120 87 / 18%);
+    box-shadow: 0 7px 20px rgb(4 120 87 / 16%);
   }
 
   .ix-btn-primary:hover {
     background: linear-gradient(135deg, #047857, #065f46);
-    box-shadow: 0 11px 26px rgb(4 120 87 / 25%);
+    box-shadow: 0 11px 24px rgb(4 120 87 / 24%);
   }
 
   .ix-btn-outline {
-    color: #065f46;
+    color: var(--green-dark);
     border-color: #cfe1d7;
-    background: white;
+    background: #fff;
   }
 
   .ix-btn-outline:hover {
-    background: #ecfdf5;
     border-color: #9bd6b6;
-  }
-
-  .ix-btn-soft {
-    color: #047857;
-    border-color: #d6eadf;
-    background: #effaf3;
+    background: #ecfdf5;
   }
 
   .ix-hero {
-    position: relative;
     display: grid;
-    grid-template-columns: minmax(0, 1.12fr) minmax(300px, .88fr);
+    grid-template-columns: minmax(0, 1.02fr) minmax(0, .98fr);
     align-items: center;
-    gap: clamp(32px, 5vw, 70px);
-    max-width: 1240px;
-    margin: auto;
-    padding: 67px 30px 82px;
+    gap: clamp(35px, 5vw, 70px);
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 58px 30px 82px;
   }
 
-  .ix-hero::before {
-    position: absolute;
-    top: -20px;
-    right: -130px;
-    width: 520px;
-    height: 520px;
-    border-radius: 50%;
-    background: radial-gradient(circle, rgb(110 231 183 / 24%), transparent 70%);
-    content: '';
-    pointer-events: none;
-  }
-
-  .ix-hero-copy,
-  .ix-hero-visual {
-    position: relative;
-    z-index: 1;
+  .ix-hero-copy {
     min-width: 0;
     animation: ix-enter .7s ease both;
   }
 
-  .ix-hero-visual {
-    animation-delay: .12s;
-  }
-
-  .ix-eyebrow {
+  .ix-kicker {
     display: inline-flex;
     align-items: center;
     gap: 9px;
     padding: 8px 12px;
     border: 1px solid #ccebd9;
     border-radius: 999px;
-    color: #047857;
-    background: #ecfdf5;
-    font-size: 11px;
-    font-weight: 850;
+    color: var(--green);
+    background: var(--green-light);
+    font-size: 10px;
+    font-weight: 900;
     letter-spacing: .08em;
   }
 
-  .ix-dot {
+  .ix-kicker-dot {
     width: 7px;
     height: 7px;
     border-radius: 50%;
@@ -263,24 +243,24 @@ const STYLES = `
   }
 
   .ix-hero h1 {
-    margin: 22px 0 18px;
-    color: #122e24;
-    font-size: clamp(40px, 5.3vw, 67px);
+    margin: 23px 0 18px;
+    color: #142f24;
+    font-size: clamp(40px, 5.1vw, 65px);
     font-weight: 900;
     line-height: 1.07;
     letter-spacing: -.055em;
   }
 
   .ix-hero h1 span {
-    color: #047857;
+    color: var(--green);
   }
 
-  .ix-hero-copy > p {
-    max-width: 600px;
+  .ix-hero-description {
+    max-width: 550px;
     margin: 0;
-    color: #596f65;
-    font-size: 16px;
-    line-height: 1.85;
+    color: #5f7469;
+    font-size: 15px;
+    line-height: 1.9;
   }
 
   .ix-hero-actions {
@@ -288,194 +268,197 @@ const STYLES = `
     align-items: center;
     flex-wrap: wrap;
     gap: 12px;
-    margin-top: 28px;
+    margin-top: 27px;
   }
 
-  .ix-trust-row {
+  .ix-trust {
     display: flex;
     align-items: center;
     flex-wrap: wrap;
-    gap: 10px 18px;
-    margin-top: 22px;
+    gap: 11px 18px;
+    margin-top: 23px;
     color: #60766b;
-    font-size: 12px;
-    font-weight: 700;
+    font-size: 11px;
+    font-weight: 750;
   }
 
-  .ix-trust-row strong {
-    color: #047857;
+  .ix-trust span::first-letter {
+    color: var(--green);
   }
 
   .ix-hero-visual {
     position: relative;
-    min-height: 420px;
+    min-width: 0;
+    animation: ix-enter .8s ease .1s both;
   }
 
-  .ix-hero-video {
+  .ix-hero-image-wrap {
+    position: relative;
+    min-height: 430px;
+    overflow: hidden;
+    border: 5px solid #fff;
+    border-radius: 28px;
+    background: #d1fae5;
+    box-shadow: 0 25px 65px rgb(16 42 35 / 16%);
+  }
+
+  .ix-hero-image {
     position: absolute;
     inset: 0;
-    overflow: hidden;
-    border: 5px solid white;
-    border-radius: 30px;
-    background: linear-gradient(145deg, #d1fae5, #14532d);
-    box-shadow: 0 28px 75px rgb(16 42 35 / 18%);
-  }
-
-  .ix-hero-video video {
-    display: block;
     width: 100%;
     height: 100%;
-    min-height: 410px;
     object-fit: cover;
+    object-position: center;
+    animation: ix-image-in 1.1s ease both;
   }
 
-  .ix-hero-video::after {
+  .ix-hero-image-overlay {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgb(2 24 17 / 5%) 35%, rgb(2 24 17 / 75%) 100%);
-    content: '';
-    pointer-events: none;
+    background: linear-gradient(
+      180deg,
+      rgb(5 46 32 / 2%) 30%,
+      rgb(5 46 32 / 76%) 100%
+    );
   }
 
-  .ix-hero-video-caption {
+  .ix-hero-caption {
     position: absolute;
-    z-index: 1;
     right: 23px;
-    bottom: 23px;
+    bottom: 24px;
     left: 23px;
-    color: white;
+    color: #fff;
   }
 
-  .ix-hero-video-caption span {
+  .ix-hero-caption span {
     display: inline-flex;
     padding: 7px 10px;
-    border: 1px solid rgb(255 255 255 / 24%);
+    border: 1px solid rgb(255 255 255 / 28%);
     border-radius: 999px;
-    background: rgb(4 78 59 / 72%);
-    font-size: 10px;
-    font-weight: 850;
-    letter-spacing: .08em;
+    background: rgb(4 78 59 / 70%);
+    font-size: 9px;
+    font-weight: 900;
+    letter-spacing: .1em;
   }
 
-  .ix-hero-video-caption h2 {
-    margin: 12px 0 7px;
-    font-size: clamp(22px, 3vw, 30px);
-    font-weight: 850;
-    letter-spacing: -.03em;
+  .ix-hero-caption h2 {
+    margin: 12px 0 8px;
+    font-size: clamp(22px, 2.6vw, 31px);
+    font-weight: 900;
+    letter-spacing: -.035em;
   }
 
-  .ix-hero-video-caption p {
-    max-width: 360px;
+  .ix-hero-caption p {
+    max-width: 380px;
     margin: 0;
-    color: #e1f7eb;
-    font-size: 13px;
-    line-height: 1.7;
+    color: #e0f7e9;
+    font-size: 12px;
+    line-height: 1.8;
   }
 
   .ix-floating-note {
     position: absolute;
     z-index: 2;
     top: 24px;
-    left: -25px;
+    left: -22px;
     display: flex;
     align-items: center;
     gap: 11px;
-    max-width: 225px;
-    padding: 13px 16px;
-    border: 1px solid rgb(255 255 255 / 80%);
+    max-width: 230px;
+    padding: 13px 15px;
+    border: 1px solid #e4eee8;
     border-radius: 15px;
-    background: rgb(255 255 255 / 94%);
+    background: rgb(255 255 255 / 97%);
     box-shadow: 0 12px 35px rgb(16 42 35 / 14%);
     animation: ix-float 4s ease-in-out infinite;
   }
 
-  .ix-floating-note-icon {
+  .ix-floating-icon {
     display: grid;
-    flex: 0 0 37px;
+    flex: 0 0 38px;
     place-items: center;
-    width: 37px;
-    height: 37px;
+    width: 38px;
+    height: 38px;
     border-radius: 12px;
-    color: #047857;
+    color: var(--green);
     background: #d1fae5;
-    font-size: 18px;
+    font-size: 19px;
   }
 
   .ix-floating-note strong {
     display: block;
     color: #153b2d;
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .ix-floating-note small {
     display: block;
     margin-top: 4px;
-    color: #687e73;
+    color: #6b8075;
     font-size: 10px;
   }
 
   .ix-section {
-    padding: 72px 30px;
+    padding: 75px 0;
   }
 
-  .ix-inner {
-    max-width: 1180px;
-    margin: auto;
+  .ix-section-soft {
+    background: #eef8f2;
   }
 
-  .ix-heading {
-    max-width: 680px;
-    margin: 0 auto 36px;
+  .ix-section-heading {
+    max-width: 690px;
+    margin: 0 auto 38px;
     text-align: center;
   }
 
-  .ix-heading .ix-eyebrow {
+  .ix-section-heading .ix-kicker {
     margin-bottom: 15px;
   }
 
-  .ix-heading h2 {
+  .ix-section-heading h2 {
     margin: 0;
     color: #15372b;
     font-size: clamp(29px, 3.5vw, 42px);
     font-weight: 900;
-    line-height: 1.17;
+    line-height: 1.18;
     letter-spacing: -.045em;
   }
 
-  .ix-heading p {
+  .ix-section-heading p {
     margin: 13px 0 0;
     color: #62776c;
-    font-size: 14px;
-    line-height: 1.8;
-  }
-
-  .ix-video-section {
-    background: linear-gradient(180deg, #edf8f1, #f7fbf8);
+    font-size: 13px;
+    line-height: 1.9;
   }
 
   .ix-story-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
     gap: 20px;
   }
 
   .ix-story-card {
+    display: flex;
     min-width: 0;
     overflow: hidden;
-    border: 1px solid #dce9e2;
+    flex-direction: column;
+    border: 1px solid #dce9e1;
     border-radius: 20px;
-    background: white;
+    background: #fff;
     box-shadow: 0 7px 24px rgb(16 42 35 / 4%);
     animation: ix-enter .65s ease both;
-    transition: transform .23s ease, box-shadow .23s ease, border-color .23s ease;
+    transition: transform .25s ease, box-shadow .25s ease,
+      border-color .25s ease;
   }
 
   .ix-story-card:nth-child(2) {
-    animation-delay: .09s;
+    animation-delay: .08s;
   }
 
   .ix-story-card:nth-child(3) {
-    animation-delay: .18s;
+    animation-delay: .16s;
   }
 
   .ix-story-card:hover {
@@ -484,36 +467,34 @@ const STYLES = `
     box-shadow: 0 20px 42px rgb(16 42 35 / 10%);
   }
 
-  .ix-story-media {
+  .ix-story-image-wrap {
     position: relative;
     height: 225px;
     overflow: hidden;
-    background: linear-gradient(135deg, #d1fae5, #14532d);
+    background: #d1fae5;
   }
 
-  .ix-story-media video {
+  .ix-story-image {
     display: block;
     width: 100%;
     height: 100%;
     object-fit: cover;
-    transition: transform .65s ease;
+    transition: transform .6s ease;
   }
 
-  .ix-story-card:hover .ix-story-media video {
-    transform: scale(1.045);
+  .ix-story-card:hover .ix-story-image {
+    transform: scale(1.055);
   }
 
-  .ix-story-media::after {
+  .ix-story-image-shade {
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, rgb(2 24 17 / 4%), rgb(2 24 17 / 45%));
-    content: '';
+    background: linear-gradient(180deg, transparent 55%, rgb(4 46 32 / 38%));
     pointer-events: none;
   }
 
   .ix-story-icon {
     position: absolute;
-    z-index: 1;
     top: 15px;
     left: 15px;
     display: grid;
@@ -522,119 +503,82 @@ const STYLES = `
     height: 42px;
     border: 1px solid rgb(255 255 255 / 50%);
     border-radius: 14px;
-    color: white;
-    background: rgb(4 78 59 / 78%);
+    color: #fff;
+    background: rgb(4 78 59 / 80%);
     font-size: 21px;
     backdrop-filter: blur(8px);
   }
 
-  .ix-video-fallback {
-    position: absolute;
-    inset: 0;
+  .ix-story-body {
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex: 1;
     flex-direction: column;
-    gap: 10px;
-    padding: 18px;
-    color: white;
-    text-align: center;
-    background:
-      radial-gradient(circle at 75% 15%, rgb(167 243 208 / 28%), transparent 35%),
-      linear-gradient(135deg, #065f46, #047857 55%, #064e3b);
-  }
-
-  .ix-video-fallback-symbol {
-    display: grid;
-    place-items: center;
-    width: 58px;
-    height: 58px;
-    border: 1px solid rgb(255 255 255 / 28%);
-    border-radius: 18px;
-    background: rgb(255 255 255 / 12%);
-    font-size: 26px;
-  }
-
-  .ix-video-fallback strong {
-    font-size: 14px;
-  }
-
-  .ix-video-fallback a {
-    color: #d1fae5;
-    font-size: 11px;
-    font-weight: 800;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-  }
-
-  .ix-story-content {
     padding: 21px;
   }
 
   .ix-story-eyebrow {
-    color: #047857;
-    font-size: 10px;
+    color: var(--green);
+    font-size: 9px;
     font-weight: 900;
-    letter-spacing: .09em;
+    letter-spacing: .1em;
   }
 
-  .ix-story-content h3 {
+  .ix-story-body h3 {
     margin: 10px 0 9px;
     color: #17382d;
     font-size: 19px;
-    font-weight: 850;
+    font-weight: 900;
+    line-height: 1.35;
     letter-spacing: -.025em;
   }
 
-  .ix-story-content p {
-    min-height: 66px;
+  .ix-story-body p {
+    flex: 1;
     margin: 0;
     color: #64796f;
     font-size: 12px;
-    line-height: 1.8;
+    line-height: 1.85;
   }
 
   .ix-story-bottom {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 12px;
-    margin-top: 17px;
-    padding-top: 15px;
+    gap: 10px;
+    margin-top: 18px;
+    padding-top: 14px;
     border-top: 1px solid #e5eee8;
-    color: #047857;
-    font-size: 11px;
-    font-weight: 800;
+    color: #547366;
+    font-size: 9px;
+    font-weight: 850;
+    letter-spacing: .06em;
   }
 
-  .ix-story-bottom span {
-    color: #75877e;
-    font-weight: 650;
+  .ix-story-bottom span:last-child {
+    color: var(--green);
+    font-size: 17px;
   }
 
-  .ix-feature-grid,
-  .ix-plan-grid {
+  .ix-feature-grid {
     display: grid;
     grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
     gap: 18px;
   }
 
-  .ix-feature-card,
-  .ix-plan-card {
+  .ix-feature-card {
     min-width: 0;
-    padding: 24px;
+    padding: 25px;
     border: 1px solid #deebe3;
     border-radius: 19px;
-    background: white;
+    background: #fff;
     box-shadow: 0 6px 24px rgb(16 42 35 / 3%);
-    transition: transform .22s ease, box-shadow .22s ease, border-color .22s ease;
     animation: ix-enter .65s ease both;
+    transition: transform .22s ease, box-shadow .22s ease;
   }
 
-  .ix-feature-card:hover,
-  .ix-plan-card:hover {
+  .ix-feature-card:hover {
     transform: translateY(-4px);
-    border-color: #a8dcbf;
     box-shadow: 0 17px 36px rgb(16 42 35 / 8%);
   }
 
@@ -647,48 +591,70 @@ const STYLES = `
     border: 1px solid #d4eee0;
     border-radius: 15px;
     background: #ecfdf5;
-    font-size: 23px;
+    font-size: 22px;
   }
 
-  .ix-feature-card h3,
-  .ix-plan-card h3 {
+  .ix-feature-card h3 {
     margin: 0 0 10px;
     color: #17392e;
-    font-size: 17px;
-    font-weight: 850;
+    font-size: 16px;
+    font-weight: 900;
   }
 
-  .ix-feature-card p,
-  .ix-plan-card p {
+  .ix-feature-card p {
     margin: 0;
     color: #63796f;
     font-size: 12px;
-    line-height: 1.8;
+    line-height: 1.85;
   }
 
-  .ix-plan-section {
-    background: #eef8f2;
+  .ix-plan-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: stretch;
+    gap: 18px;
   }
 
   .ix-plan-card {
     display: flex;
+    min-width: 0;
     flex-direction: column;
+    padding: 23px;
+    border: 1px solid #dce9e1;
+    border-radius: 19px;
+    background: #fff;
+    transition: transform .22s ease, box-shadow .22s ease;
+  }
+
+  .ix-plan-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 16px 34px rgb(16 42 35 / 8%);
   }
 
   .ix-plan-tag {
     align-self: flex-start;
-    margin-bottom: 15px;
+    margin-bottom: 14px;
     padding: 6px 9px;
     border-radius: 999px;
-    color: #047857;
+    color: var(--green);
     background: #ecfdf5;
-    font-size: 10px;
-    font-weight: 850;
+    font-size: 9px;
+    font-weight: 900;
+  }
+
+  .ix-plan-card h3 {
+    margin: 0 0 10px;
+    color: #17392e;
+    font-size: 17px;
+    font-weight: 900;
   }
 
   .ix-plan-card p {
     flex: 1;
-    margin-bottom: 19px;
+    margin: 0 0 20px;
+    color: #63796f;
+    font-size: 12px;
+    line-height: 1.8;
   }
 
   .ix-plan-footer {
@@ -704,11 +670,11 @@ const STYLES = `
     display: block;
     margin-bottom: 4px;
     color: #71847a;
-    font-size: 10px;
+    font-size: 9px;
   }
 
   .ix-plan-footer strong {
-    color: #047857;
+    color: var(--green);
     font-size: 15px;
     font-weight: 900;
   }
@@ -727,7 +693,7 @@ const STYLES = `
     padding: clamp(25px, 4vw, 42px);
     border: 1px solid #087c5b;
     border-radius: 24px;
-    color: white;
+    color: #fff;
     background: linear-gradient(125deg, #064e3b, #047857 68%, #059669);
     box-shadow: 0 18px 45px rgb(4 120 87 / 15%);
   }
@@ -743,14 +709,14 @@ const STYLES = `
     max-width: 580px;
     margin: 10px 0 0;
     color: #d4f5e5;
-    font-size: 13px;
-    line-height: 1.8;
+    font-size: 12px;
+    line-height: 1.9;
   }
 
   .ix-cta .ix-btn {
     flex-shrink: 0;
     color: #065f46;
-    background: white;
+    background: #fff;
   }
 
   .ix-cta .ix-btn:hover {
@@ -763,9 +729,9 @@ const STYLES = `
     justify-content: space-between;
     flex-wrap: wrap;
     gap: 16px;
-    max-width: 1240px;
-    margin: auto;
-    padding: 25px 30px;
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 30px;
     border-top: 1px solid #e0ebe4;
     color: #71847b;
     font-size: 11px;
@@ -783,112 +749,20 @@ const STYLES = `
   }
 
   .ix-footer a:hover {
-    color: #047857;
+    color: var(--green);
   }
 
-  .ix-calculator-trigger {
-    position: fixed;
-    z-index: 20;
-    right: 22px;
-    bottom: 22px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    gap: 9px;
-    min-height: 49px;
-    padding: 13px 18px;
-    border: 1px solid rgb(255 255 255 / 24%);
-    border-radius: 999px;
-    color: white;
-    background: linear-gradient(135deg, #059669, #065f46);
-    box-shadow: 0 10px 28px rgb(4 120 87 / 30%);
-    font: inherit;
-    font-size: 12px;
-    font-weight: 850;
-    cursor: pointer;
-    transition: transform .2s ease, box-shadow .2s ease;
+  .ix-landing .ix-photo-credit {
+    margin-top: 14px;
+    color: #71847b;
+    font-size: 10px;
+    text-align: center;
   }
 
-  .ix-calculator-trigger:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 14px 34px rgb(4 120 87 / 38%);
-  }
-
-  .ix-modal-backdrop {
-    position: fixed;
-    z-index: 100;
-    inset: 0;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    overflow-y: auto;
-    padding: 20px;
-    background: rgb(8 27 21 / 68%);
-    backdrop-filter: blur(7px);
-    animation: ix-fade .18s ease both;
-  }
-
-  .ix-modal {
-    width: 100%;
-    max-width: 760px;
-    max-height: 90vh;
-    overflow-y: auto;
-    padding: clamp(20px, 4vw, 34px);
-    border: 1px solid #d8e8df;
-    border-radius: 24px;
-    background: white;
-    box-shadow: 0 30px 100px rgb(0 0 0 / 25%);
-    animation: ix-modal-in .22s ease both;
-  }
-
-  .ix-modal-header {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: 18px;
-    margin-bottom: 24px;
-  }
-
-  .ix-modal-header h2 {
-    margin: 0;
-    color: #15372c;
-    font-size: clamp(23px, 4vw, 30px);
-    font-weight: 900;
-    letter-spacing: -.04em;
-  }
-
-  .ix-modal-header p {
-    margin: 8px 0 0;
-    color: #60766d;
-    font-size: 12px;
-    line-height: 1.7;
-  }
-
-  .ix-modal-close {
-    display: grid;
-    flex: 0 0 40px;
-    place-items: center;
-    width: 40px;
-    height: 40px;
-    border: 1px solid #dce9e2;
-    border-radius: 12px;
-    color: #31594a;
-    background: #f5faf7;
-    font: inherit;
-    font-size: 22px;
-    cursor: pointer;
-  }
-
-  .ix-modal-close:hover {
-    background: #e8f8ef;
-  }
-
-  .ix-modal-actions {
-    display: flex;
-    justify-content: flex-end;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 20px;
+  .ix-landing .ix-photo-credit a {
+    color: #42685a;
+    text-decoration: underline;
+    text-underline-offset: 2px;
   }
 
   @keyframes ix-enter {
@@ -896,14 +770,9 @@ const STYLES = `
     to { opacity: 1; transform: translateY(0); }
   }
 
-  @keyframes ix-fade {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
-
-  @keyframes ix-modal-in {
-    from { opacity: 0; transform: translateY(12px) scale(.985); }
-    to { opacity: 1; transform: translateY(0) scale(1); }
+  @keyframes ix-image-in {
+    from { opacity: .5; transform: scale(1.035); }
+    to { opacity: 1; transform: scale(1); }
   }
 
   @keyframes ix-float {
@@ -913,17 +782,13 @@ const STYLES = `
 
   @media (max-width: 900px) {
     .ix-hero {
-      grid-template-columns: minmax(0, 1fr) minmax(270px, .9fr);
+      grid-template-columns: minmax(0, 1fr) minmax(0, .9fr);
       gap: 28px;
-      padding-top: 55px;
+      padding-top: 48px;
     }
 
-    .ix-hero-visual {
+    .ix-hero-image-wrap {
       min-height: 370px;
-    }
-
-    .ix-hero-video video {
-      min-height: 360px;
     }
 
     .ix-story-grid,
@@ -932,13 +797,13 @@ const STYLES = `
       gap: 13px;
     }
 
-    .ix-story-content,
+    .ix-story-body,
     .ix-feature-card,
     .ix-plan-card {
       padding: 18px;
     }
 
-    .ix-story-media {
+    .ix-story-image-wrap {
       height: 190px;
     }
   }
@@ -958,17 +823,22 @@ const STYLES = `
       font-size: 11px;
     }
 
+    .ix-container {
+      padding-right: 20px;
+      padding-left: 20px;
+    }
+
     .ix-hero {
       grid-template-columns: minmax(0, 1fr);
-      gap: 36px;
-      padding: 40px 20px 55px;
+      gap: 34px;
+      padding: 38px 20px 54px;
     }
 
     .ix-hero h1 {
       font-size: clamp(39px, 10vw, 56px);
     }
 
-    .ix-hero-copy > p {
+    .ix-hero-description {
       font-size: 14px;
     }
 
@@ -981,21 +851,16 @@ const STYLES = `
       width: 100%;
     }
 
-    .ix-hero-visual {
-      min-height: 400px;
-      margin: 0 5px;
-    }
-
-    .ix-hero-video video {
+    .ix-hero-image-wrap {
       min-height: 390px;
     }
 
     .ix-floating-note {
-      left: -8px;
+      left: -7px;
     }
 
     .ix-section {
-      padding: 52px 20px;
+      padding: 53px 0;
     }
 
     .ix-story-grid,
@@ -1005,12 +870,14 @@ const STYLES = `
       gap: 16px;
     }
 
-    .ix-story-media {
+    .ix-story-image-wrap {
       height: 240px;
     }
 
-    .ix-story-content p {
-      min-height: auto;
+    .ix-story-body,
+    .ix-feature-card,
+    .ix-plan-card {
+      padding: 21px;
     }
 
     .ix-cta {
@@ -1019,27 +886,9 @@ const STYLES = `
     }
 
     .ix-footer {
-      padding: 23px 20px;
-    }
-
-    .ix-calculator-trigger {
-      right: 14px;
-      bottom: 14px;
-      min-height: 45px;
-      padding: 11px 14px;
-      font-size: 11px;
-    }
-
-    .ix-modal-backdrop {
       align-items: flex-start;
-      padding: 12px;
-    }
-
-    .ix-modal {
-      max-height: calc(100dvh - 24px);
-      margin: auto 0;
-      padding: 20px;
-      border-radius: 19px;
+      flex-direction: column;
+      padding: 23px 20px;
     }
   }
 
@@ -1055,21 +904,17 @@ const STYLES = `
       justify-content: flex-start;
     }
 
-    .ix-hero-visual {
-      min-height: 350px;
+    .ix-hero-image-wrap {
+      min-height: 330px;
     }
 
-    .ix-hero-video video {
-      min-height: 340px;
-    }
-
-    .ix-hero-video-caption {
+    .ix-hero-caption {
       right: 15px;
       bottom: 16px;
       left: 15px;
     }
 
-    .ix-hero-video-caption h2 {
+    .ix-hero-caption h2 {
       font-size: 22px;
     }
 
@@ -1078,7 +923,7 @@ const STYLES = `
       padding: 10px;
     }
 
-    .ix-story-media {
+    .ix-story-image-wrap {
       height: 210px;
     }
 
@@ -1089,11 +934,6 @@ const STYLES = `
 
     .ix-plan-footer .ix-btn {
       width: 100%;
-    }
-
-    .ix-footer {
-      align-items: flex-start;
-      flex-direction: column;
     }
   }
 
@@ -1109,7 +949,7 @@ const STYLES = `
   }
 `
 
-function planName(plan) {
+function getPlanName(plan) {
   return (
     plan?.name ||
     plan?.planName ||
@@ -1119,7 +959,7 @@ function planName(plan) {
   )
 }
 
-function planDescription(plan) {
+function getPlanDescription(plan) {
   return (
     plan?.description ||
     plan?.details ||
@@ -1128,8 +968,8 @@ function planDescription(plan) {
   )
 }
 
-function planPremium(plan) {
-  const candidates = [
+function getPlanPremium(plan) {
+  const values = [
     plan?.annualPremium,
     plan?.premiumAmount,
     plan?.premium,
@@ -1137,57 +977,61 @@ function planPremium(plan) {
     plan?.price,
   ]
 
-  return candidates.find(
-    (value) =>
-      value !== undefined &&
-      value !== null &&
-      Number.isFinite(Number(value)),
+  const value = values.find(
+    (item) =>
+      item !== undefined &&
+      item !== null &&
+      Number.isFinite(Number(item)),
   )
+
+  return value === undefined ? null : Number(value)
 }
 
-function VideoStory({ story }) {
-  const [videoFailed, setVideoFailed] = useState(false)
+function StoryCard({ story }) {
+  const [imageFailed, setImageFailed] = useState(false)
 
   return (
     <article className="ix-story-card">
-      <div className="ix-story-media">
-        {!videoFailed && (
-          <video
-            src={story.src}
-            autoPlay
-            muted
-            loop
-            playsInline
-            preload="metadata"
-            aria-label={story.title}
-            onError={() => setVideoFailed(true)}
+      <div className="ix-story-image-wrap">
+        {!imageFailed ? (
+          <img
+            className="ix-story-image"
+            src={story.image}
+            alt={story.alt}
+            loading="lazy"
+            onError={() => setImageFailed(true)}
           />
-        )}
-
-        {videoFailed && (
-          <div className="ix-video-fallback">
-            <div className="ix-video-fallback-symbol" aria-hidden="true">
-              {story.icon}
-            </div>
-            <strong>Video clip not added yet</strong>
-            <a href={story.link} target="_blank" rel="noreferrer">
-              {story.linkLabel} ↗
-            </a>
+        ) : (
+          <div
+            style={{
+              display: 'grid',
+              placeItems: 'center',
+              width: '100%',
+              height: '100%',
+              color: '#047857',
+              background: '#d1fae5',
+              fontSize: 42,
+            }}
+            aria-label={story.alt}
+          >
+            {story.icon}
           </div>
         )}
 
+        <div className="ix-story-image-shade" />
         <div className="ix-story-icon" aria-hidden="true">
           {story.icon}
         </div>
       </div>
 
-      <div className="ix-story-content">
+      <div className="ix-story-body">
         <div className="ix-story-eyebrow">{story.eyebrow}</div>
         <h3>{story.title}</h3>
         <p>{story.description}</p>
+
         <div className="ix-story-bottom">
           <span>INSUREX PROTECTION</span>
-          <span aria-hidden="true">●</span>
+          <span aria-hidden="true">↗</span>
         </div>
       </div>
     </article>
@@ -1196,55 +1040,13 @@ function VideoStory({ story }) {
 
 export default function Landing() {
   const { user } = useAuth()
-  const [calculatorOpen, setCalculatorOpen] = useState(false)
-  const [selectedPlan, setSelectedPlan] = useState('')
-
-  const chosenPlan = useMemo(
-    () =>
-      ACTIVE_PLANS.find((plan) => {
-        const id =
-          plan?.id ??
-          plan?.policyNumber ??
-          plan?.planId ??
-          plan?.name
-
-        return String(id) === String(selectedPlan)
-      }) || ACTIVE_PLANS[0],
-    [selectedPlan],
-  )
-
-  const planIdentifier = chosenPlan
-    ? String(
-        chosenPlan.id ??
-        chosenPlan.policyNumber ??
-        chosenPlan.planId ??
-        chosenPlan.name ??
-        '',
-      )
-    : ''
 
   const dashboardPath =
     user?.role === 'ADMIN' ? '/admin' : '/app'
 
-  useEffect(() => {
-    if (!calculatorOpen) return undefined
-
-    const previousOverflow = document.body.style.overflow
-
-    const handleKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setCalculatorOpen(false)
-      }
-    }
-
-    document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', handleKeyDown)
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', handleKeyDown)
-    }
-  }, [calculatorOpen])
+  const activePlans = PLANS.filter(
+    (plan) => plan?.active !== false,
+  ).slice(0, 3)
 
   return (
     <main className="ix-landing">
@@ -1253,14 +1055,17 @@ export default function Landing() {
       <header className="ix-nav">
         <Link
           to={user ? dashboardPath : '/'}
-          aria-label="InsureX home"
           className="ix-brand"
+          aria-label="InsureX home"
         >
           <span className="ix-brand-icon" aria-hidden="true">
             🛡️
           </span>
-          <span className="ix-brand-text">
-            Insure<span>X</span>
+
+          <span>
+            <span className="ix-brand-name">
+              Insure<span>X</span>
+            </span>
             <small>INSURANCE PLATFORM</small>
           </span>
         </Link>
@@ -1285,8 +1090,8 @@ export default function Landing() {
 
       <section className="ix-hero">
         <div className="ix-hero-copy">
-          <div className="ix-eyebrow">
-            <span className="ix-dot" />
+          <div className="ix-kicker">
+            <span className="ix-kicker-dot" />
             INSURANCE MADE SIMPLER
           </div>
 
@@ -1296,9 +1101,9 @@ export default function Landing() {
             <span>Plan with confidence.</span>
           </h1>
 
-          <p>
-            Life can be unpredictable. InsureX helps you explore insurance
-            options, estimate your coverage, and manage your insurance journey
+          <p className="ix-hero-description">
+            Life can be unpredictable. InsureX helps you explore
+            insurance options and manage your insurance journey
             from one convenient platform.
           </p>
 
@@ -1312,6 +1117,7 @@ export default function Landing() {
                 <Link to="/register" className="ix-btn ix-btn-primary">
                   Get Started <span aria-hidden="true">→</span>
                 </Link>
+
                 <Link to="/login" className="ix-btn ix-btn-outline">
                   Sign In to Your Account
                 </Link>
@@ -1319,37 +1125,39 @@ export default function Landing() {
             )}
           </div>
 
-          <div className="ix-trust-row">
-            <span><strong>✓</strong> Explore available plans</span>
-            <span><strong>✓</strong> Estimate coverage</span>
-            <span><strong>✓</strong> Manage in one place</span>
+          <div className="ix-trust">
+            <span>✓ Explore available plans</span>
+            <span>✓ Review coverage options</span>
+            <span>✓ Manage in one place</span>
           </div>
         </div>
 
         <div className="ix-hero-visual">
-          <div className="ix-hero-video">
-            <video
-              src="/videos/family-protection.mp4"
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              aria-label="Family protection video"
+          <div className="ix-hero-image-wrap">
+            <img
+              className="ix-hero-image"
+              src={IMAGES.hero}
+              alt="Family spending meaningful time together outdoors"
+              fetchPriority="high"
+              onError={(event) => {
+                event.currentTarget.style.opacity = '0'
+              }}
             />
 
-            <div className="ix-hero-video-caption">
+            <div className="ix-hero-image-overlay" />
+
+            <div className="ix-hero-caption">
               <span>YOUR FUTURE. YOUR PROTECTION.</span>
               <h2>Confidence for life's journey.</h2>
               <p>
-                Explore insurance options and take the next step with
-                information at your fingertips.
+                Explore insurance options and take your next step
+                with InsureX.
               </p>
             </div>
           </div>
 
           <div className="ix-floating-note">
-            <div className="ix-floating-note-icon" aria-hidden="true">
+            <div className="ix-floating-icon" aria-hidden="true">
               🛡️
             </div>
             <div>
@@ -1360,33 +1168,45 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="ix-section ix-video-section">
-        <div className="ix-inner">
-          <div className="ix-heading">
-            <div className="ix-eyebrow">PROTECTION IN REAL LIFE</div>
+      <section className="ix-section ix-section-soft">
+        <div className="ix-container">
+          <div className="ix-section-heading">
+            <div className="ix-kicker">PROTECTION IN REAL LIFE</div>
             <h2>For life's unexpected moments</h2>
             <p>
-              From healthcare to road safety and family protection, explore
-              insurance options that may fit your needs.
+              Explore coverage options for healthcare, vehicle protection,
+              and the people who matter most.
             </p>
           </div>
 
           <div className="ix-story-grid">
             {STORIES.map((story) => (
-              <VideoStory key={story.id} story={story} />
+              <StoryCard key={story.eyebrow} story={story} />
             ))}
           </div>
+
+          <p className="ix-photo-credit">
+            Photography served directly by{' '}
+            <a
+              href="https://unsplash.com/"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Unsplash
+            </a>
+            .
+          </p>
         </div>
       </section>
 
       <section className="ix-section">
-        <div className="ix-inner">
-          <div className="ix-heading">
-            <div className="ix-eyebrow">BUILT AROUND YOUR NEEDS</div>
+        <div className="ix-container">
+          <div className="ix-section-heading">
+            <div className="ix-kicker">BUILT AROUND YOUR NEEDS</div>
             <h2>A simpler insurance experience</h2>
             <p>
-              Get started with the information and tools you need to explore
-              your insurance options.
+              Get the tools you need to explore insurance and manage
+              your account in one place.
             </p>
           </div>
 
@@ -1404,53 +1224,51 @@ export default function Landing() {
         </div>
       </section>
 
-      {ACTIVE_PLANS.length > 0 && (
-        <section className="ix-section ix-plan-section">
-          <div className="ix-inner">
-            <div className="ix-heading">
-              <div className="ix-eyebrow">EXPLORE YOUR OPTIONS</div>
-              <h2>Find a plan that fits your needs</h2>
+      {activePlans.length > 0 && (
+        <section className="ix-section ix-section-soft">
+          <div className="ix-container">
+            <div className="ix-section-heading">
+              <div className="ix-kicker">EXPLORE YOUR OPTIONS</div>
+              <h2>Find a plan for your needs</h2>
               <p>
-                Start by exploring available plans. Sign in to view your
-                insurance options and continue through your account.
+                Explore the available insurance plans and continue
+                through your InsureX account.
               </p>
             </div>
 
             <div className="ix-plan-grid">
-              {ACTIVE_PLANS.slice(0, 3).map((plan, index) => {
-                const premium = planPremium(plan)
+              {activePlans.map((plan, index) => {
+                const premium = getPlanPremium(plan)
+
+                const key =
+                  plan?.id ??
+                  plan?.policyNumber ??
+                  plan?.planId ??
+                  plan?.name ??
+                  index
 
                 return (
-                  <article
-                    className="ix-plan-card"
-                    key={String(
-                      plan.id ??
-                      plan.policyNumber ??
-                      plan.planId ??
-                      plan.name ??
-                      index,
-                    )}
-                  >
+                  <article className="ix-plan-card" key={key}>
                     <span className="ix-plan-tag">
                       {index === 0 ? 'Explore coverage' : 'Available plan'}
                     </span>
 
-                    <h3>{planName(plan)}</h3>
-                    <p>{planDescription(plan)}</p>
+                    <h3>{getPlanName(plan)}</h3>
+                    <p>{getPlanDescription(plan)}</p>
 
                     <div className="ix-plan-footer">
                       <div>
-                        <small>Indicative annual premium</small>
+                        <small>Indicative premium</small>
                         <strong>
-                          {premium !== undefined
-                            ? inr(Number(premium))
+                          {premium !== null
+                            ? inr(premium)
                             : 'View plan details'}
                         </strong>
                       </div>
 
                       <Link
                         to={user ? '/app/plans' : '/login'}
-                        className="ix-btn ix-btn-soft"
+                        className="ix-btn ix-btn-primary"
                       >
                         Explore <span aria-hidden="true">→</span>
                       </Link>
@@ -1464,13 +1282,13 @@ export default function Landing() {
       )}
 
       <section className="ix-section">
-        <div className="ix-inner">
+        <div className="ix-container">
           <div className="ix-cta">
             <div>
               <h2>Ready to take the next step?</h2>
               <p>
-                Create an account to explore plans and manage your insurance
-                activity, or sign in to continue where you left off.
+                Create an account to explore plans and manage your
+                insurance activity, or sign in to continue.
               </p>
             </div>
 
@@ -1498,89 +1316,6 @@ export default function Landing() {
           <Link to="/forgot-password">Forgot Password?</Link>
         </div>
       </footer>
-
-      <button
-        type="button"
-        className="ix-calculator-trigger"
-        onClick={() => setCalculatorOpen(true)}
-        aria-haspopup="dialog"
-        aria-expanded={calculatorOpen}
-      >
-        <span aria-hidden="true">⌁</span>
-        Open Insurance Calculator
-      </button>
-
-      {calculatorOpen && (
-        <div
-          className="ix-modal-backdrop"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) {
-              setCalculatorOpen(false)
-            }
-          }}
-        >
-          <section
-            className="ix-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="ix-calculator-title"
-          >
-            <div className="ix-modal-header">
-              <div>
-                <h2 id="ix-calculator-title">Insurance Calculator</h2>
-                <p>
-                  Choose a plan and explore your coverage options. The
-                  calculator provides an estimate, not a final quotation.
-                </p>
-              </div>
-
-              <button
-                type="button"
-                className="ix-modal-close"
-                onClick={() => setCalculatorOpen(false)}
-                aria-label="Close insurance calculator"
-              >
-                ×
-              </button>
-            </div>
-
-            <div>
-              <CoverageDial
-                value={1000000}
-                onChange={() => {}}
-                planKey={planIdentifier}
-                onPlanChange={setSelectedPlan}
-                showPlans
-                lockedPlan={false}
-                planLabel={chosenPlan ? planName(chosenPlan) : undefined}
-                coverageMin={100000}
-                coverageMax={10000000}
-                coverageStep={100000}
-                durationMax={5}
-              />
-
-              <div className="ix-modal-actions">
-                <button
-                  type="button"
-                  className="ix-btn ix-btn-outline"
-                  onClick={() => setCalculatorOpen(false)}
-                >
-                  Close
-                </button>
-
-                <Link
-                  to={user ? '/app/plans' : '/register'}
-                  className="ix-btn ix-btn-primary"
-                  onClick={() => setCalculatorOpen(false)}
-                >
-                  {user ? 'View Plans' : 'Get Started'}
-                  <span aria-hidden="true">→</span>
-                </Link>
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
     </main>
   )
 }
