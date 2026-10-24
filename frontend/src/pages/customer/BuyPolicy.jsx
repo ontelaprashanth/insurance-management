@@ -46,6 +46,8 @@ import { dateTime, inr, inrShort } from '../../lib/format'
 import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../auth/AuthContext'
 
+import '../../style.css'
+
 /* =========================================================
    CONSTANTS
 ========================================================= */
@@ -162,18 +164,31 @@ function calculatePremium(plan, coverage, years) {
     basePremium * (requestedCoverage / baseCoverage) * duration,
   )
 
-  // No discount or tax is assumed by this frontend estimate.
-  // The backend order amount is authoritative.
-  const discount = 0
+  // InsureX estimate: apply the configured 5% discount to every term
+  // from 1 through 5 years. The backend must use the same rule to charge it.
+  const discountRate = 5
+  const discount = roundMoney(base * discountRate / 100)
   const taxable = roundMoney(base - discount)
-  const gst = 0
+
+  // Estimate only. Confirm the legally applicable GST treatment with the
+  // backend/business rules before using this value for a real payment.
+  const planType = String(
+    `${plan?.coveredType ?? ''} ${plan?.planName ?? ''} ${plan?.planCode ?? ''}`,
+  ).toLowerCase()
+  const isMotorOrAccident =
+    /motor|vehicle|car|bike|two[- ]?wheeler|accident/.test(planType) ||
+    /^(mtr|acc)/i.test(String(plan?.planCode ?? ''))
+  const gstRate = isMotorOrAccident ? 18 : 0
+  const gst = roundMoney(taxable * gstRate / 100)
   const total = roundMoney(taxable + gst)
 
   return {
     base,
     discount,
+    discountRate,
     taxable,
     gst,
+    gstRate,
     total,
     perYear: roundMoney(total / duration),
   }
@@ -285,6 +300,11 @@ function getPurchaseError(error) {
     'We could not confirm your insurance purchase.',
   )
 }
+
+/* =========================================================
+   INSUREX PREMIUM GREEN STYLES
+========================================================= */
+
 
 /* =========================================================
    COMPONENT
@@ -1137,11 +1157,11 @@ export default function BuyPolicy() {
                               {inr(policy.baseCoverage)} of cover, per year
                             </dd>
 
-                            <dt>Multi-year discount</dt>
-                            <dd>No discount included in this estimate</dd>
+                            <dt>InsureX discount ({est.discountRate ?? 5}%)</dt>
+                            <dd>− {inr(est.discount)}</dd>
 
-                            <dt>GST</dt>
-                            <dd>Not included in this estimate</dd>
+                            <dt>Estimated GST ({est.gstRate ?? 0}%)</dt>
+                            <dd>{inr(est.gst)}</dd>
                           </>
                         )}
 
@@ -1258,6 +1278,19 @@ export default function BuyPolicy() {
                         <dt>Nominee mobile</dt>
                         <dd>{nominee.contact || '—'}</dd>
 
+                        {!isRenewal && (
+                          <>
+                            <dt>Base premium</dt>
+                            <dd>{inr(est.base)}</dd>
+
+                            <dt>InsureX discount ({est.discountRate ?? 5}%)</dt>
+                            <dd>− {inr(est.discount)}</dd>
+
+                            <dt>Estimated GST ({est.gstRate ?? 0}%)</dt>
+                            <dd>{inr(est.gst)}</dd>
+                          </>
+                        )}
+
                         <dt>Estimated total</dt>
                         <dd>{inr(est.total)}</dd>
                       </dl>
@@ -1370,13 +1403,8 @@ export default function BuyPolicy() {
                       durationMax={5}
                       premiumEstimate={{
                         ...est,
-                        perYear:
-                          Number(policy.basePremium) *
-                          (
-                            Number(effectiveCoverage) /
-                            Math.max(1, Number(policy.baseCoverage))
-                          ),
-                        gstRate: 0,
+                        perYear: est.perYear,
+                        gstRate: est.gstRate ?? 0,
                       }}
                     />
                   </aside>
