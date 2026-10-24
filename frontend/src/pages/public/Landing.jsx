@@ -1,5 +1,18 @@
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import {
+  ArrowDown,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  ChevronRight,
+  HeartPulse,
+  Shield,
+  ShieldCheck,
+  Sparkles,
+  Wallet,
+} from 'lucide-react'
 
 import CoverageDial from '../../components/CoverageDial'
 import { Logo } from '../../components/ui'
@@ -12,6 +25,13 @@ const ACTIVE_PLANS = PLANS.filter((plan) => plan.active !== false)
 const DEFAULT_PLAN =
   ACTIVE_PLANS.find((plan) => plan.key === 'HLT-BASIC') ||
   ACTIVE_PLANS[0]
+
+const PLAN_ICONS = {
+  Health: HeartPulse,
+  Life: ShieldCheck,
+  Motor: Shield,
+  'Accident Insurance': ShieldCheck,
+}
 
 export default function Landing() {
   const { user } = useAuth()
@@ -26,7 +46,7 @@ export default function Landing() {
     ACTIVE_PLANS.find((item) => item.key === plan) ||
     DEFAULT_PLAN
 
-  const selectPlan = (nextPlanKey) => {
+  const selectPlan = (nextPlanKey, scroll = true) => {
     const nextPlan = ACTIVE_PLANS.find(
       (item) => item.key === nextPlanKey,
     )
@@ -40,30 +60,33 @@ export default function Landing() {
       coverage: nextPlan.coverage,
     }))
 
-    document
-      .querySelector('.ix-dial-animated')
-      ?.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
+    if (scroll) {
+      document
+        .querySelector('.ix-dial-animated')
+        ?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        })
+    }
   }
 
   return (
     <div className="land land-premium">
       <style>{`
         .land-premium {
-          --land-green: #087f5b;
-          --land-green-dark: #075c45;
-          --land-green-light: #e7f7ef;
-          --land-text: #172b25;
-          --land-muted: #64756d;
-          --land-border: #dce9e2;
-          --land-surface: #ffffff;
-          --land-bg: #f5faf7;
-          color: var(--land-text);
-          background: var(--land-bg);
+          --green: #087f5b;
+          --green-dark: #07533d;
+          --green-deep: #103e2e;
+          --green-light: #e9f8ef;
+          --ink: #18372a;
+          --muted: #708077;
+          --line: #e0ebe4;
+          --surface: #ffffff;
+          --page: #f6faf7;
           min-height: 100vh;
           overflow: hidden;
+          color: var(--ink);
+          background: var(--page);
           font-family: inherit;
         }
 
@@ -74,29 +97,49 @@ export default function Landing() {
         }
 
         .land-premium a {
+          color: inherit;
           text-decoration: none;
         }
 
+        .land-premium button,
+        .land-premium input {
+          font: inherit;
+        }
+
+        .land-premium button:focus-visible,
+        .land-premium a:focus-visible,
+        .land-premium input:focus-visible {
+          outline: 3px solid rgba(8,127,91,.28);
+          outline-offset: 4px;
+        }
+
+        .land-premium .land-container {
+          width: min(1200px, calc(100% - 48px));
+          margin-inline: auto;
+        }
+
         .land-premium .land-nav {
-          width: min(1240px, calc(100% - 48px));
-          min-height: 82px;
-          margin: 0 auto;
+          position: relative;
+          z-index: 5;
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 24px;
-          border-bottom: 1px solid rgba(8, 127, 91, 0.12);
+          gap: 20px;
+          width: min(1200px, calc(100% - 48px));
+          min-height: 78px;
+          margin-inline: auto;
+          border-bottom: 1px solid rgba(8,127,91,.11);
         }
 
         .land-premium .brand {
           display: inline-flex;
           align-items: center;
-          gap: 11px;
-          color: var(--land-green-dark);
+          gap: 10px;
+          color: var(--green-dark);
           font-size: 23px;
-          font-weight: 850;
-          letter-spacing: -0.7px;
-          transition: transform 180ms ease;
+          font-weight: 900;
+          letter-spacing: -.8px;
+          transition: transform .22s ease;
         }
 
         .land-premium .brand:hover {
@@ -104,365 +147,425 @@ export default function Landing() {
         }
 
         .land-premium .brand svg {
-          width: 36px;
-          height: 36px;
-          flex-shrink: 0;
+          width: 35px;
+          height: 35px;
         }
 
-        .land-premium .row {
+        .land-premium .land-nav-actions {
           display: flex;
           align-items: center;
-          gap: 12px;
+          gap: 10px;
         }
 
-        .land-premium .wrap {
-          flex-wrap: wrap;
-        }
-
-        .land-premium .btn {
+        .land-premium .land-btn {
           display: inline-flex;
-          min-height: 43px;
           align-items: center;
           justify-content: center;
-          gap: 8px;
-          padding: 11px 19px;
-          border: 1px solid var(--land-border);
-          border-radius: 11px;
-          background: #fff;
-          color: var(--land-text);
-          font: inherit;
-          font-size: 14px;
-          font-weight: 750;
-          cursor: pointer;
+          gap: 9px;
+          min-height: 44px;
+          padding: 11px 18px;
+          border: 1px solid var(--line);
+          border-radius: 12px;
+          background: white;
+          color: var(--ink);
+          font-size: 13px;
+          font-weight: 800;
           text-align: center;
+          cursor: pointer;
           transition:
-            transform 180ms ease,
-            box-shadow 180ms ease,
-            background 180ms ease,
-            border-color 180ms ease;
+            transform .22s ease,
+            background .22s ease,
+            border-color .22s ease,
+            box-shadow .22s ease;
         }
 
-        .land-premium .btn:hover {
+        .land-premium .land-btn:hover {
           transform: translateY(-2px);
-          border-color: #9dcab5;
-          box-shadow: 0 7px 18px rgba(17, 69, 47, 0.09);
+          border-color: #a8d5ba;
+          box-shadow: 0 8px 22px rgba(20,75,48,.09);
         }
 
-        .land-premium .btn:focus-visible,
-        .land-premium a:focus-visible,
-        .land-premium button:focus-visible {
-          outline: 3px solid rgba(8, 127, 91, 0.28);
-          outline-offset: 3px;
+        .land-premium .land-btn-primary {
+          border-color: var(--green);
+          background: var(--green);
+          color: white;
+          box-shadow: 0 5px 15px rgba(8,127,91,.15);
         }
 
-        .land-premium .btn.dark {
-          color: #fff;
-          border-color: var(--land-green-dark);
-          background: var(--land-green-dark);
+        .land-premium .land-btn-primary:hover {
+          border-color: var(--green-dark);
+          background: var(--green-dark);
+          box-shadow: 0 10px 24px rgba(8,127,91,.22);
         }
 
-        .land-premium .btn.dark:hover {
-          background: #064b39;
+        .land-premium .land-btn-dark {
+          border-color: var(--green-dark);
+          background: var(--green-dark);
+          color: white;
         }
 
-        .land-premium .btn.ghost {
-          background: transparent;
-        }
-
-        .land-premium .btn.primary {
-          color: #fff;
-          border-color: var(--land-green);
-          background: var(--land-green);
-        }
-
-        .land-premium .btn.primary:hover {
-          border-color: var(--land-green-dark);
-          background: var(--land-green-dark);
-        }
-
-        .land-premium .btn.lg {
-          min-height: 50px;
-          padding: 13px 22px;
-          font-size: 15px;
+        .land-premium .land-btn-dark:hover {
+          background: #043e2d;
         }
 
         .land-premium .land-hero {
           position: relative;
+          isolation: isolate;
           display: grid;
-          grid-template-columns: minmax(0, 1fr) minmax(360px, 0.92fr);
+          grid-template-columns: minmax(0, 1fr) minmax(380px, .88fr);
           align-items: center;
-          gap: clamp(30px, 5vw, 72px);
-          width: min(1240px, calc(100% - 48px));
-          margin: 0 auto;
-          padding: 74px 0 82px;
+          gap: clamp(35px, 5.5vw, 76px);
+          padding-top: 76px;
+          padding-bottom: 85px;
         }
 
         .land-premium .land-hero::before {
           position: absolute;
-          z-index: 0;
-          top: 12px;
-          left: -120px;
-          width: 360px;
-          height: 360px;
+          z-index: -1;
+          top: -95px;
+          left: -180px;
+          width: 520px;
+          height: 520px;
           border-radius: 50%;
           background: radial-gradient(
             circle,
-            rgba(51, 177, 117, 0.09),
-            rgba(51, 177, 117, 0)
+            rgba(61,180,119,.13),
+            rgba(61,180,119,0) 70%
           );
+          content: "";
+          pointer-events: none;
+          animation: landGlow 9s ease-in-out infinite alternate;
+        }
+
+        .land-premium .land-hero::after {
+          position: absolute;
+          z-index: -1;
+          right: -210px;
+          bottom: -150px;
+          width: 470px;
+          height: 470px;
+          border: 1px solid rgba(8,127,91,.07);
+          border-radius: 50%;
+          box-shadow:
+            0 0 0 40px rgba(8,127,91,.018),
+            0 0 0 80px rgba(8,127,91,.014);
           content: "";
           pointer-events: none;
         }
 
         .land-premium .land-hero-content {
-          position: relative;
-          z-index: 1;
-          animation: landFadeUp 650ms ease both;
+          min-width: 0;
+          animation: landEnter .75s cubic-bezier(.2,.75,.25,1) both;
         }
 
         .land-premium .land-eyebrow {
           display: inline-flex;
           align-items: center;
-          gap: 8px;
-          margin: 0 0 18px;
-          color: var(--land-green);
-          font-size: 11px;
-          font-weight: 850;
-          letter-spacing: 1.8px;
+          gap: 9px;
+          margin-bottom: 20px;
+          color: var(--green);
+          font-size: 10px;
+          font-weight: 900;
+          letter-spacing: 2px;
           line-height: 1.5;
-          text-transform: uppercase;
         }
 
         .land-premium .land-eyebrow::before {
-          width: 23px;
+          width: 24px;
           height: 2px;
-          border-radius: 10px;
-          background: #21a477;
+          border-radius: 5px;
+          background: #31ad78;
           content: "";
         }
 
         .land-premium .land-hero h1 {
-          max-width: 690px;
+          max-width: 650px;
           margin: 0;
-          color: #153a2d;
-          font-size: clamp(38px, 4.5vw, 62px);
-          font-weight: 850;
-          letter-spacing: -2.5px;
-          line-height: 1.09;
+          color: #123c2b;
+          font-size: clamp(39px, 4.7vw, 63px);
+          font-weight: 900;
+          letter-spacing: -2.8px;
+          line-height: 1.08;
         }
 
-        .land-premium .lead {
-          max-width: 600px;
-          margin: 24px 0 27px;
-          color: var(--land-muted);
-          font-size: 16px;
-          line-height: 1.85;
+        .land-premium .land-gradient-text {
+          color: #087f5b;
+          background: linear-gradient(100deg,#087f5b 5%,#20a56e 55%,#57b985);
+          background-clip: text;
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+        }
+
+        .land-premium .land-lead {
+          max-width: 570px;
+          margin: 23px 0 26px;
+          color: #6b7c72;
+          font-size: 15px;
+          line-height: 1.9;
         }
 
         .land-premium .land-hero-actions {
-          gap: 13px;
-        }
-
-        .land-premium .land-trust-points {
           display: flex;
           flex-wrap: wrap;
-          gap: 12px 19px;
+          gap: 12px;
+        }
+
+        .land-premium .land-hero-actions .land-btn {
+          min-height: 49px;
+          padding: 13px 20px;
+          font-size: 13px;
+        }
+
+        .land-premium .land-trust {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px 18px;
           margin-top: 29px;
         }
 
-        .land-premium .land-trust-points span {
+        .land-premium .land-trust-item {
           display: inline-flex;
           align-items: center;
           gap: 7px;
-          color: #526a5f;
-          font-size: 12px;
-          font-weight: 650;
+          color: #536d5e;
+          font-size: 11px;
+          font-weight: 750;
         }
 
-        .land-premium .land-trust-points span::first-letter {
-          color: var(--land-green);
+        .land-premium .land-trust-item svg {
+          color: var(--green);
         }
 
-        /* Calculator wrapper: the calculator component keeps its own
-           structure, while these rules improve its overall appearance. */
+        /* Calculator card */
         .land-premium .ix-dial-animated {
           position: relative;
-          z-index: 1;
           min-width: 0;
-          padding: clamp(22px, 2.5vw, 31px);
-          border: 1px solid rgba(8, 127, 91, 0.15);
-          border-radius: 24px;
-          background: var(--land-surface);
+          padding: 27px;
+          border: 1px solid rgba(8,127,91,.15);
+          border-radius: 25px;
+          background: rgba(255,255,255,.97);
           box-shadow:
-            0 24px 65px rgba(21, 74, 49, 0.09),
-            0 3px 10px rgba(21, 74, 49, 0.035);
-          animation: landFadeUp 750ms 100ms ease both;
+            0 25px 75px rgba(20,72,46,.09),
+            0 4px 12px rgba(20,72,46,.035);
+          animation: landEnter .8s .12s cubic-bezier(.2,.75,.25,1) both;
+          transition: box-shadow .3s ease, transform .3s ease;
+        }
+
+        .land-premium .ix-dial-animated:hover {
+          box-shadow:
+            0 30px 85px rgba(20,72,46,.12),
+            0 4px 12px rgba(20,72,46,.035);
+        }
+
+        /* Plan picker becomes a vertical list */
+        .land-premium .dial-plans {
+          margin-bottom: 22px;
+        }
+
+        .land-premium .dial-plans > label,
+        .land-premium .dial-label {
+          display: block;
+          margin-bottom: 10px;
+          color: #4e6859;
+          font-size: 12px;
+          font-weight: 850;
+        }
+
+        .land-premium .dial-plan-options {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .land-premium .dial-plan-chip {
+          position: relative;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 12px;
+          width: 100%;
+          min-width: 0;
+          min-height: 58px;
+          padding: 11px 13px;
+          overflow: hidden;
+          border: 1px solid #e4ece6;
+          border-radius: 13px;
+          background: #fff;
+          color: #4d6457;
+          font-size: 12px;
+          font-weight: 800;
+          text-align: left;
+          cursor: pointer;
+          transition:
+            transform .2s ease,
+            border-color .2s ease,
+            background .2s ease,
+            box-shadow .2s ease;
+        }
+
+        .land-premium .dial-plan-chip::before {
+          position: absolute;
+          top: 0;
+          bottom: 0;
+          left: 0;
+          width: 3px;
+          background: transparent;
+          content: "";
+          transition: background .2s ease;
+        }
+
+        .land-premium .dial-plan-chip:hover {
+          transform: translateX(3px);
+          border-color: #add9be;
+          background: #f8fcf9;
+        }
+
+        .land-premium .dial-plan-chip.active {
+          border-color: #72bb95;
+          background: linear-gradient(105deg,#eaf8ef,#f8fcf9);
+          color: #075c40;
+          box-shadow: 0 4px 13px rgba(8,127,91,.07);
+        }
+
+        .land-premium .dial-plan-chip.active::before {
+          background: #07845a;
+        }
+
+        .land-premium .dial-plan-chip > span {
+          min-width: 0;
+          overflow-wrap: anywhere;
+        }
+
+        .land-premium .dial-plan-chip > span:last-child {
+          flex-shrink: 0;
+          color: #087f5b;
+          font-size: 11px;
+          font-weight: 900;
+          white-space: nowrap;
+        }
+
+        .land-premium .dial-plan-chip.active > span:last-child {
+          display: inline-flex;
+          align-items: center;
+          gap: 5px;
+        }
+
+        .land-premium .dial-plan-chip.active > span:last-child::after {
+          display: inline-grid;
+          width: 19px;
+          height: 19px;
+          place-items: center;
+          border-radius: 50%;
+          background: #087f5b;
+          color: #fff;
+          content: "✓";
+          font-size: 11px;
         }
 
         .land-premium .dial-header {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          gap: 16px;
-          margin-bottom: 23px;
+          gap: 14px;
+          margin-bottom: 19px;
         }
 
         .land-premium .dial-heading {
           min-width: 0;
         }
 
-        .land-premium .dial-eyebrow {
-          display: block;
-          margin: 0 0 8px;
-          color: var(--land-green);
-          font-size: 10px;
-          font-weight: 850;
-          letter-spacing: 1.6px;
-        }
-
         .land-premium .dial-heading h3 {
           margin: 0;
-          color: #183c2f;
+          color: #153d2c;
           font-size: 23px;
-          font-weight: 850;
-          letter-spacing: -0.7px;
+          font-weight: 900;
+          letter-spacing: -.7px;
           line-height: 1.3;
         }
 
         .land-premium .dial-heading p {
-          margin: 8px 0 0;
-          color: var(--land-muted);
-          font-size: 13px;
-          line-height: 1.65;
+          margin: 7px 0 0;
+          color: var(--muted);
+          font-size: 12px;
+          line-height: 1.7;
+        }
+
+        .land-premium .dial-eyebrow {
+          display: block;
+          margin-bottom: 7px;
+          color: var(--green);
+          font-size: 9px;
+          font-weight: 900;
+          letter-spacing: 1.7px;
         }
 
         .land-premium .dial-shield {
           display: grid;
-          width: 48px;
-          height: 48px;
-          flex: 0 0 48px;
+          width: 46px;
+          height: 46px;
+          flex: 0 0 46px;
           place-items: center;
-          border: 1px solid #d6eee1;
+          border: 1px solid #d4eddf;
           border-radius: 15px;
-          background: #edfaf3;
-          color: var(--land-green);
-        }
-
-        .land-premium .dial-plans {
-          margin-bottom: 23px;
-        }
-
-        .land-premium .dial-label {
-          display: block;
-          margin-bottom: 10px;
-          color: #52665c;
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .land-premium .dial-plan-options {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 9px;
-        }
-
-        .land-premium .dial-plan-chip {
-          min-width: 0;
-          min-height: 42px;
-          padding: 10px 12px;
-          border: 1px solid #e0eae4;
-          border-radius: 10px;
-          background: #fff;
-          color: #53665c;
-          font: inherit;
-          font-size: 12px;
-          font-weight: 750;
-          line-height: 1.4;
-          text-align: left;
-          cursor: pointer;
-          overflow-wrap: anywhere;
-          transition:
-            border-color 180ms ease,
-            background 180ms ease,
-            color 180ms ease,
-            transform 180ms ease;
-        }
-
-        .land-premium .dial-plan-chip:hover {
-          transform: translateY(-1px);
-          border-color: #8ac9ac;
-          background: #f4fbf7;
-        }
-
-        .land-premium .dial-plan-chip.active {
-          border-color: var(--land-green);
-          background: #eaf8f0;
-          color: #076548;
-          box-shadow: inset 0 0 0 1px rgba(8, 127, 91, 0.08);
+          background: #edfaf2;
+          color: var(--green);
         }
 
         .land-premium .dial-premium {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 16px;
-          margin-bottom: 25px;
-          padding: 21px;
-          border: 1px solid #d5eee0;
+          gap: 14px;
+          margin-bottom: 24px;
+          padding: 19px;
+          border: 1px solid #d6eee0;
           border-radius: 16px;
           background:
-            radial-gradient(
-              circle at 100% 0,
-              rgba(89, 200, 145, 0.16),
-              transparent 45%
-            ),
-            linear-gradient(135deg, #f0fbf4, #e5f6ec);
-        }
-
-        .land-premium .dial-premium-main {
-          min-width: 0;
+            radial-gradient(circle at 95% 5%,rgba(76,190,128,.18),transparent 45%),
+            linear-gradient(135deg,#f0fbf4,#e6f7ed);
+          animation: landPriceIn .35s ease both;
         }
 
         .land-premium .dial-premium .dial-label {
-          margin-bottom: 8px;
-          color: #4d7260;
+          margin-bottom: 7px;
+          color: #547561;
         }
 
         .land-premium .dial-price {
-          color: #075c43;
-          font-size: clamp(25px, 3vw, 34px);
-          font-weight: 900;
-          letter-spacing: -1.1px;
+          color: #075a40;
+          font-size: clamp(26px,3vw,34px);
+          font-weight: 950;
+          letter-spacing: -1px;
           line-height: 1.2;
           overflow-wrap: anywhere;
         }
 
         .land-premium .dial-price-caption {
           display: block;
-          margin-top: 7px;
-          color: #587565;
-          font-size: 11px;
-          line-height: 1.5;
+          margin-top: 6px;
+          color: #678272;
+          font-size: 10px;
+          line-height: 1.6;
         }
 
         .land-premium .dial-price-tag {
           display: flex;
+          flex-shrink: 0;
           flex-direction: column;
           align-items: flex-end;
-          gap: 6px;
-          flex-shrink: 0;
-          color: #547464;
-          font-size: 11px;
+          gap: 5px;
+          color: #62816e;
+          font-size: 10px;
         }
 
         .land-premium .dial-price-tag strong {
-          color: #086747;
-          font-size: 16px;
-          font-weight: 850;
+          color: #08734e;
+          font-size: 15px;
+          font-weight: 900;
         }
 
         .land-premium .dial-control {
-          margin: 0 0 24px;
+          margin: 0 0 23px;
         }
 
         .land-premium .dial-control-heading {
@@ -478,9 +581,9 @@ export default function Landing() {
         }
 
         .land-premium .dial-control-value {
-          color: #1c513b;
-          font-size: 15px;
-          font-weight: 850;
+          color: #1b573c;
+          font-size: 14px;
+          font-weight: 900;
           text-align: right;
         }
 
@@ -489,161 +592,209 @@ export default function Landing() {
           width: 100%;
           height: 6px;
           margin: 13px 0;
-          border-radius: 20px;
-          background: #dcebe2;
-          accent-color: var(--land-green);
+          border-radius: 30px;
+          accent-color: var(--green);
           cursor: pointer;
-        }
-
-        .land-premium .dial-range:focus-visible {
-          outline: 3px solid rgba(8, 127, 91, 0.22);
-          outline-offset: 5px;
         }
 
         .land-premium .dial-range-labels {
           display: flex;
           justify-content: space-between;
           gap: 12px;
-          color: #7b8c82;
-          font-size: 11px;
+          color: #829087;
+          font-size: 10px;
         }
 
         .land-premium .dial-breakdown {
           display: grid;
           gap: 12px;
-          margin-top: 7px;
-          padding-top: 19px;
-          border-top: 1px solid #e5eee8;
+          margin-top: 8px;
+          padding-top: 18px;
+          border-top: 1px solid #e7efe9;
         }
 
         .land-premium .dial-breakdown-row {
           display: flex;
-          justify-content: space-between;
           align-items: center;
-          gap: 15px;
-          color: #65786d;
+          justify-content: space-between;
+          gap: 14px;
+          color: #697c70;
           font-size: 12px;
         }
 
         .land-premium .dial-breakdown-row strong {
-          color: #263d32;
+          color: #274537;
           font-size: 12px;
-          font-weight: 800;
+          font-weight: 850;
           text-align: right;
-        }
-
-        .land-premium .dial-breakdown-row .dial-discount {
-          color: #07835a;
         }
 
         .land-premium .dial-breakdown-total {
           margin-top: 2px;
           padding-top: 14px;
-          border-top: 1px dashed #dce9e1;
-          color: #183e2e;
-          font-size: 13px;
-          font-weight: 850;
+          border-top: 1px dashed #dce9e0;
+          color: #193e2c;
+          font-weight: 900;
         }
 
         .land-premium .dial-breakdown-total strong {
-          color: #087451;
+          color: var(--green);
           font-size: 16px;
         }
 
         .land-premium .dial-disclaimer {
-          margin: 18px 0 0;
-          color: #78877f;
-          font-size: 10.5px;
-          line-height: 1.7;
+          margin: 17px 0 0;
+          color: #819087;
+          font-size: 10px;
+          line-height: 1.75;
         }
 
+        /* Plans section */
         .land-premium .plans {
-          width: min(1240px, calc(100% - 48px));
-          margin: 0 auto;
-          padding: 65px 0 75px;
-          border-top: 1px solid #e2eee6;
+          padding-top: 66px;
+          padding-bottom: 78px;
+          border-top: 1px solid #e3eee7;
         }
 
         .land-premium .land-section-heading {
-          max-width: 700px;
+          display: flex;
+          align-items: flex-end;
+          justify-content: space-between;
+          gap: 24px;
           margin-bottom: 30px;
         }
 
-        .land-premium .land-section-heading .land-eyebrow {
-          margin-bottom: 10px;
+        .land-premium .land-section-copy {
+          max-width: 680px;
         }
 
         .land-premium .land-section-heading h2 {
           margin: 0;
-          color: #173c2e;
-          font-size: clamp(27px, 3.2vw, 39px);
-          font-weight: 850;
-          letter-spacing: -1.25px;
+          color: #153d2c;
+          font-size: clamp(28px,3.3vw,40px);
+          font-weight: 900;
+          letter-spacing: -1.3px;
           line-height: 1.2;
         }
 
-        .land-premium .land-section-heading .muted {
-          margin: 13px 0 0;
-          color: var(--land-muted);
-          font-size: 14px;
+        .land-premium .land-section-heading p {
+          max-width: 640px;
+          margin: 12px 0 0;
+          color: var(--muted);
+          font-size: 13px;
           line-height: 1.8;
+        }
+
+        .land-premium .land-section-icon {
+          display: grid;
+          width: 54px;
+          height: 54px;
+          flex: 0 0 54px;
+          place-items: center;
+          border: 1px solid #d8ece0;
+          border-radius: 17px;
+          background: #ebf8f0;
+          color: var(--green);
         }
 
         .land-premium .plan-list {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 18px;
+          grid-template-columns: repeat(3,minmax(0,1fr));
+          gap: 17px;
         }
 
         .land-premium .plan-line {
+          position: relative;
           display: flex;
           min-width: 0;
           flex-direction: column;
           padding: 23px;
-          border: 1px solid var(--land-border);
-          border-radius: 17px;
-          background: #fff;
-          box-shadow: 0 4px 15px rgba(20, 67, 46, 0.025);
-          animation: landFadeUp 600ms ease both;
+          overflow: hidden;
+          border: 1px solid #e0ebe4;
+          border-radius: 18px;
+          background: white;
+          box-shadow: 0 3px 13px rgba(20,67,46,.025);
+          animation: landEnter .6s ease both;
           transition:
-            transform 200ms ease,
-            box-shadow 200ms ease,
-            border-color 200ms ease;
+            transform .25s ease,
+            border-color .25s ease,
+            box-shadow .25s ease;
+        }
+
+        .land-premium .plan-line::after {
+          position: absolute;
+          top: 0;
+          right: 0;
+          left: 0;
+          height: 3px;
+          background: linear-gradient(90deg,#087f5b,#69c58d);
+          content: "";
+          transform: scaleX(0);
+          transform-origin: left;
+          transition: transform .3s ease;
         }
 
         .land-premium .plan-line:hover {
-          transform: translateY(-4px);
-          border-color: #b6d9c5;
-          box-shadow: 0 16px 32px rgba(20, 67, 46, 0.075);
+          transform: translateY(-5px);
+          border-color: #b5d9c3;
+          box-shadow: 0 18px 36px rgba(20,67,46,.08);
+        }
+
+        .land-premium .plan-line:hover::after {
+          transform: scaleX(1);
         }
 
         .land-premium .land-plan-heading {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          gap: 12px;
+          gap: 10px;
         }
 
-        .land-premium .land-plan-heading > div {
+        .land-premium .land-plan-title {
+          display: flex;
+          min-width: 0;
+          align-items: flex-start;
+          gap: 11px;
+        }
+
+        .land-premium .land-plan-icon {
+          display: grid;
+          width: 39px;
+          height: 39px;
+          flex: 0 0 39px;
+          place-items: center;
+          border: 1px solid #dcefe3;
+          border-radius: 12px;
+          background: #eff9f3;
+          color: var(--green);
+          transition: transform .25s ease;
+        }
+
+        .land-premium .plan-line:hover .land-plan-icon {
+          transform: rotate(-5deg) scale(1.06);
+        }
+
+        .land-premium .land-plan-title > div {
           min-width: 0;
         }
 
         .land-premium .land-plan-heading b {
           display: block;
-          color: #1c4333;
-          font-size: 17px;
-          font-weight: 850;
-          line-height: 1.4;
+          color: #1b4431;
+          font-size: 15px;
+          font-weight: 900;
+          line-height: 1.45;
           overflow-wrap: anywhere;
         }
 
         .land-premium .land-plan-code {
           display: inline-block;
-          margin-top: 6px;
-          color: #7b8b81;
-          font-size: 10px;
-          font-weight: 750;
-          letter-spacing: 0.4px;
+          margin-top: 5px;
+          color: #829087;
+          font-size: 9px;
+          font-weight: 800;
+          letter-spacing: .5px;
           overflow-wrap: anywhere;
         }
 
@@ -651,29 +802,29 @@ export default function Landing() {
           display: inline-flex;
           flex-shrink: 0;
           align-items: center;
-          padding: 6px 9px;
-          border: 1px solid #d9eee1;
+          padding: 6px 8px;
+          border: 1px solid #dcefe3;
           border-radius: 20px;
-          background: #eff9f3;
-          color: #16704e;
-          font-size: 10px;
-          font-weight: 800;
+          background: #f0f9f3;
+          color: #14704c;
+          font-size: 9px;
+          font-weight: 900;
         }
 
-        .land-premium .plan-line > .muted {
-          min-height: 56px;
-          margin: 17px 0 19px;
-          color: #6b7b71;
-          font-size: 12px;
-          line-height: 1.75;
+        .land-premium .land-plan-description {
+          min-height: 58px;
+          margin: 17px 0;
+          color: #718077;
+          font-size: 11px;
+          line-height: 1.8;
         }
 
         .land-premium .land-plan-details {
           display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 12px;
+          grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+          gap: 10px;
           margin-top: auto;
-          padding: 16px 0;
+          padding: 15px 0;
           border-top: 1px solid #edf2ee;
           border-bottom: 1px solid #edf2ee;
         }
@@ -683,19 +834,19 @@ export default function Landing() {
           min-width: 0;
           flex-direction: column;
           align-items: flex-start;
-          gap: 6px;
+          gap: 7px;
         }
 
         .land-premium .land-detail-label {
-          color: #77877d;
-          font-size: 10px;
+          color: #819087;
+          font-size: 9px;
           line-height: 1.5;
         }
 
         .land-premium .land-plan-details strong {
-          color: #214a37;
-          font-size: 16px;
-          font-weight: 850;
+          color: #204a35;
+          font-size: 15px;
+          font-weight: 900;
           overflow-wrap: anywhere;
         }
 
@@ -711,44 +862,55 @@ export default function Landing() {
         }
 
         .land-premium .land-price-unit {
-          color: #718278;
-          font-size: 10px;
+          color: #819087;
+          font-size: 9px;
         }
 
         .land-premium .land-plan-select {
           width: 100%;
-          margin-top: 17px;
-          border-color: #d3e9dc;
-          background: #f1faf4;
-          color: #08714e;
+          justify-content: space-between;
+          margin-top: 16px;
+          padding: 11px 13px;
+          border-color: #d9ecdf;
+          background: #f2faf5;
+          color: #08734e;
+          font-size: 11px;
+        }
+
+        .land-premium .land-plan-select svg {
+          transition: transform .2s ease;
         }
 
         .land-premium .land-plan-select:hover {
-          border-color: var(--land-green);
-          background: #e2f6ea;
+          border-color: #9dceb0;
+          background: #e5f6eb;
+        }
+
+        .land-premium .land-plan-select:hover svg {
+          transform: translateX(3px);
         }
 
         .land-premium .land-pricing-note {
-          max-width: 850px;
-          margin: 23px 0 0;
-          color: #7a8980;
-          font-size: 11px;
+          max-width: 900px;
+          margin: 22px 0 0;
+          color: #849188;
+          font-size: 10px;
           line-height: 1.8;
         }
 
         .land-premium .land-foot {
-          padding: 24px;
+          padding: 23px 16px;
           border-top: 1px solid #e0ebe4;
-          background: #eff7f2;
-          color: #61756a;
-          font-size: 12px;
+          background: #eef7f1;
+          color: #687b6f;
+          font-size: 11px;
           text-align: center;
         }
 
-        @keyframes landFadeUp {
+        @keyframes landEnter {
           from {
             opacity: 0;
-            transform: translateY(14px);
+            transform: translateY(17px);
           }
           to {
             opacity: 1;
@@ -756,44 +918,61 @@ export default function Landing() {
           }
         }
 
-        @media (min-width: 1400px) {
-          .land-premium .land-hero {
-            padding-top: 88px;
-            padding-bottom: 92px;
+        @keyframes landPriceIn {
+          from {
+            opacity: .65;
+            transform: translateY(4px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+
+        @keyframes landGlow {
+          from { transform: translate3d(0,0,0) scale(1); }
+          to { transform: translate3d(25px,15px,0) scale(1.08); }
+        }
+
+        @media (min-width: 761px) {
+          .land-premium .plan-line:nth-child(3n + 2) {
+            animation-delay: 70ms;
+          }
+
+          .land-premium .plan-line:nth-child(3n + 3) {
+            animation-delay: 140ms;
           }
         }
 
         @media (max-width: 1000px) {
           .land-premium .land-hero {
-            grid-template-columns: minmax(0, 1fr) minmax(320px, 0.9fr);
-            gap: 27px;
-            padding-top: 55px;
+            grid-template-columns: minmax(0,1fr) minmax(330px,.9fr);
+            gap: 28px;
+            padding-top: 57px;
           }
 
           .land-premium .land-hero h1 {
-            font-size: clamp(34px, 4.2vw, 48px);
-            letter-spacing: -1.7px;
-          }
-
-          .land-premium .plan-list {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
+            font-size: clamp(36px,4.3vw,49px);
+            letter-spacing: -1.8px;
           }
 
           .land-premium .ix-dial-animated {
-            padding: 22px;
+            padding: 21px;
+          }
+
+          .land-premium .plan-list {
+            grid-template-columns: repeat(2,minmax(0,1fr));
           }
         }
 
         @media (max-width: 760px) {
-          .land-premium .land-nav,
-          .land-premium .land-hero,
-          .land-premium .plans {
-            width: min(100% - 32px, 600px);
+          .land-premium .land-container,
+          .land-premium .land-nav {
+            width: calc(100% - 32px);
           }
 
           .land-premium .land-nav {
             min-height: 70px;
-            gap: 12px;
           }
 
           .land-premium .brand {
@@ -806,53 +985,52 @@ export default function Landing() {
             height: 31px;
           }
 
-          .land-premium .land-nav .row {
+          .land-premium .land-nav-actions {
             gap: 7px;
           }
 
-          .land-premium .land-nav .btn {
+          .land-premium .land-nav .land-btn {
             min-height: 39px;
             padding: 9px 11px;
-            font-size: 12px;
+            font-size: 11px;
           }
 
           .land-premium .land-hero {
-            grid-template-columns: minmax(0, 1fr);
-            gap: 33px;
-            padding-top: 48px;
-            padding-bottom: 53px;
+            grid-template-columns: minmax(0,1fr);
+            gap: 32px;
+            padding-top: 45px;
+            padding-bottom: 52px;
           }
 
           .land-premium .land-hero h1 {
             max-width: 570px;
-            font-size: clamp(36px, 8vw, 52px);
+            font-size: clamp(37px,8vw,52px);
             letter-spacing: -1.8px;
           }
 
-          .land-premium .lead {
-            margin: 18px 0 23px;
-            font-size: 14px;
-            line-height: 1.8;
+          .land-premium .land-lead {
+            margin: 18px 0 22px;
+            font-size: 13px;
           }
 
-          .land-premium .land-trust-points {
-            gap: 10px 15px;
+          .land-premium .land-trust {
+            gap: 11px 15px;
             margin-top: 22px;
-          }
-
-          .land-premium .land-trust-points span {
-            font-size: 11px;
           }
 
           .land-premium .ix-dial-animated {
             width: 100%;
             max-width: 570px;
-            margin: 0 auto;
+            margin-inline: auto;
           }
 
           .land-premium .plans {
-            padding-top: 47px;
-            padding-bottom: 53px;
+            padding-top: 48px;
+            padding-bottom: 54px;
+          }
+
+          .land-premium .land-section-heading {
+            align-items: flex-start;
           }
 
           .land-premium .plan-list {
@@ -862,21 +1040,11 @@ export default function Landing() {
           .land-premium .plan-line {
             padding: 18px;
           }
-
-          .land-premium .land-plan-heading {
-            flex-direction: column;
-            gap: 9px;
-          }
-
-          .land-premium .land-plan-type {
-            align-self: flex-start;
-          }
         }
 
         @media (max-width: 480px) {
-          .land-premium .land-nav,
-          .land-premium .land-hero,
-          .land-premium .plans {
+          .land-premium .land-container,
+          .land-premium .land-nav {
             width: calc(100% - 24px);
           }
 
@@ -888,36 +1056,36 @@ export default function Landing() {
             font-size: 18px;
           }
 
-          .land-premium .land-nav .btn {
+          .land-premium .land-nav .land-btn {
             padding: 8px 9px;
-            font-size: 11px;
+            font-size: 10px;
           }
 
           .land-premium .land-hero {
-            padding-top: 38px;
+            padding-top: 37px;
           }
 
           .land-premium .land-hero h1 {
-            font-size: clamp(33px, 9vw, 42px);
-            letter-spacing: -1.4px;
+            font-size: clamp(33px,9vw,42px);
+            letter-spacing: -1.5px;
           }
 
           .land-premium .land-hero-actions {
             align-items: stretch;
           }
 
-          .land-premium .land-hero-actions .btn {
+          .land-premium .land-hero-actions .land-btn {
             flex: 1 1 100%;
           }
 
-          .land-premium .land-trust-points {
+          .land-premium .land-trust {
             display: grid;
             grid-template-columns: 1fr;
           }
 
           .land-premium .ix-dial-animated {
-            padding: 18px;
-            border-radius: 18px;
+            padding: 17px;
+            border-radius: 19px;
           }
 
           .land-premium .dial-heading h3 {
@@ -930,49 +1098,45 @@ export default function Landing() {
             flex-basis: 41px;
           }
 
+          .land-premium .dial-plan-chip {
+            min-height: 54px;
+            padding: 10px 11px;
+            font-size: 11px;
+          }
+
           .land-premium .dial-premium {
-            align-items: flex-start;
-            gap: 10px;
             padding: 15px;
           }
 
           .land-premium .dial-price {
-            font-size: 27px;
+            font-size: 26px;
           }
 
           .land-premium .dial-price-tag strong {
-            font-size: 14px;
-          }
-
-          .land-premium .dial-plan-options {
-            gap: 7px;
-          }
-
-          .land-premium .dial-plan-chip {
-            padding: 9px;
-            font-size: 11px;
-          }
-
-          .land-premium .plan-list {
-            grid-template-columns: minmax(0, 1fr);
-          }
-
-          .land-premium .plan-line {
-            padding: 20px;
-          }
-
-          .land-premium .land-plan-heading {
-            flex-direction: row;
-            align-items: flex-start;
-          }
-
-          .land-premium .land-plan-details {
-            grid-template-columns: 1fr 1fr;
+            font-size: 13px;
           }
 
           .land-premium .land-section-heading h2 {
             font-size: 29px;
-            letter-spacing: -0.8px;
+            letter-spacing: -.9px;
+          }
+
+          .land-premium .land-section-icon {
+            width: 43px;
+            height: 43px;
+            flex-basis: 43px;
+          }
+
+          .land-premium .plan-list {
+            grid-template-columns: minmax(0,1fr);
+          }
+
+          .land-premium .plan-line {
+            padding: 19px;
+          }
+
+          .land-premium .land-plan-description {
+            min-height: 0;
           }
         }
 
@@ -981,158 +1145,198 @@ export default function Landing() {
           .land-premium *::before,
           .land-premium *::after {
             scroll-behavior: auto !important;
-            animation-duration: 0.01ms !important;
+            animation-duration: .01ms !important;
             animation-iteration-count: 1 !important;
-            transition-duration: 0.01ms !important;
+            transition-duration: .01ms !important;
           }
         }
       `}</style>
 
       <header className="land-nav">
-        <Link to="/" className="brand">
+        <Link to="/" className="brand" aria-label="InsureX home">
           <Logo />
           <span>InsureX</span>
         </Link>
 
-        <div className="row">
+        <div className="land-nav-actions">
           {user ? (
             <Link
-              className="btn dark"
+              className="land-btn land-btn-dark"
               to={user.role === 'ADMIN' ? '/admin' : '/app'}
             >
-              Open portal
+              Open portal <ArrowRight size={15} />
             </Link>
           ) : (
             <>
-              <Link className="btn ghost" to="/login">
+              <Link className="land-btn" to="/login">
                 Sign in
               </Link>
 
-              <Link className="btn dark" to="/register">
-                Create account
+              <Link className="land-btn land-btn-dark" to="/register">
+                Get started <ArrowRight size={15} />
               </Link>
             </>
           )}
         </div>
       </header>
 
-      <section className="land-hero">
-        <div className="land-hero-content">
-          <span className="land-eyebrow">
-            INSURANCE, MADE CLEAR
-          </span>
+      <main>
+        <section className="land-container land-hero">
+          <div className="land-hero-content">
+            <span className="land-eyebrow">
+              INSURANCE, MADE CLEAR
+            </span>
 
-          <h1>
-            Know your premium before you sign anything.
-          </h1>
+            <h1>
+              Protection for life.
+              <br />
+              Clarity for <span className="land-gradient-text">every decision.</span>
+            </h1>
 
-          <p className="lead">
-            Choose a specific insurance plan, adjust your coverage
-            and policy duration, and explore your estimated premium
-            before purchasing. Track your policy and follow claims
-            from filing to settlement through InsureX.
-          </p>
+            <p className="land-lead">
+              Explore insurance plans, customize your coverage,
+              and estimate your premium before you purchase.
+              Manage policies and track claims through one
+              straightforward insurance platform.
+            </p>
 
-          <div className="row wrap land-hero-actions">
-            <Link className="btn primary lg" to="/register">
-              Get covered
-            </Link>
-
-            <Link className="btn lg" to="/login">
-              I already have an account
-            </Link>
-          </div>
-
-          <div className="land-trust-points">
-            <span>✓ Clear premium estimates</span>
-            <span>✓ Multiple coverage options</span>
-            <span>✓ Policy and claim tracking</span>
-          </div>
-        </div>
-
-        {selectedPlan && (
-          <CoverageDial
-            value={val}
-            onChange={setVal}
-            planKey={selectedPlan.key}
-            onPlanChange={setPlan}
-            showPlans
-            lockedPlan={false}
-          />
-        )}
-      </section>
-
-      <section className="plans" aria-labelledby="plans-h">
-        <div className="land-section-heading">
-          <span className="land-eyebrow">
-            EXPLORE YOUR OPTIONS
-          </span>
-
-          <h2 id="plans-h">
-            Insurance plans for different needs
-          </h2>
-
-          <p className="muted">
-            Compare the available coverage amounts and listed
-            annual premiums to find a plan that suits you.
-          </p>
-        </div>
-
-        <div className="plan-list">
-          {ACTIVE_PLANS.map((p) => (
-            <article className="plan-line" key={p.key}>
-              <div className="land-plan-heading">
-                <div>
-                  <b>{p.label}</b>
-                  <span className="land-plan-code">{p.code}</span>
-                </div>
-
-                <span className="land-plan-type">{p.type}</span>
-              </div>
-
-              <p className="muted">{p.blurb}</p>
-
-              <div className="land-plan-details">
-                <div>
-                  <span className="land-detail-label">
-                    Coverage
-                  </span>
-
-                  <strong>{inrShort(p.coverage)}</strong>
-                </div>
-
-                <div className="land-plan-price">
-                  <span className="land-detail-label">
-                    Listed annual premium
-                  </span>
-
-                  <strong>{inr(p.yearly)}</strong>
-                  <span className="land-price-unit">/ year</span>
-                </div>
-              </div>
-
-              <button
-                type="button"
-                className="btn land-plan-select"
-                onClick={() => selectPlan(p.key)}
+            <div className="land-hero-actions">
+              <Link
+                className="land-btn land-btn-primary"
+                to={user ? (user.role === 'ADMIN' ? '/admin' : '/app') : '/register'}
               >
-                Calculate this plan
-              </button>
-            </article>
-          ))}
-        </div>
+                {user ? 'Open your portal' : 'Explore InsureX'}
+                <ArrowRight size={16} />
+              </Link>
 
-        <p className="faint land-pricing-note">
-          Listed premiums are based on the plan prices supplied
-          for InsureX. Multi-year discounts and final payable
-          amounts depend on the calculator configuration and
-          applicable purchase terms. Confirm the final premium
-          before completing a purchase.
-        </p>
-      </section>
+              <a className="land-btn" href="#plans">
+                Explore plans <ArrowDown size={15} />
+              </a>
+            </div>
+
+            <div className="land-trust">
+              <span className="land-trust-item">
+                <CheckCircle2 size={15} /> Transparent estimates
+              </span>
+              <span className="land-trust-item">
+                <ShieldCheck size={15} /> Multiple plan options
+              </span>
+              <span className="land-trust-item">
+                <Wallet size={15} /> Premium preview
+              </span>
+            </div>
+          </div>
+
+          {selectedPlan && (
+            <CoverageDial
+              value={val}
+              onChange={setVal}
+              planKey={selectedPlan.key}
+              onPlanChange={setPlan}
+              showPlans
+              lockedPlan={false}
+            />
+          )}
+        </section>
+
+        <section
+          className="land-container plans"
+          id="plans"
+          aria-labelledby="plans-h"
+        >
+          <div className="land-section-heading">
+            <div className="land-section-copy">
+              <span className="land-eyebrow">
+                FIND YOUR COVER
+              </span>
+
+              <h2 id="plans-h">
+                A plan for what matters to you.
+              </h2>
+
+              <p>
+                Compare our available plans, review their listed
+                coverage and annual premiums, then select a plan
+                to customize your estimate.
+              </p>
+            </div>
+
+            <div className="land-section-icon" aria-hidden="true">
+              <Sparkles size={24} />
+            </div>
+          </div>
+
+          <div className="plan-list">
+            {ACTIVE_PLANS.map((p) => {
+              const PlanIcon = PLAN_ICONS[p.type] || ShieldCheck
+
+              return (
+                <article className="plan-line" key={p.key}>
+                  <div className="land-plan-heading">
+                    <div className="land-plan-title">
+                      <span className="land-plan-icon">
+                        <PlanIcon size={19} />
+                      </span>
+
+                      <div>
+                        <b>{p.label}</b>
+                        <span className="land-plan-code">
+                          {p.code}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="land-plan-type">{p.type}</span>
+                  </div>
+
+                  <p className="land-plan-description">
+                    {p.description || p.blurb || 'Explore this insurance plan and its available coverage.'}
+                  </p>
+
+                  <div className="land-plan-details">
+                    <div>
+                      <span className="land-detail-label">
+                        Listed coverage
+                      </span>
+
+                      <strong>{inrShort(p.coverage)}</strong>
+                    </div>
+
+                    <div className="land-plan-price">
+                      <span className="land-detail-label">
+                        Annual premium
+                      </span>
+
+                      <strong>{inr(p.yearly)}</strong>
+                      <span className="land-price-unit">/ year</span>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="land-btn land-plan-select"
+                    onClick={() => selectPlan(p.key)}
+                  >
+                    <span>Calculate this plan</span>
+                    <ChevronRight size={17} />
+                  </button>
+                </article>
+              )
+            })}
+          </div>
+
+          <p className="land-pricing-note">
+            Premiums shown are the listed annual prices for the plans
+            supplied to InsureX. Adjustable coverage values produce
+            estimates based on the selected plan's listed premium.
+            Final prices, eligibility, discounts, and benefits are
+            subject to applicable policy terms and backend validation.
+          </p>
+        </section>
+      </main>
 
       <footer className="land-foot">
-        InsureX — insurance management portal
+        InsureX Insurance Platform · Clear coverage. Confident decisions.
       </footer>
     </div>
   )
