@@ -5,13 +5,12 @@ import {
   ArrowRight,
   Calculator,
   CheckCircle2,
-  ChevronRight,
   ShieldCheck,
   Sparkles,
 } from 'lucide-react'
 
 import CoverageDial from '../../components/CoverageDial'
-import Logo from '../../components/Logo'
+import { Logo } from '../../components/ui'
 import { PLANS } from '../../lib/premium'
 import { inr, inrShort } from '../../lib/format'
 import { useAuth } from '../../auth/AuthContext'
@@ -36,145 +35,143 @@ export default function Landing() {
     ACTIVE_PLANS.find((item) => item.key === plan) || DEFAULT_PLAN
 
   const openCalculator = () => {
+    if (calculatorRef.current) {
+      calculatorRef.current.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      })
+    }
+  }
+
+  const selectPlan = (key) => {
+    const nextPlan = ACTIVE_PLANS.find((item) => item.key === key)
+
+    if (!nextPlan) return
+
+    setPlan(nextPlan.key)
+    setVal((current) => ({
+      ...current,
+      coverage: nextPlan.coverage,
+    }))
+
     calculatorRef.current?.scrollIntoView({
       behavior: 'smooth',
       block: 'center',
     })
   }
 
-  const selectPlan = (nextPlanKey) => {
-    const nextPlan = ACTIVE_PLANS.find(
-      (item) => item.key === nextPlanKey,
-    )
-
-    if (!nextPlan) return
-
-    setPlan(nextPlan.key)
-    setVal((previous) => ({
-      ...previous,
-      coverage: nextPlan.coverage,
-    }))
-
-    window.setTimeout(openCalculator, 80)
-  }
-
   const portalPath =
     user?.role === 'ADMIN' ? '/app/admin' : '/app'
 
   return (
-    <main className="land-premium">
+    <main className="ix-landing">
       <style>{`
-        .land-premium {
-          --land-green: #059669;
-          --land-dark: #065f46;
-          --land-deep: #064e3b;
-          --land-text: #102a22;
-          --land-muted: #60756c;
-          --land-border: #dcebe4;
-          --land-soft: #f0fdf6;
+        .ix-landing {
+          --ix-green: #059669;
+          --ix-green-dark: #047857;
+          --ix-deep: #123f2e;
+          --ix-text: #183b2e;
+          --ix-muted: #687e73;
+          --ix-border: #dcebe2;
           min-height: 100vh;
           overflow: hidden;
-          color: var(--land-text);
+          color: var(--ix-text);
           background:
-            radial-gradient(ellipse at 8% 4%, rgba(16,185,129,.10), transparent 34%),
-            radial-gradient(ellipse at 92% 20%, rgba(167,243,208,.24), transparent 32%),
+            radial-gradient(ellipse at 5% 5%, rgba(16,185,129,.10), transparent 32%),
+            radial-gradient(ellipse at 95% 18%, rgba(167,243,208,.18), transparent 32%),
             #fbfefc;
-          font-family: Inter, ui-sans-serif, system-ui, -apple-system,
-            BlinkMacSystemFont, "Segoe UI", sans-serif;
+          font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont,
+            "Segoe UI", sans-serif;
         }
 
-        .land-premium * {
+        .ix-landing *,
+        .ix-landing *::before,
+        .ix-landing *::after {
           box-sizing: border-box;
         }
 
-        .land-container {
-          width: min(1160px, calc(100% - 40px));
+        .ix-wrap {
+          width: min(1120px, calc(100% - 36px));
           margin: 0 auto;
         }
 
-        .land-nav {
-          position: relative;
-          z-index: 5;
+        .ix-nav {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 20px;
-          min-height: 76px;
-          border-bottom: 1px solid rgba(220,235,228,.85);
+          gap: 16px;
+          min-height: 72px;
+          border-bottom: 1px solid #e5f0e9;
         }
 
-        .land-brand {
-          display: flex;
+        .ix-brand {
+          display: inline-flex;
           align-items: center;
-          flex-shrink: 0;
           text-decoration: none;
         }
 
-        .land-nav-actions {
+        .ix-nav-actions {
           display: flex;
           align-items: center;
           justify-content: flex-end;
-          gap: 10px;
+          gap: 8px;
         }
 
-        .land-nav-link {
+        .ix-nav-link {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 7px;
-          min-height: 39px;
-          padding: 9px 14px;
+          min-height: 38px;
+          padding: 9px 13px;
           border: 1px solid transparent;
           border-radius: 9px;
-          color: #31594a;
-          font-size: 13px;
-          font-weight: 650;
+          color: #315b48;
+          background: transparent;
+          font-size: 12px;
+          font-weight: 750;
           text-decoration: none;
-          transition: background .2s ease, transform .2s ease,
-            border-color .2s ease;
+          transition: background .2s ease, transform .2s ease;
         }
 
-        .land-nav-link:hover {
-          background: #edf9f2;
+        .ix-nav-link:hover {
+          background: #eef9f2;
           transform: translateY(-1px);
         }
 
-        .land-nav-link-primary {
-          color: #fff;
-          background: var(--land-green);
-          box-shadow: 0 4px 12px rgba(5,150,105,.15);
+        .ix-nav-link-primary {
+          color: white;
+          background: var(--ix-green);
         }
 
-        .land-nav-link-primary:hover {
-          color: #fff;
-          background: #047857;
+        .ix-nav-link-primary:hover {
+          color: white;
+          background: var(--ix-green-dark);
         }
 
-        .land-hero {
-          position: relative;
-          padding: 64px 0 30px;
+        .ix-hero {
+          padding: 55px 0 24px;
           text-align: center;
-          animation: land-fade-up .65s ease both;
+          animation: ix-rise .6s ease both;
         }
 
-        .land-eyebrow {
+        .ix-eyebrow {
           display: inline-flex;
           align-items: center;
-          justify-content: center;
           gap: 8px;
-          margin-bottom: 19px;
+          margin-bottom: 18px;
           padding: 7px 12px;
-          border: 1px solid #c8ead8;
+          border: 1px solid #ccebd9;
           border-radius: 999px;
           color: #08744f;
-          background: rgba(236,253,245,.85);
-          font-size: 11px;
-          font-weight: 800;
+          background: #effbf4;
+          font-size: 10px;
+          font-weight: 850;
           letter-spacing: .09em;
           text-transform: uppercase;
         }
 
-        .land-eyebrow-dot {
+        .ix-eyebrow-dot {
           width: 7px;
           height: 7px;
           border-radius: 50%;
@@ -182,130 +179,131 @@ export default function Landing() {
           box-shadow: 0 0 0 4px rgba(16,185,129,.12);
         }
 
-        .land-hero h1 {
+        .ix-hero h1 {
           max-width: 800px;
           margin: 0 auto;
-          color: #103d2d;
-          font-size: clamp(34px, 5vw, 58px);
+          color: #103d2c;
+          font-size: clamp(34px, 5vw, 56px);
           font-weight: 850;
-          letter-spacing: -.055em;
-          line-height: 1.09;
+          letter-spacing: -.05em;
+          line-height: 1.1;
         }
 
-        .land-hero h1 span {
-          color: var(--land-green);
+        .ix-hero h1 span {
+          color: var(--ix-green);
         }
 
-        .land-hero-copy {
-          max-width: 630px;
-          margin: 19px auto 0;
-          color: var(--land-muted);
-          font-size: 15px;
+        .ix-hero-copy {
+          max-width: 620px;
+          margin: 17px auto 0;
+          color: var(--ix-muted);
+          font-size: 14px;
           line-height: 1.8;
         }
 
-        .land-hero-actions {
+        .ix-hero-actions {
           display: flex;
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
           gap: 10px;
-          margin-top: 25px;
+          margin-top: 23px;
         }
 
-        .land-open-calculator {
+        .ix-open-calculator {
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 8px;
-          min-height: 39px;
+          min-height: 38px;
           padding: 9px 14px;
-          border: 1px solid #059669;
+          border: 1px solid var(--ix-green);
           border-radius: 9px;
           color: #fff;
-          background: #059669;
+          background: var(--ix-green);
           font-size: 12px;
           font-weight: 750;
           cursor: pointer;
-          box-shadow: 0 4px 12px rgba(5,150,105,.15);
+          box-shadow: 0 4px 12px rgba(5,150,105,.14);
           transition: background .2s ease, transform .2s ease,
             box-shadow .2s ease;
         }
 
-        .land-open-calculator:hover {
-          background: #047857;
+        .ix-open-calculator:hover {
+          background: var(--ix-green-dark);
           transform: translateY(-2px);
-          box-shadow: 0 7px 16px rgba(5,150,105,.22);
+          box-shadow: 0 7px 16px rgba(5,150,105,.20);
         }
 
-        .land-open-calculator:active {
-          transform: translateY(0);
+        .ix-open-calculator:focus-visible,
+        .ix-plan-button:focus-visible,
+        .ix-nav-link:focus-visible {
+          outline: 3px solid #a7f3d0;
+          outline-offset: 3px;
         }
 
-        .land-secondary-action {
+        .ix-secondary-link {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 7px;
-          min-height: 39px;
+          gap: 6px;
+          min-height: 38px;
           padding: 9px 13px;
-          border: 1px solid #d9e9e0;
+          border: 1px solid var(--ix-border);
           border-radius: 9px;
-          color: #245b44;
-          background: #fff;
+          color: #285b44;
+          background: white;
           font-size: 12px;
-          font-weight: 700;
+          font-weight: 750;
           text-decoration: none;
-          transition: border-color .2s ease, background .2s ease;
+          transition: background .2s ease, border-color .2s ease;
         }
 
-        .land-secondary-action:hover {
-          border-color: #91d6b4;
-          background: #f4fcf7;
+        .ix-secondary-link:hover {
+          border-color: #a5dabb;
+          background: #f3fbf6;
         }
 
-        .land-trust-row {
+        .ix-trust {
           display: flex;
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
-          gap: 20px;
-          margin-top: 24px;
-          color: #577267;
-          font-size: 12px;
-          font-weight: 600;
+          gap: 17px;
+          margin-top: 22px;
+          color: #587367;
+          font-size: 11px;
+          font-weight: 650;
         }
 
-        .land-trust-item {
+        .ix-trust span {
           display: inline-flex;
           align-items: center;
-          gap: 7px;
+          gap: 6px;
         }
 
-        .land-trust-item svg {
-          color: #059669;
+        .ix-trust svg {
+          color: var(--ix-green);
         }
 
-        .land-calculator-section {
-          padding: 14px 0 70px;
-          scroll-margin-top: 35px;
+        .ix-calculator-section {
+          padding: 14px 0 64px;
+          scroll-margin-top: 24px;
         }
 
         .ix-dial-animated {
           position: relative;
           width: 100%;
-          max-width: 690px;
+          max-width: 650px;
           margin: 0 auto;
           padding: 23px;
           overflow: hidden;
-          border: 1px solid rgba(190,224,204,.9);
-          border-radius: 20px;
-          background: rgba(255,255,255,.97);
-          box-shadow:
-            0 18px 55px rgba(18,77,51,.09),
-            0 3px 10px rgba(18,77,51,.035);
-          animation: land-card-in .7s ease both;
-          scroll-margin-top: 35px;
+          border: 1px solid #d4e9dc;
+          border-radius: 19px;
+          background: #fff;
+          box-shadow: 0 16px 45px rgba(18,77,51,.085);
+          animation: ix-card-in .65s ease both;
+          scroll-margin-top: 25px;
         }
 
         .ix-dial-animated::before {
@@ -314,48 +312,48 @@ export default function Landing() {
           right: 0;
           left: 0;
           height: 3px;
-          background: linear-gradient(90deg, #059669, #6ee7b7, #059669);
+          background: linear-gradient(90deg, #059669, #a7f3d0, #059669);
           background-size: 200% 100%;
           content: "";
-          animation: land-shimmer 4s linear infinite;
+          animation: ix-shimmer 4s linear infinite;
         }
 
-        .land-calculator-heading {
-          margin-bottom: 16px;
+        .ix-calc-heading {
+          margin-bottom: 18px;
           text-align: center;
         }
 
-        .land-calculator-heading h2 {
+        .ix-calc-heading h2 {
           margin: 0;
           color: #124532;
           font-size: 21px;
-          font-weight: 800;
+          font-weight: 850;
           letter-spacing: -.035em;
         }
 
-        .land-calculator-heading p {
+        .ix-calc-heading p {
           margin: 7px 0 0;
-          color: #70867b;
+          color: #708579;
           font-size: 12px;
-          line-height: 1.6;
+          line-height: 1.7;
         }
 
-        /* CoverageDial component styles */
-        .land-premium .dial-header {
+        /* Styling for the existing CoverageDial component */
+        .ix-landing .dial-header {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 12px;
-          margin-bottom: 16px;
+          margin-bottom: 15px;
         }
 
-        .land-premium .dial-heading {
+        .ix-landing .dial-heading {
           color: #153f2f;
-          font-size: 17px;
+          font-size: 16px;
           font-weight: 800;
         }
 
-        .land-premium .dial-eyebrow {
+        .ix-landing .dial-eyebrow {
           color: #07815a;
           font-size: 10px;
           font-weight: 800;
@@ -363,152 +361,150 @@ export default function Landing() {
           text-transform: uppercase;
         }
 
-        .land-premium .dial-shield {
+        .ix-landing .dial-shield {
           display: flex;
           align-items: center;
           justify-content: center;
-          width: 37px;
-          height: 37px;
+          width: 36px;
+          height: 36px;
           flex-shrink: 0;
-          border-radius: 11px;
+          border-radius: 10px;
           color: #047857;
-          background: #e8f9ef;
+          background: #e9f9ef;
         }
 
-        .land-premium .dial-label {
+        .ix-landing .dial-label {
           margin-bottom: 8px;
           color: #526e61;
           font-size: 12px;
           font-weight: 750;
         }
 
-        .land-premium .dial-plan-options {
+        .ix-landing .dial-plan-options {
           display: grid;
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
           gap: 7px;
         }
 
-        .land-premium .dial-plan-chip {
+        .ix-landing .dial-plan-chip {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 12px;
+          gap: 10px;
           width: 100%;
-          min-height: 43px;
-          padding: 10px 13px;
+          min-height: 42px;
+          padding: 10px 12px;
           border: 1px solid #e0ebe4;
-          border-radius: 10px;
+          border-radius: 9px;
           color: #355c4b;
           background: #fff;
           text-align: left;
           cursor: pointer;
           transition: border-color .2s ease, background .2s ease,
-            transform .2s ease, box-shadow .2s ease;
+            transform .2s ease;
         }
 
-        .land-premium .dial-plan-chip:hover {
+        .ix-landing .dial-plan-chip:hover {
           border-color: #9bdabb;
           background: #f5fcf7;
           transform: translateX(2px);
         }
 
-        .land-premium .dial-plan-chip.active,
-        .land-premium .dial-plan-chip[aria-pressed="true"] {
+        .ix-landing .dial-plan-chip.active,
+        .ix-landing .dial-plan-chip[aria-pressed="true"] {
           border-color: #34b981;
           color: #075c40;
           background: #edfbf3;
-          box-shadow: inset 3px 0 #059669;
         }
 
-        .land-premium .dial-premium {
-          border-radius: 14px;
-          background: #f0fbf5;
+        .ix-landing .dial-premium {
+          border-radius: 12px;
+          background: #effbf4;
         }
 
-        .land-premium .dial-premium-main {
+        .ix-landing .dial-premium-main {
           color: #075c40;
         }
 
-        .land-premium .dial-price {
+        .ix-landing .dial-price {
           color: #047857;
           font-weight: 850;
-          letter-spacing: -.035em;
         }
 
-        .land-premium .dial-price-caption {
-          color: #70867b;
+        .ix-landing .dial-price-caption {
+          color: #708579;
           font-size: 11px;
         }
 
-        .land-premium .dial-price-tag {
+        .ix-landing .dial-price-tag {
           border-radius: 7px;
           color: #047857;
           background: #d8f7e6;
         }
 
-        .land-premium .dial-control {
-          padding: 13px;
+        .ix-landing .dial-control {
+          padding: 12px;
           border: 1px solid #e1eee6;
-          border-radius: 12px;
+          border-radius: 11px;
           background: #fff;
         }
 
-        .land-premium .dial-control-heading {
+        .ix-landing .dial-control-heading {
           color: #456657;
           font-size: 12px;
           font-weight: 750;
         }
 
-        .land-premium .dial-control-value {
+        .ix-landing .dial-control-value {
           color: #124532;
           font-size: 15px;
           font-weight: 800;
         }
 
-        .land-premium .dial-range {
+        .ix-landing .dial-range {
           accent-color: #059669;
           cursor: pointer;
         }
 
-        .land-premium .dial-range-labels {
+        .ix-landing .dial-range-labels {
           color: #71867c;
           font-size: 10px;
         }
 
-        .land-premium .dial-breakdown {
+        .ix-landing .dial-breakdown {
           border-color: #e0ebe4;
         }
 
-        .land-premium .dial-breakdown-row {
+        .ix-landing .dial-breakdown-row {
           color: #526e61;
           font-size: 12px;
         }
 
-        .land-premium .dial-breakdown-total {
+        .ix-landing .dial-breakdown-total {
           color: #075c40;
           font-weight: 850;
         }
 
-        .land-premium .dial-disclaimer {
+        .ix-landing .dial-disclaimer {
           color: #7b8e84;
           font-size: 10px;
           line-height: 1.6;
         }
 
-        .land-plans-section {
-          padding: 66px 0 76px;
+        .ix-plans-section {
+          padding: 60px 0 70px;
           border-top: 1px solid #e5f0e9;
           background: rgba(245,252,247,.85);
         }
 
-        .land-section-heading {
+        .ix-section-heading {
           max-width: 650px;
-          margin: 0 auto 30px;
+          margin: 0 auto 28px;
           text-align: center;
         }
 
-        .land-section-kicker {
-          margin-bottom: 10px;
+        .ix-section-kicker {
+          margin-bottom: 9px;
           color: #07815a;
           font-size: 10px;
           font-weight: 850;
@@ -516,61 +512,60 @@ export default function Landing() {
           text-transform: uppercase;
         }
 
-        .land-section-heading h2 {
+        .ix-section-heading h2 {
           margin: 0;
           color: #103d2d;
-          font-size: clamp(26px, 3.5vw, 36px);
+          font-size: clamp(26px, 3.5vw, 35px);
           font-weight: 850;
-          letter-spacing: -.045em;
+          letter-spacing: -.04em;
         }
 
-        .land-section-heading p {
-          margin: 11px 0 0;
+        .ix-section-heading p {
+          margin: 10px 0 0;
           color: #667d71;
           font-size: 13px;
           line-height: 1.75;
         }
 
-        .land-plan-grid {
+        .ix-plan-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 17px;
+          gap: 16px;
         }
 
-        .land-plan-card {
-          position: relative;
+        .ix-plan-card {
           display: flex;
           flex-direction: column;
           min-width: 0;
-          padding: 21px;
+          padding: 20px;
           border: 1px solid #dfebe3;
-          border-radius: 16px;
-          background: #fff;
+          border-radius: 15px;
+          background: white;
           box-shadow: 0 4px 15px rgba(20,74,48,.025);
-          animation: land-fade-up .55s ease both;
-          transition: transform .23s ease, border-color .23s ease,
-            box-shadow .23s ease;
+          animation: ix-rise .55s ease both;
+          transition: transform .22s ease, border-color .22s ease,
+            box-shadow .22s ease;
         }
 
-        .land-plan-card:hover {
-          transform: translateY(-5px);
+        .ix-plan-card:hover {
+          transform: translateY(-4px);
           border-color: #a9dec0;
-          box-shadow: 0 15px 32px rgba(20,74,48,.075);
+          box-shadow: 0 13px 28px rgba(20,74,48,.07);
         }
 
-        .land-plan-top {
+        .ix-plan-meta {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          gap: 10px;
-          margin-bottom: 15px;
+          gap: 8px;
+          margin-bottom: 14px;
         }
 
-        .land-plan-type {
+        .ix-plan-type {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
-          padding: 6px 9px;
+          gap: 5px;
+          padding: 6px 8px;
           border-radius: 7px;
           color: #08744f;
           background: #eaf9f0;
@@ -578,15 +573,16 @@ export default function Landing() {
           font-weight: 800;
         }
 
-        .land-plan-code {
+        .ix-plan-code {
           padding-top: 4px;
-          color: #8a9c91;
+          color: #82958a;
           font-size: 10px;
           font-weight: 750;
           text-align: right;
+          overflow-wrap: anywhere;
         }
 
-        .land-plan-card h3 {
+        .ix-plan-card h3 {
           margin: 0;
           color: #163f2f;
           font-size: 18px;
@@ -594,61 +590,61 @@ export default function Landing() {
           letter-spacing: -.025em;
         }
 
-        .land-plan-description {
-          min-height: 61px;
-          margin: 9px 0 17px;
+        .ix-plan-description {
+          flex: 1;
+          margin: 9px 0 16px;
           color: #6b8075;
           font-size: 12px;
           line-height: 1.7;
         }
 
-        .land-plan-coverage {
+        .ix-plan-coverage {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          gap: 10px;
+          gap: 8px;
           padding: 12px 0;
           border-top: 1px solid #edf3ef;
           border-bottom: 1px solid #edf3ef;
         }
 
-        .land-plan-coverage-label {
+        .ix-plan-coverage span:first-child {
           color: #74887d;
           font-size: 11px;
         }
 
-        .land-plan-coverage-value {
+        .ix-plan-coverage strong {
           color: #124532;
-          font-size: 15px;
+          font-size: 14px;
           font-weight: 850;
         }
 
-        .land-plan-price {
-          margin-top: 16px;
+        .ix-plan-price {
+          margin: 15px 0;
         }
 
-        .land-plan-price strong {
+        .ix-plan-price strong {
           color: #047857;
-          font-size: 23px;
+          font-size: 22px;
           font-weight: 850;
-          letter-spacing: -.04em;
+          letter-spacing: -.035em;
         }
 
-        .land-plan-price span {
+        .ix-plan-price span {
           margin-left: 4px;
           color: #82948a;
           font-size: 11px;
         }
 
-        .land-plan-button {
+        .ix-plan-button {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 8px;
+          gap: 7px;
           width: 100%;
-          min-height: 41px;
+          min-height: 40px;
           margin-top: auto;
-          padding: 10px 12px;
+          padding: 10px;
           border: 1px solid #cfe8d9;
           border-radius: 9px;
           color: #08744f;
@@ -660,68 +656,47 @@ export default function Landing() {
             border-color .2s ease, transform .2s ease;
         }
 
-        .land-plan-button:hover {
+        .ix-plan-button:hover {
           border-color: #059669;
-          color: #fff;
+          color: white;
           background: #059669;
           transform: translateY(-1px);
         }
 
-        .land-bottom-cta {
+        .ix-bottom-cta {
           display: flex;
           align-items: center;
           justify-content: space-between;
           gap: 20px;
-          margin-top: 34px;
-          padding: 23px 25px;
+          margin-top: 30px;
+          padding: 22px;
           border: 1px solid #ccebd8;
-          border-radius: 16px;
-          background: linear-gradient(120deg, #effcf4, #fff);
+          border-radius: 15px;
+          background: linear-gradient(120deg, #effcf4, white);
         }
 
-        .land-bottom-cta h3 {
+        .ix-bottom-cta h3 {
           margin: 0;
           color: #124532;
-          font-size: 17px;
+          font-size: 16px;
           font-weight: 800;
         }
 
-        .land-bottom-cta p {
+        .ix-bottom-cta p {
           margin: 6px 0 0;
           color: #6a8175;
           font-size: 12px;
-          line-height: 1.6;
+          line-height: 1.65;
         }
 
-        .land-bottom-cta a {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-          flex-shrink: 0;
-          padding: 11px 15px;
-          border-radius: 9px;
-          color: #fff;
-          background: #059669;
-          font-size: 12px;
-          font-weight: 800;
-          text-decoration: none;
-          transition: background .2s ease, transform .2s ease;
-        }
-
-        .land-bottom-cta a:hover {
-          background: #047857;
-          transform: translateY(-2px);
-        }
-
-        .land-footer {
-          padding: 24px 0;
+        .ix-footer {
+          padding: 22px 0;
           border-top: 1px solid #e2eee6;
           color: #7a8e83;
           font-size: 11px;
         }
 
-        .land-footer-inner {
+        .ix-footer-inner {
           display: flex;
           align-items: center;
           justify-content: space-between;
@@ -729,16 +704,10 @@ export default function Landing() {
           gap: 12px;
         }
 
-        .land-footer a {
-          color: #08744f;
-          font-weight: 700;
-          text-decoration: none;
-        }
-
-        @keyframes land-fade-up {
+        @keyframes ix-rise {
           from {
             opacity: 0;
-            transform: translateY(14px);
+            transform: translateY(12px);
           }
           to {
             opacity: 1;
@@ -746,10 +715,10 @@ export default function Landing() {
           }
         }
 
-        @keyframes land-card-in {
+        @keyframes ix-card-in {
           from {
             opacity: 0;
-            transform: translateY(12px) scale(.99);
+            transform: translateY(10px) scale(.99);
           }
           to {
             opacity: 1;
@@ -757,137 +726,122 @@ export default function Landing() {
           }
         }
 
-        @keyframes land-shimmer {
+        @keyframes ix-shimmer {
           from { background-position: 100% 0; }
           to { background-position: -100% 0; }
         }
 
-        @media (max-width: 900px) {
-          .land-plan-grid {
+        @media (max-width: 850px) {
+          .ix-plan-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .land-hero {
-            padding-top: 52px;
           }
         }
 
-        @media (max-width: 600px) {
-          .land-container {
-            width: min(100% - 28px, 1160px);
+        @media (max-width: 580px) {
+          .ix-wrap {
+            width: calc(100% - 28px);
           }
 
-          .land-nav {
-            min-height: 65px;
-            gap: 10px;
+          .ix-nav {
+            min-height: 64px;
           }
 
-          .land-nav-actions {
-            gap: 5px;
+          .ix-nav-actions {
+            gap: 4px;
           }
 
-          .land-nav-link {
+          .ix-nav-link {
             min-height: 35px;
-            padding: 8px 10px;
+            padding: 8px 9px;
             font-size: 11px;
           }
 
-          .land-hero {
-            padding: 43px 0 22px;
+          .ix-hero {
+            padding-top: 40px;
           }
 
-          .land-hero h1 {
-            font-size: clamp(33px, 9vw, 45px);
+          .ix-hero h1 {
+            font-size: clamp(32px, 9vw, 43px);
           }
 
-          .land-hero-copy {
+          .ix-hero-copy {
             font-size: 13px;
           }
 
-          .land-trust-row {
-            gap: 12px;
-            font-size: 11px;
+          .ix-trust {
+            gap: 11px;
+            font-size: 10px;
           }
 
-          .land-calculator-section {
-            padding: 12px 0 48px;
+          .ix-calculator-section {
+            padding: 12px 0 45px;
           }
 
           .ix-dial-animated {
-            padding: 17px 13px;
+            padding: 17px 12px;
             border-radius: 15px;
           }
 
-          .land-calculator-heading h2 {
+          .ix-calc-heading h2 {
             font-size: 19px;
           }
 
-          .land-plan-grid {
-            grid-template-columns: 1fr;
-            gap: 12px;
+          .ix-plan-grid {
+            grid-template-columns: minmax(0, 1fr);
           }
 
-          .land-plan-description {
-            min-height: 0;
+          .ix-plans-section {
+            padding: 45px 0;
           }
 
-          .land-plans-section {
-            padding: 48px 0;
-          }
-
-          .land-bottom-cta {
+          .ix-bottom-cta {
             align-items: stretch;
             flex-direction: column;
-            padding: 19px;
+            padding: 18px;
           }
 
-          .land-bottom-cta a {
+          .ix-bottom-cta .ix-open-calculator {
             width: 100%;
           }
 
-          .land-footer-inner {
+          .ix-footer-inner {
             align-items: flex-start;
             flex-direction: column;
           }
         }
 
         @media (prefers-reduced-motion: reduce) {
-          .land-premium *,
-          .land-premium *::before,
-          .land-premium *::after {
-            animation-duration: .01ms !important;
-            animation-iteration-count: 1 !important;
+          .ix-landing *,
+          .ix-landing *::before,
+          .ix-landing *::after {
+            animation: none !important;
             scroll-behavior: auto !important;
-            transition-duration: .01ms !important;
+            transition: none !important;
           }
         }
       `}</style>
 
-      <header className="land-container land-nav">
-        <Link
-          to="/app"
-          className="land-brand"
-          aria-label="InsureX home"
-        >
+      <header className="ix-wrap ix-nav">
+        <Link to="/app" className="ix-brand" aria-label="InsureX home">
           <Logo />
         </Link>
 
-        <nav className="land-nav-actions" aria-label="Main navigation">
+        <nav className="ix-nav-actions" aria-label="Main navigation">
           {user ? (
             <Link
               to={portalPath}
-              className="land-nav-link land-nav-link-primary"
+              className="ix-nav-link ix-nav-link-primary"
             >
-              Open Portal <ArrowRight size={15} />
+              Open Portal <ArrowRight size={14} />
             </Link>
           ) : (
             <>
-              <Link to="/app/login" className="land-nav-link">
+              <Link to="/app/login" className="ix-nav-link">
                 Sign in
               </Link>
               <Link
                 to="/app/register"
-                className="land-nav-link land-nav-link-primary"
+                className="ix-nav-link ix-nav-link-primary"
               >
                 Get started <ArrowRight size={14} />
               </Link>
@@ -896,64 +850,61 @@ export default function Landing() {
         </nav>
       </header>
 
-      <section className="land-container land-hero">
-        <div className="land-eyebrow">
-          <span className="land-eyebrow-dot" />
+      <section className="ix-wrap ix-hero">
+        <div className="ix-eyebrow">
+          <span className="ix-eyebrow-dot" />
           Insurance made easier
         </div>
 
         <h1>
-          Know your premium
+          Find the right cover.
           <br />
-          before you <span>choose.</span>
+          Know your <span>premium.</span>
         </h1>
 
-        <p className="land-hero-copy">
+        <p className="ix-hero-copy">
           Compare insurance plans, adjust your coverage, and estimate
-          your premium in one place. Explore your options and make a
-          more informed decision.
+          your premium in one place. Explore your options before making
+          your decision.
         </p>
 
-        <div className="land-hero-actions">
+        <div className="ix-hero-actions">
           <button
             type="button"
-            className="land-open-calculator"
+            className="ix-open-calculator"
             onClick={openCalculator}
           >
             <Calculator size={15} />
             Open Insurance Calculator
           </button>
 
-          <a href="#insurance-plans" className="land-secondary-action">
-            Explore plans <ChevronRight size={15} />
+          <a href="#insurance-plans" className="ix-secondary-link">
+            Explore plans <ArrowRight size={14} />
           </a>
         </div>
 
-        <div className="land-trust-row">
-          <span className="land-trust-item">
-            <CheckCircle2 size={15} />
+        <div className="ix-trust">
+          <span>
+            <CheckCircle2 size={14} />
             Adjustable coverage
           </span>
-          <span className="land-trust-item">
-            <ShieldCheck size={15} />
-            Compare plan options
+          <span>
+            <ShieldCheck size={14} />
+            Plan comparisons
           </span>
-          <span className="land-trust-item">
-            <Sparkles size={15} />
-            Instant estimates
+          <span>
+            <Sparkles size={14} />
+            Premium estimates
           </span>
         </div>
       </section>
 
-      <section
-        className="land-container land-calculator-section"
-        aria-label="Insurance premium calculator"
-      >
+      <section className="ix-wrap ix-calculator-section">
         <div className="ix-dial-animated" ref={calculatorRef}>
-          <div className="land-calculator-heading">
+          <div className="ix-calc-heading">
             <h2>Insurance Premium Calculator</h2>
             <p>
-              Choose a plan, adjust coverage, and estimate your premium.
+              Select your plan and customise your coverage and policy duration.
             </p>
           </div>
 
@@ -970,81 +921,71 @@ export default function Landing() {
         </div>
       </section>
 
-      <section
-        className="land-plans-section"
-        id="insurance-plans"
-      >
-        <div className="land-container">
-          <div className="land-section-heading">
-            <div className="land-section-kicker">
-              Find your protection
-            </div>
-            <h2>Explore our insurance plans</h2>
+      <section className="ix-plans-section" id="insurance-plans">
+        <div className="ix-wrap">
+          <div className="ix-section-heading">
+            <div className="ix-section-kicker">Find your protection</div>
+            <h2>Explore insurance plans</h2>
             <p>
-              Browse available plans and choose one to calculate an
-              estimate using its listed coverage and yearly premium.
+              Compare available plans by their listed coverage and yearly
+              premium, then select one to open the calculator.
             </p>
           </div>
 
-          <div className="land-plan-grid">
+          <div className="ix-plan-grid">
             {ACTIVE_PLANS.map((item, index) => (
               <article
-                className="land-plan-card"
+                className="ix-plan-card"
                 key={item.key}
-                style={{ animationDelay: `${Math.min(index, 5) * 70}ms` }}
+                style={{
+                  animationDelay: `${Math.min(index, 5) * 60}ms`,
+                }}
               >
-                <div className="land-plan-top">
-                  <span className="land-plan-type">
-                    <ShieldCheck size={13} />
+                <div className="ix-plan-meta">
+                  <span className="ix-plan-type">
+                    <ShieldCheck size={12} />
                     {item.type}
                   </span>
-                  <span className="land-plan-code">{item.key}</span>
+                  <span className="ix-plan-code">{item.key}</span>
                 </div>
 
                 <h3>{item.label}</h3>
 
-                <p className="land-plan-description">
-                  {item.blurb}
-                </p>
+                <p className="ix-plan-description">{item.blurb}</p>
 
-                <div className="land-plan-coverage">
-                  <span className="land-plan-coverage-label">
-                    Base coverage
-                  </span>
-                  <span className="land-plan-coverage-value">
-                    {inrShort(item.coverage)}
-                  </span>
+                <div className="ix-plan-coverage">
+                  <span>Base coverage</span>
+                  <strong>{inrShort(item.coverage)}</strong>
                 </div>
 
-                <div className="land-plan-price">
+                <div className="ix-plan-price">
                   <strong>{inr(item.yearly)}</strong>
                   <span>/ year</span>
                 </div>
 
                 <button
                   type="button"
-                  className="land-plan-button"
+                  className="ix-plan-button"
                   onClick={() => selectPlan(item.key)}
                 >
                   Calculate this plan
-                  <ArrowRight size={15} />
+                  <ArrowRight size={14} />
                 </button>
               </article>
             ))}
           </div>
 
-          <div className="land-bottom-cta">
+          <div className="ix-bottom-cta">
             <div>
               <h3>Ready to estimate your premium?</h3>
               <p>
-                Open the calculator and customise your coverage and policy
-                duration.
+                Adjust your coverage and policy duration in the calculator.
               </p>
             </div>
 
             <button
               type="button"
-              className="land-open-calculator"
+              className="ix-open-calculator"
               onClick={openCalculator}
             >
               <Calculator size={15} />
@@ -1054,17 +995,20 @@ export default function Landing() {
         </div>
       </section>
 
-      <footer className="land-footer">
-        <div className="land-container land-footer-inner">
+      <footer className="ix-footer">
+        <div className="ix-wrap ix-footer-inner">
           <span>
             © {new Date().getFullYear()} InsureX Insurance Platform
           </span>
-          <a href="#top" onClick={(event) => {
-            event.preventDefault()
-            window.scrollTo({ top: 0, behavior: 'smooth' })
-          }}>
+          <button
+            type="button"
+            className="ix-secondary-link"
+            onClick={() =>
+              window.scrollTo({ top: 0, behavior: 'smooth' })
+            }
+          >
             Back to top ↑
-          </a>
+          </button>
         </div>
       </footer>
     </main>
