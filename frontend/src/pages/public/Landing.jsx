@@ -1,3 +1,4 @@
+
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
@@ -14,7 +15,7 @@ const IMAGES = {
     'https://images.unsplash.com/photo-1511895426328-dc8714191300?auto=format&fit=crop&w=1000&q=85',
 }
 
-/* Original InsureX brand logo — no external image required. */
+/* InsureX brand logo */
 function InsureXLogo({ size = 42 }) {
   return (
     <svg
@@ -27,8 +28,10 @@ function InsureXLogo({ size = 42 }) {
       aria-label="InsureX logo"
       style={{
         display: 'block',
-        width: size,
-        height: size,
+        width: '100%',
+        height: '100%',
+        maxWidth: '100%',
+        maxHeight: '100%',
         flexShrink: 0,
       }}
     >
@@ -208,9 +211,12 @@ export default function Landing() {
           gap: 24px;
         }
 
+        /* FIXED BRAND AND LOGO ALIGNMENT */
+
         .ix-brand {
           display: inline-flex;
-          flex-shrink: 0;
+          min-width: 0;
+          flex: 0 0 auto;
           align-items: center;
           gap: 10px;
           color: var(--ix-green-dark);
@@ -223,16 +229,27 @@ export default function Landing() {
           display: grid;
           width: 42px;
           height: 42px;
-          flex-shrink: 0;
+          flex: 0 0 42px;
           place-items: center;
           overflow: hidden;
           border-radius: 11px;
           background: #ffffff;
         }
 
+        .ix-brand-logo-wrap svg {
+          display: block;
+          width: 100%;
+          height: 100%;
+          max-width: 100%;
+          max-height: 100%;
+          flex-shrink: 0;
+        }
+
         .ix-brand-text {
           display: block;
+          min-width: 0;
           line-height: 1.15;
+          white-space: nowrap;
         }
 
         .ix-brand-text small {
@@ -247,6 +264,7 @@ export default function Landing() {
 
         .ix-nav-links {
           display: flex;
+          min-width: 0;
           align-items: center;
           justify-content: flex-end;
           gap: 27px;
@@ -265,6 +283,7 @@ export default function Landing() {
 
         .ix-nav-actions {
           display: flex;
+          flex: 0 0 auto;
           align-items: center;
           gap: 10px;
         }
@@ -1034,7 +1053,7 @@ export default function Landing() {
           }
         }
 
-        /* MOBILE */
+        /* MOBILE LOGO AND NAVIGATION FIX */
 
         @media (max-width: 520px) {
           .ix-container {
@@ -1043,31 +1062,54 @@ export default function Landing() {
 
           .ix-nav-inner {
             min-height: 67px;
+            flex-wrap: nowrap;
+            gap: 8px;
+            padding-block: 12px;
           }
 
           .ix-brand {
+            min-width: 0;
+            flex: 1 1 auto;
             gap: 8px;
             font-size: 20px;
+            letter-spacing: -0.6px;
           }
 
           .ix-brand-logo-wrap {
             width: 35px;
             height: 35px;
+            flex: 0 0 35px;
+            border-radius: 9px;
+          }
+
+          .ix-brand-logo-wrap svg {
+            width: 100%;
+            height: 100%;
+          }
+
+          .ix-brand-text {
+            min-width: 0;
+            white-space: nowrap;
+            line-height: 1.15;
           }
 
           .ix-brand-text small {
-            font-size: 8px;
-            letter-spacing: 1.7px;
+            margin-top: 3px;
+            font-size: 7px;
+            letter-spacing: 1.2px;
           }
 
           .ix-nav-actions {
-            gap: 7px;
+            flex: 0 0 auto;
+            gap: 6px;
           }
 
           .ix-nav-actions .ix-btn {
-            min-height: 38px;
-            padding-inline: 11px;
+            min-height: 36px;
+            padding-inline: 10px;
+            border-radius: 8px;
             font-size: 11px;
+            white-space: nowrap;
           }
 
           .ix-hero {
@@ -1174,6 +1216,45 @@ export default function Landing() {
             align-items: flex-start;
             flex-direction: column;
             gap: 13px;
+          }
+        }
+
+        /* VERY SMALL PHONES */
+
+        @media (max-width: 360px) {
+          .ix-container {
+            width: calc(100% - 24px);
+          }
+
+          .ix-nav-inner {
+            gap: 5px;
+          }
+
+          .ix-brand {
+            gap: 6px;
+            font-size: 18px;
+          }
+
+          .ix-brand-logo-wrap {
+            width: 32px;
+            height: 32px;
+            flex-basis: 32px;
+            border-radius: 8px;
+          }
+
+          .ix-brand-text small {
+            font-size: 6px;
+            letter-spacing: 0.9px;
+          }
+
+          .ix-nav-actions {
+            gap: 4px;
+          }
+
+          .ix-nav-actions .ix-btn {
+            min-height: 34px;
+            padding-inline: 7px;
+            font-size: 10px;
           }
         }
 
