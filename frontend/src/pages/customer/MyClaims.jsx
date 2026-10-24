@@ -359,11 +359,10 @@ export default function MyClaims() {
         )}
 
       <section className="ix-claims-stats ix-claims-green" aria-label="Claim summary">
-        {stats.map(({ label, value, icon: StatIcon }, index) => (
+        {stats.map(({ label, value, icon: StatIcon }) => (
           <article
             className="ix-claims-stat"
             key={label}
-            style={{ '--ix-claim-index': index }}
           >
             <div className="ix-claims-stat-icon">
               <StatIcon size={22} aria-hidden="true" />
@@ -423,7 +422,7 @@ export default function MyClaims() {
               </div>
             ) : (
               <div className="ix-claims-cards" aria-label="My claim history">
-                {sortedRows.map((c, index) => {
+                {sortedRows.map((c) => {
                   const renewed =
                     c.policyNumber != null &&
                     renewedSources.has(String(c.policyNumber))
@@ -442,9 +441,6 @@ export default function MyClaims() {
                     <article
                       className="ix-claim-card"
                       key={String(c.claimNumber)}
-                      style={{
-                        '--ix-claim-index': Math.min(index, 10),
-                      }}
                     >
                       <div className="ix-claim-card-head">
                         <div className="ix-claim-heading">
