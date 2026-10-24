@@ -79,10 +79,7 @@ function getRating(review) {
    REPLY MODAL
 ========================================================= */
 
-function ReplyModal({
-  review,
-  onClose,
-}) {
+function ReplyModal({ review, onClose }) {
   const toast = useToast()
   const queryClient = useQueryClient()
 
@@ -100,9 +97,7 @@ function ReplyModal({
   ).trim()
 
   const replyText = text.trim()
-
-  const unchanged =
-    replyText === originalReply
+  const unchanged = replyText === originalReply
 
   const reply = useMutation({
     mutationFn: (body) =>
@@ -195,16 +190,6 @@ function ReplyModal({
     setError('')
     submitLock.current = true
 
-    /*
-     * Preserve the existing request contract.
-     *
-     * If your backend Reply DTO only accepts adminReply,
-     * this payload should be changed to:
-     *
-     * { adminReply: replyText }
-     *
-     * Verify the controller before changing it.
-     */
     reply.mutate({
       ...review,
       adminReply: replyText,
@@ -225,7 +210,7 @@ function ReplyModal({
       }
       onClose={closeModal}
       footer={
-        <div className="ix-reviews-modal-actions">
+        <div>
           <Button
             type="button"
             disabled={reply.isPending}
@@ -256,7 +241,6 @@ function ReplyModal({
       }
     >
       <form
-        className="stack"
         onSubmit={submitReply}
         noValidate
       >
@@ -269,8 +253,8 @@ function ReplyModal({
           </div>
         )}
 
-        <div className="ix-reviews-original">
-          <div className="ix-reviews-original-header">
+        <div>
+          <div>
             <strong>
               {review.name || 'Customer'}
             </strong>
@@ -284,7 +268,7 @@ function ReplyModal({
             </div>
           )}
 
-          <p className="ix-reviews-message">
+          <p>
             {review.review ||
               'No review text provided.'}
           </p>
@@ -301,7 +285,7 @@ function ReplyModal({
           hint="Your reply will be visible to the customer."
         />
 
-        <div className="ix-reviews-character-count">
+        <div>
           {replyText.length} / 1000 characters
         </div>
 
@@ -512,165 +496,6 @@ export default function Reviews() {
 
   return (
     <>
-      <style>{`
-        .ix-reviews-summary {
-          display: grid;
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-          gap: 14px;
-          margin-bottom: 20px;
-        }
-
-        .ix-reviews-summary-card {
-          min-width: 0;
-          padding: 18px;
-          border: 1px solid var(--line, #e2e8f0);
-          border-radius: 14px;
-          background: var(--surface, #fff);
-        }
-
-        .ix-reviews-summary-card .label {
-          color: var(--muted, #64748b);
-          font-size: 12px;
-        }
-
-        .ix-reviews-summary-card .value {
-          margin-top: 7px;
-          font-size: 26px;
-          font-weight: 750;
-        }
-
-        .ix-reviews-toolbar {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 12px;
-          margin-bottom: 18px;
-        }
-
-        .ix-reviews-list {
-          display: grid;
-          gap: 14px;
-        }
-
-        .ix-reviews-card {
-          min-width: 0;
-        }
-
-        .ix-reviews-card-top {
-          display: flex;
-          justify-content: space-between;
-          align-items: flex-start;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        .ix-reviews-person {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          flex-wrap: wrap;
-          min-width: 0;
-        }
-
-        .ix-reviews-person-email {
-          font-size: 13px;
-          overflow-wrap: anywhere;
-        }
-
-        .ix-reviews-message {
-          margin-top: 10px;
-          white-space: pre-wrap;
-          overflow-wrap: anywhere;
-          line-height: 1.65;
-        }
-
-        .ix-reviews-reply {
-          margin-top: 14px;
-          padding: 14px 16px;
-          border: 1px solid var(--line, #e2e8f0);
-          border-radius: 12px;
-          background: var(--surface-2, #f8fafc);
-        }
-
-        .ix-reviews-reply p {
-          margin: 7px 0 0;
-          white-space: pre-wrap;
-          overflow-wrap: anywhere;
-          line-height: 1.6;
-        }
-
-        .ix-reviews-actions {
-          display: flex;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-          margin-top: 16px;
-        }
-
-        .ix-reviews-original {
-          padding: 14px;
-          border: 1px solid var(--line, #e2e8f0);
-          border-radius: 12px;
-          background: var(--surface-2, #f8fafc);
-        }
-
-        .ix-reviews-original-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          flex-wrap: wrap;
-          gap: 10px;
-        }
-
-        .ix-reviews-character-count {
-          text-align: right;
-          font-size: 12px;
-          color: var(--muted, #64748b);
-        }
-
-        .ix-reviews-modal-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        @media (max-width: 850px) {
-          .ix-reviews-summary {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
-
-        @media (max-width: 600px) {
-          .ix-reviews-summary {
-            gap: 10px;
-          }
-
-          .ix-reviews-summary-card {
-            padding: 14px;
-          }
-
-          .ix-reviews-summary-card .value {
-            font-size: 22px;
-          }
-
-          .ix-reviews-card-top {
-            flex-direction: column;
-          }
-
-          .ix-reviews-actions {
-            width: 100%;
-          }
-        }
-
-        @media (max-width: 360px) {
-          .ix-reviews-summary {
-            grid-template-columns: 1fr;
-          }
-        }
-      `}</style>
-
       <PageHeader
         title="Reviews"
         subtitle="Read customer feedback, respond to reviews, and manage your claim-review history."
@@ -687,8 +512,8 @@ export default function Reviews() {
 
       {/* SUMMARY */}
 
-      <div className="ix-reviews-summary">
-        <div className="ix-reviews-summary-card">
+      <div>
+        <div>
           <div className="label">
             Average rating
           </div>
@@ -700,14 +525,13 @@ export default function Reviews() {
 
             <span
               className="faint"
-              style={{ fontSize: 15 }}
             >
               {' '}/ 5
             </span>
           </div>
         </div>
 
-        <div className="ix-reviews-summary-card">
+        <div>
           <div className="label">
             Total reviews
           </div>
@@ -719,7 +543,7 @@ export default function Reviews() {
           </div>
         </div>
 
-        <div className="ix-reviews-summary-card">
+        <div>
           <div className="label">
             Awaiting reply
           </div>
@@ -731,7 +555,7 @@ export default function Reviews() {
           </div>
         </div>
 
-        <div className="ix-reviews-summary-card">
+        <div>
           <div className="label">
             Replied
           </div>
@@ -746,7 +570,7 @@ export default function Reviews() {
 
       {/* SEARCH AND FILTERS */}
 
-      <div className="ix-reviews-toolbar">
+      <div>
         <SearchBox
           value={search}
           onChange={setSearch}
@@ -824,7 +648,7 @@ export default function Reviews() {
               </div>
             </Panel>
           ) : (
-            <div className="ix-reviews-list">
+            <div>
               {rows.map((review) => {
                 const replied = isReplied(review)
 
@@ -832,9 +656,9 @@ export default function Reviews() {
                   <Panel
                     key={review.reviewerId}
                   >
-                    <div className="ix-reviews-card">
-                      <div className="ix-reviews-card-top">
-                        <div className="ix-reviews-person">
+                    <div>
+                      <div>
+                        <div>
                           <Stars
                             value={getRating(review)}
                           />
@@ -844,16 +668,13 @@ export default function Reviews() {
                           </strong>
 
                           {review.email && (
-                            <span className="muted ix-reviews-person-email">
+                            <span className="muted">
                               {review.email}
                             </span>
                           )}
                         </div>
 
-                        <div
-                          className="row wrap"
-                          style={{ gap: 8 }}
-                        >
+                        <div className="row wrap">
                           {review.claimNumber != null && (
                             <span className="muted">
                               Claim #{review.claimNumber}
@@ -875,13 +696,13 @@ export default function Reviews() {
                         </div>
                       </div>
 
-                      <p className="ix-reviews-message">
+                      <p>
                         {review.review ||
                           'No review text provided.'}
                       </p>
 
                       {replied && (
-                        <div className="ix-reviews-reply">
+                        <div>
                           <strong>
                             Admin reply
                           </strong>
@@ -892,7 +713,7 @@ export default function Reviews() {
                         </div>
                       )}
 
-                      <div className="ix-reviews-actions">
+                      <div>
                         <Button
                           type="button"
                           size="sm"
