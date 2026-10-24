@@ -54,19 +54,6 @@ import {
 
 /* =========================================================
    INSUREX — ADMIN SETTLEMENTS
-
-   Approved Claims
-   Create Settlement
-   Edit Pending Settlement
-   Record Bank Transfer / Confirm Payment / Mark Failed
-   Reject With Reason
-   Delete Pending Settlement
-   View Settlement Details
-   Customer Notification Integration
-   Automatic Data Synchronization
-   Responsive Admin Interface
-
-   Uses existing backend APIs.
 ========================================================= */
 
 const SEARCH_FIELDS = [
@@ -88,21 +75,10 @@ function normalizeStatus(value) {
 }
 
 function normalizeRows(data) {
-  if (Array.isArray(data)) {
-    return data
-  }
-
-  if (Array.isArray(data?.content)) {
-    return data.content
-  }
-
-  if (Array.isArray(data?.data)) {
-    return data.data
-  }
-
-  if (Array.isArray(data?.data?.content)) {
-    return data.data.content
-  }
+  if (Array.isArray(data)) return data
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.data?.content)) return data.data.content
 
   return []
 }
@@ -118,18 +94,13 @@ function getClaimNumber(value) {
 function positiveAmount(value) {
   const amount = Number(value)
 
-  return Number.isFinite(amount) &&
-    amount > 0
+  return Number.isFinite(amount) && amount > 0
     ? amount
     : 0
 }
 
 function isPending(settlement) {
-  return (
-    normalizeStatus(
-      settlement?.settlementStatus,
-    ) === 'PENDING'
-  )
+  return normalizeStatus(settlement?.settlementStatus) === 'PENDING'
 }
 
 function isProcessing(settlement) {
@@ -141,10 +112,7 @@ function isFailed(settlement) {
 }
 
 function isApprovedClaim(claim) {
-  return (
-    normalizeStatus(claim?.status) ===
-    'APPROVED'
-  )
+  return normalizeStatus(claim?.status) === 'APPROVED'
 }
 
 function isUncertainError(error) {
@@ -162,8 +130,6 @@ function isUncertainError(error) {
 
 /* =========================================================
    SETTLEMENT FORM
-
-   Named export preserved.
 ========================================================= */
 
 export function SettlementForm({
@@ -173,12 +139,9 @@ export function SettlementForm({
 }) {
   const toast = useToast()
   const queryClient = useQueryClient()
-
   const requestLock = useRef(false)
 
-  const editing = Boolean(
-    settlement?.settlementNumber,
-  )
+  const editing = Boolean(settlement?.settlementNumber)
 
   const claimsQuery = useQuery({
     queryKey: ['a-claims'],
@@ -199,28 +162,17 @@ export function SettlementForm({
       getClaimNumber(settlement) ??
       getClaimNumber(claim) ??
       '',
-
     amount:
       settlement?.amount ??
       claim?.approvedAmount ??
       '',
-
     settlementDate:
       settlement?.settlementDate ||
       today(),
   })
 
-  const [formError, setFormError] =
-    useState('')
-
-  const [
-    outcomeUncertain,
-    setOutcomeUncertain,
-  ] = useState(false)
-
-  /* =======================================================
-     NORMALIZED DATA
-  ======================================================= */
+  const [formError, setFormError] = useState('')
+  const [outcomeUncertain, setOutcomeUncertain] = useState(false)
 
   const claimsList = useMemo(
     () => normalizeRows(claimsQuery.data),
@@ -228,9 +180,7 @@ export function SettlementForm({
   )
 
   const settlementsList = useMemo(
-    () => normalizeRows(
-      settlementsQuery.data,
-    ),
+    () => normalizeRows(settlementsQuery.data),
     [settlementsQuery.data],
   )
 
@@ -238,112 +188,62 @@ export function SettlementForm({
     () =>
       claimsList.find(
         (item) =>
-          String(getClaimNumber(item)) ===
-          String(form.claimNumber),
+          String(getClaimNumber(item)) === String(form.claimNumber),
       ) || null,
-    [
-      claimsList,
-      form.claimNumber,
-    ],
+    [claimsList, form.claimNumber],
   )
-
-  /* =======================================================
-     ELIGIBLE CLAIMS
-
-     A claim must be APPROVED.
-
-     A new settlement cannot be created for a
-     claim already linked to another settlement.
-
-     The backend must enforce this rule too.
-  ======================================================= */
 
   const eligibleClaims = useMemo(() => {
     return claimsList.filter((item) => {
-      if (!isApprovedClaim(item)) {
-        return false
-      }
+      if (!isApprovedClaim(item)) return false
 
-      const claimNumber =
-        getClaimNumber(item)
+      const claimNumber = getClaimNumber(item)
 
       const isCurrent =
         editing &&
-        String(claimNumber) ===
-          String(
-            getClaimNumber(settlement),
-          )
+        String(claimNumber) === String(getClaimNumber(settlement))
 
-      if (isCurrent) {
-        return true
-      }
+      if (isCurrent) return true
 
       return !settlementsList.some(
         (existing) =>
-          String(
-            getClaimNumber(existing),
-          ) === String(claimNumber),
+          String(getClaimNumber(existing)) === String(claimNumber),
       )
     })
-  }, [
-    claimsList,
-    settlementsList,
-    editing,
-    settlement,
-  ])
-
-  /* =======================================================
-     UPDATE CLAIM SELECTION
-  ======================================================= */
+  }, [claimsList, settlementsList, editing, settlement])
 
   function selectClaim(event) {
-    const claimNumber =
-      event.target.value
+    const claimNumber = event.target.value
 
     const selected = claimsList.find(
       (item) =>
-        String(getClaimNumber(item)) ===
-        String(claimNumber),
+        String(getClaimNumber(item)) === String(claimNumber),
     )
 
     setForm((current) => ({
       ...current,
       claimNumber,
-      amount:
-        selected?.approvedAmount ??
-        '',
+      amount: selected?.approvedAmount ?? '',
     }))
 
     setFormError('')
   }
-
-  /* =======================================================
-     INVALIDATE RELATED DATA
-  ======================================================= */
 
   async function refreshRelatedData() {
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: ['a-settlements'],
       }),
-
       queryClient.invalidateQueries({
         queryKey: ['a-claims'],
       }),
     ])
   }
 
-  /* =======================================================
-     CREATE OR UPDATE
-  ======================================================= */
-
   const save = useMutation({
     mutationFn: (body) =>
       editing
-        ? settlements.update(
-            settlement.settlementNumber,
-            body,
-          )
+        ? settlements.update(settlement.settlementNumber, body)
         : settlements.save(body),
 
     retry: false,
@@ -354,8 +254,7 @@ export function SettlementForm({
       try {
         await refreshRelatedData()
       } catch {
-        // The mutation succeeded even if
-        // refreshing related data fails.
+        // The mutation succeeded even if refreshing fails.
       }
 
       toast.success(
@@ -385,10 +284,7 @@ export function SettlementForm({
       }
 
       setFormError(
-        errorMessage(
-          error,
-          'Could not save this settlement.',
-        ),
+        errorMessage(error, 'Could not save this settlement.'),
       )
     },
 
@@ -396,10 +292,6 @@ export function SettlementForm({
       requestLock.current = false
     },
   })
-
-  /* =======================================================
-     VALIDATION
-  ======================================================= */
 
   function submit(event) {
     event?.preventDefault?.()
@@ -412,20 +304,12 @@ export function SettlementForm({
       return
     }
 
-    if (
-      claimsQuery.isPending ||
-      settlementsQuery.isPending
-    ) {
-      setFormError(
-        'Wait until claims and settlements finish loading.',
-      )
+    if (claimsQuery.isPending || settlementsQuery.isPending) {
+      setFormError('Wait until claims and settlements finish loading.')
       return
     }
 
-    if (
-      claimsQuery.isError ||
-      settlementsQuery.isError
-    ) {
+    if (claimsQuery.isError || settlementsQuery.isError) {
       setFormError(
         'Unable to verify claim eligibility. Refresh the data before continuing.',
       )
@@ -433,16 +317,12 @@ export function SettlementForm({
     }
 
     if (!form.claimNumber) {
-      setFormError(
-        'Choose an approved claim.',
-      )
+      setFormError('Choose an approved claim.')
       return
     }
 
     if (!selectedClaim) {
-      setFormError(
-        'The selected claim could not be verified.',
-      )
+      setFormError('The selected claim could not be verified.')
       return
     }
 
@@ -453,63 +333,36 @@ export function SettlementForm({
       return
     }
 
-    const alreadyAssigned =
-      settlementsList.some(
-        (existing) => {
-          const sameClaim =
-            String(
-              getClaimNumber(existing),
-            ) ===
-            String(form.claimNumber)
+    const alreadyAssigned = settlementsList.some((existing) => {
+      const sameClaim =
+        String(getClaimNumber(existing)) === String(form.claimNumber)
 
-          const differentSettlement =
-            !editing ||
-            String(
-              existing.settlementNumber,
-            ) !==
-              String(
-                settlement.settlementNumber,
-              )
+      const differentSettlement =
+        !editing ||
+        String(existing.settlementNumber) !==
+          String(settlement.settlementNumber)
 
-          return (
-            sameClaim &&
-            differentSettlement
-          )
-        },
-      )
+      return sameClaim && differentSettlement
+    })
 
     if (alreadyAssigned) {
-      setFormError(
-        'This claim already has a settlement record.',
-      )
+      setFormError('This claim already has a settlement record.')
       return
     }
 
-    if (
-      editing &&
-      !isPending(settlement)
-    ) {
-      setFormError(
-        'Only pending settlements can be edited.',
-      )
+    if (editing && !isPending(settlement)) {
+      setFormError('Only pending settlements can be edited.')
       return
     }
 
     const amount = Number(form.amount)
 
-    if (
-      !Number.isFinite(amount) ||
-      amount <= 0
-    ) {
-      setFormError(
-        'Enter a valid settlement amount greater than zero.',
-      )
+    if (!Number.isFinite(amount) || amount <= 0) {
+      setFormError('Enter a valid settlement amount greater than zero.')
       return
     }
 
-    const approvedAmount = Number(
-      selectedClaim.approvedAmount,
-    )
+    const approvedAmount = Number(selectedClaim.approvedAmount)
 
     if (
       selectedClaim.approvedAmount != null &&
@@ -523,9 +376,7 @@ export function SettlementForm({
     }
 
     if (!form.settlementDate) {
-      setFormError(
-        'Choose a settlement date.',
-      )
+      setFormError('Choose a settlement date.')
       return
     }
 
@@ -533,20 +384,11 @@ export function SettlementForm({
     requestLock.current = true
 
     save.mutate({
-      claimNumber: Number(
-        form.claimNumber,
-      ),
-
+      claimNumber: Number(form.claimNumber),
       amount,
-
-      settlementDate:
-        form.settlementDate,
+      settlementDate: form.settlementDate,
     })
   }
-
-  /* =======================================================
-     RENDER
-  ======================================================= */
 
   return (
     <Modal
@@ -555,11 +397,7 @@ export function SettlementForm({
           ? `Edit settlement #${settlement.settlementNumber}`
           : 'New settlement'
       }
-      onClose={
-        save.isPending
-          ? () => {}
-          : onClose
-      }
+      onClose={save.isPending ? () => {} : onClose}
       footer={
         <div className="ix-settlement-modal-actions">
           <Button
@@ -567,9 +405,7 @@ export function SettlementForm({
             onClick={onClose}
             disabled={save.isPending}
           >
-            {outcomeUncertain
-              ? 'Close'
-              : 'Cancel'}
+            {outcomeUncertain ? 'Close' : 'Cancel'}
           </Button>
 
           {!outcomeUncertain && (
@@ -586,31 +422,19 @@ export function SettlementForm({
               }
               onClick={submit}
             >
-              {editing
-                ? 'Save changes'
-                : 'Create settlement'}
+              {editing ? 'Save changes' : 'Create settlement'}
             </Button>
           )}
         </div>
       }
     >
       <div className="stack">
-        {/* ERROR */}
-
         {formError && (
-          <div
-            className="alert error"
-            role="alert"
-          >
+          <div className="alert error" role="alert">
             <AlertCircle size={17} />
-
-            <span>
-              {formError}
-            </span>
+            <span>{formError}</span>
           </div>
         )}
-
-        {/* CLAIM SELECT */}
 
         <SelectInput
           label="Approved claim"
@@ -629,45 +453,26 @@ export function SettlementForm({
                 ? 'Choose a claim…'
                 : 'No approved claims waiting'
           }
-          options={eligibleClaims.map(
-            (item) => ({
-              value:
-                getClaimNumber(item),
-
-              label:
-                `#${getClaimNumber(item)} · ` +
-                `policy #${item.policyNumber ?? '—'} · ` +
-                `approved ${inr(item.approvedAmount)}`,
-            }),
-          )}
+          options={eligibleClaims.map((item) => ({
+            value: getClaimNumber(item),
+            label:
+              `#${getClaimNumber(item)} · ` +
+              `policy #${item.policyNumber ?? '—'} · ` +
+              `approved ${inr(item.approvedAmount)}`,
+          }))}
         />
-
-        {/* APPROVED CLAIM DETAILS */}
 
         {selectedClaim && (
           <div className="alert info">
             <ShieldCheck size={17} />
-
             <span>
               Approved amount:{' '}
-              <strong>
-                {inr(
-                  selectedClaim.approvedAmount,
-                )}
-              </strong>
-
+              <strong>{inr(selectedClaim.approvedAmount)}</strong>
               {' · '}Claimed:{' '}
-
-              <strong>
-                {inr(
-                  selectedClaim.amount,
-                )}
-              </strong>
+              <strong>{inr(selectedClaim.amount)}</strong>
             </span>
           </div>
         )}
-
-        {/* SETTLEMENT AMOUNT */}
 
         <TextInput
           label="Settlement amount (₹)"
@@ -675,53 +480,36 @@ export function SettlementForm({
           min="0.01"
           step="0.01"
           value={form.amount}
-          disabled={
-            save.isPending ||
-            outcomeUncertain
-          }
+          disabled={save.isPending || outcomeUncertain}
           onChange={(event) => {
             setForm((current) => ({
               ...current,
-              amount:
-                event.target.value,
+              amount: event.target.value,
             }))
-
             setFormError('')
           }}
         />
-
-        {/* SETTLEMENT DATE */}
 
         <TextInput
           label="Settlement date"
           type="date"
           value={form.settlementDate}
-          disabled={
-            save.isPending ||
-            outcomeUncertain
-          }
+          disabled={save.isPending || outcomeUncertain}
           onChange={(event) => {
             setForm((current) => ({
               ...current,
-              settlementDate:
-                event.target.value,
+              settlementDate: event.target.value,
             }))
-
             setFormError('')
           }}
         />
 
-        {/* INFORMATION */}
-
         <div className="alert info">
           <Clock3 size={17} />
-
           <span>
-            Creating a settlement records
-            the approved payout amount.
-            Processing the settlement
-            changes its status according
-            to your backend workflow.
+            Creating a settlement records the approved payout amount.
+            Processing the settlement changes its status according to
+            your backend workflow.
           </span>
         </div>
       </div>
@@ -737,22 +525,14 @@ export default function Settlements() {
   const queryClient = useQueryClient()
   const toast = useToast()
 
-  /* =======================================================
-     STATE
-  ======================================================= */
-
-  const [status, setStatus] =
-    useState('all')
-
-  const [form, setForm] =
-    useState(null)
-
-  const [viewId, setViewId] =
-    useState(null)
+  const [status, setStatus] = useState('all')
+  const [form, setForm] = useState(null)
+  const [viewId, setViewId] = useState(null)
 
   const [transferId, setTransferId] = useState(null)
   const [confirmId, setConfirmId] = useState(null)
   const [failId, setFailId] = useState(null)
+
   const [transferReference, setTransferReference] = useState('')
   const [transferDate, setTransferDate] = useState(today())
   const [confirmationRemarks, setConfirmationRemarks] = useState('')
@@ -760,94 +540,44 @@ export default function Settlements() {
   const [failureReason, setFailureReason] = useState('')
   const [actionError, setActionError] = useState('')
 
-  const [deleteId, setDeleteId] =
-    useState(null)
-
-  const [rejectId, setRejectId] =
-    useState(null)
-
-  const [
-    rejectionReason,
-    setRejectionReason,
-  ] = useState('')
-
-  const [
-    rejectError,
-    setRejectError,
-  ] = useState('')
-
-  const [pageError, setPageError] =
-    useState('')
-
+  const [deleteId, setDeleteId] = useState(null)
+  const [rejectId, setRejectId] = useState(null)
+  const [rejectionReason, setRejectionReason] = useState('')
+  const [rejectError, setRejectError] = useState('')
+  const [pageError, setPageError] = useState('')
   const [verifyingAction, setVerifyingAction] = useState(false)
 
-  const [
-    uncertainActions,
-    setUncertainActions,
-  ] = useState(() => new Set())
+  const [uncertainActions, setUncertainActions] = useState(
+    () => new Set(),
+  )
 
   const actionLock = useRef(false)
 
-  /* =======================================================
-     FETCH SETTLEMENTS
-  ======================================================= */
-
   const q = useQuery({
     queryKey: ['a-settlements'],
-
     queryFn: settlements.getAll,
-
     staleTime: 10_000,
-
     refetchOnMount: 'always',
-
     refetchOnWindowFocus: true,
-
     refetchOnReconnect: true,
-
     refetchInterval: 30_000,
-
     refetchIntervalInBackground: false,
   })
 
-  /* =======================================================
-     NORMALIZED DATA
-  ======================================================= */
-
   const all = useMemo(
     () =>
-      normalizeRows(q.data).map(
-        (settlement) => ({
-          ...settlement,
-
-          claimNumber:
-            getClaimNumber(settlement),
-
-          settlementStatus:
-            normalizeStatus(
-              settlement.settlementStatus,
-            ),
-        }),
-      ),
+      normalizeRows(q.data).map((settlement) => ({
+        ...settlement,
+        claimNumber: getClaimNumber(settlement),
+        settlementStatus: normalizeStatus(settlement.settlementStatus),
+      })),
     [q.data],
   )
 
-  /* =======================================================
-     SEARCH
-  ======================================================= */
-
-  const [
-    search,
-    setSearch,
-    searched,
-  ] = useFilter(
+  const [search, setSearch, searched] = useFilter(
     all,
     SEARCH_FIELDS,
   )
-
-  /* =======================================================
-     FILTERED ROWS
-  ======================================================= */
 
   const rows = useMemo(
     () =>
@@ -855,116 +585,76 @@ export default function Settlements() {
         .filter(
           (settlement) =>
             status === 'all' ||
-            settlement.settlementStatus ===
-              status,
+            settlement.settlementStatus === status,
         )
         .slice()
         .sort(
           (a, b) =>
-            Number(
-              b.settlementNumber || 0,
-            ) -
-            Number(
-              a.settlementNumber || 0,
-            ),
+            Number(b.settlementNumber || 0) -
+            Number(a.settlementNumber || 0),
         ),
-    [
-      searched,
-      status,
-    ],
+    [searched, status],
   )
 
-  /* =======================================================
-     LATEST SELECTED RECORDS
-  ======================================================= */
-
   function findSettlement(id) {
-    if (id == null) {
-      return null
-    }
+    if (id == null) return null
 
     return (
       all.find(
         (item) =>
-          String(item.settlementNumber) ===
-          String(id),
+          String(item.settlementNumber) === String(id),
       ) || null
     )
   }
 
   const viewed = findSettlement(viewId)
-
   const transferring = findSettlement(transferId)
   const confirming = findSettlement(confirmId)
   const failing = findSettlement(failId)
-
-  const deleting = findSettlement(
-    deleteId,
-  )
-
-  const rejecting = findSettlement(
-    rejectId,
-  )
-
-  /* =======================================================
-     SUMMARY
-  ======================================================= */
+  const deleting = findSettlement(deleteId)
+  const rejecting = findSettlement(rejectId)
 
   const summary = useMemo(() => {
     const result = {
       pendingCount: 0,
       pendingAmount: 0,
-
       processingCount: 0,
       processingAmount: 0,
       failedCount: 0,
       failedAmount: 0,
-
       settledCount: 0,
       settledAmount: 0,
-
       rejectedCount: 0,
       rejectedAmount: 0,
-
       totalCount: all.length,
       totalAmount: 0,
     }
 
     for (const settlement of all) {
-      const amount = positiveAmount(
-        settlement.amount,
-      )
-
+      const amount = positiveAmount(settlement.amount)
       result.totalAmount += amount
 
-      switch (
-        settlement.settlementStatus
-      ) {
+      switch (settlement.settlementStatus) {
         case 'PENDING':
           result.pendingCount += 1
           result.pendingAmount += amount
           break
-
         case 'PROCESSING':
           result.processingCount += 1
           result.processingAmount += amount
           break
-
         case 'FAILED':
           result.failedCount += 1
           result.failedAmount += amount
           break
-
         case 'SETTLED':
           result.settledCount += 1
           result.settledAmount += amount
           break
-
         case 'REJECTED':
           result.rejectedCount += 1
           result.rejectedAmount += amount
           break
-
         default:
           break
       }
@@ -973,25 +663,16 @@ export default function Settlements() {
     return result
   }, [all])
 
-  /* =======================================================
-     INVALIDATE RELATED DATA
-  ======================================================= */
-
   async function refreshRelatedData() {
     await Promise.all([
       queryClient.invalidateQueries({
         queryKey: ['a-settlements'],
       }),
-
       queryClient.invalidateQueries({
         queryKey: ['a-claims'],
       }),
     ])
   }
-
-  /* =======================================================
-     MANUAL REFRESH
-  ======================================================= */
 
   async function refreshSettlements() {
     setPageError('')
@@ -1009,17 +690,10 @@ export default function Settlements() {
       })
     } catch (error) {
       setPageError(
-        errorMessage(
-          error,
-          'Unable to refresh settlements.',
-        ),
+        errorMessage(error, 'Unable to refresh settlements.'),
       )
     }
   }
-
-  /* =======================================================
-     ACTION HELPERS
-  ======================================================= */
 
   function actionKey(action, id) {
     return `${action}:${id}`
@@ -1039,23 +713,30 @@ export default function Settlements() {
     return uncertainActions.has(actionKey(action, id))
   }
 
-  // A timeout or server error does not prove a financial action failed.
-  // Allow a deliberate retry only after a successful fresh server read
-  // verifies that the record is still in the expected source state.
   async function verifyUncertainActions() {
     if (verifyingAction || busy) return
+
     setVerifyingAction(true)
     setPageError('')
+
     try {
       const latest = normalizeRows(await settlements.getAll())
       const remaining = new Set()
       const messages = []
+
       for (const key of uncertainActions) {
         const separator = key.indexOf(':')
         const action = key.slice(0, separator)
         const id = key.slice(separator + 1)
-        const record = latest.find(item => String(item.settlementNumber) === id)
-        const currentStatus = normalizeStatus(record?.settlementStatus)
+
+        const record = latest.find(
+          (item) => String(item.settlementNumber) === id,
+        )
+
+        const currentStatus = normalizeStatus(
+          record?.settlementStatus,
+        )
+
         const expected = {
           transfer: ['PENDING', 'FAILED'],
           confirm: ['PROCESSING'],
@@ -1063,143 +744,233 @@ export default function Settlements() {
           reject: ['PENDING'],
           delete: ['PENDING'],
         }[action] || []
+
         if (!record) {
           remaining.add(key)
-          messages.push(`Settlement #${id} is no longer present. Verify its history before proceeding.`)
+          messages.push(
+            `Settlement #${id} is no longer present. Verify its history before proceeding.`,
+          )
         } else if (expected.includes(currentStatus)) {
           // Fresh data shows the operation has not advanced its status.
-          // The admin may explicitly submit again if appropriate.
         } else {
           remaining.add(key)
-          messages.push(`Settlement #${id} is now ${currentStatus}. Review it before another action.`)
+          messages.push(
+            `Settlement #${id} is now ${currentStatus}. Review it before another action.`,
+          )
         }
       }
+
       setUncertainActions(remaining)
-      await queryClient.invalidateQueries({ queryKey: ['a-settlements'] })
-      await queryClient.invalidateQueries({ queryKey: ['a-claims'] })
+
+      await queryClient.invalidateQueries({
+        queryKey: ['a-settlements'],
+      })
+
+      await queryClient.invalidateQueries({
+        queryKey: ['a-claims'],
+      })
+
       setActionError('')
       setRejectError('')
-      setPageError(messages.length ? messages.join(' ') : 'Latest settlement states verified. Review the records before submitting another action.')
+
+      setPageError(
+        messages.length
+          ? messages.join(' ')
+          : 'Latest settlement states verified. Review the records before submitting another action.',
+      )
     } catch (error) {
-      setPageError(errorMessage(error, 'Unable to verify the latest settlement states. Actions remain blocked.'))
+      setPageError(
+        errorMessage(
+          error,
+          'Unable to verify the latest settlement states. Actions remain blocked.',
+        ),
+      )
     } finally {
       setVerifyingAction(false)
     }
   }
 
-     /* =======================================================
-      MANUAL BANK TRANSFER ACTIONS
-   ======================================================= */
+  /* =======================================================
+     MANUAL BANK TRANSFER ACTIONS
+  ======================================================= */
 
-   const bankAction = useMutation({
-     mutationFn: async ({ action, id, body }) => {
-       const latest = await settlements.get(id)
-       const currentStatus = normalizeStatus(latest?.settlementStatus)
-       const allowed = {
-         transfer: ['PENDING', 'FAILED'],
-         confirm: ['PROCESSING'],
-         fail: ['PROCESSING'],
-       }[action] || []
-       if (!allowed.includes(currentStatus)) {
-         const error = new Error(`Settlement is now ${currentStatus || 'unavailable'}. Refresh and review before continuing.`)
-         error.insurexPreflightError = true
-         throw error
-       }
-       if (action === 'confirm' && (!latest.transactionReference || !latest.transferDate)) {
-         const error = new Error('Bank reference or transfer date is missing. Confirmation is blocked.')
-         error.insurexPreflightError = true
-         throw error
-       }
-       if (action === 'transfer') return settlements.transfer(id, body)
-       if (action === 'confirm') return settlements.confirm(id, body)
-       if (action === 'fail') return settlements.fail(id, body.reason)
-       throw new Error('Unsupported settlement action.')
-     },
-     retry: false,
-     onSuccess: async (_data, variables) => {
-       setTransferId(null)
-       setConfirmId(null)
-       setFailId(null)
-       setActionError('')
-       setPageError('')
-       setTransferReference('')
-       setConfirmationRemarks('')
-       setFailureReason('')
-       setPaymentVerified(false)
-       try { await refreshRelatedData() } catch { /* Mutation succeeded. */ }
-       toast.success({
-         transfer: 'Bank transfer recorded. Awaiting confirmation.',
-         confirm: 'Settlement confirmed by administrator.',
-         fail: 'Transfer failure recorded. Claim remains approved.',
-       }[variables.action])
-     },
-     onError: async (error, variables) => {
-       if (!error?.insurexPreflightError && isUncertainError(error)) {
-         markUncertain(variables.action, variables.id)
-         setActionError('The server response is uncertain. Check the refreshed settlement record before taking another action.')
-         try { await refreshRelatedData() } catch { /* Keep warning. */ }
-       } else {
-         setActionError(errorMessage(error, 'Unable to update settlement.'))
-       }
-     },
-     onSettled: () => { actionLock.current = false },
-   })
+  const bankAction = useMutation({
+    mutationFn: async ({ action, id, body }) => {
+      const latest = await settlements.get(id)
+      const currentStatus = normalizeStatus(latest?.settlementStatus)
 
-   function submitBankAction(action, settlement, body) {
-     if (!settlement || actionLock.current || bankAction.isPending ||
-         actionBlocked(action, settlement.settlementNumber)) return
-     setActionError('')
-     actionLock.current = true
-     bankAction.mutate({ action, id: settlement.settlementNumber, body })
-   }
+      const allowed = {
+        transfer: ['PENDING', 'FAILED'],
+        confirm: ['PROCESSING'],
+        fail: ['PROCESSING'],
+      }[action] || []
 
-   function submitTransfer() {
-     if (!transferring || !(isPending(transferring) || isFailed(transferring))) return
-     const reference = transferReference.trim()
-     if (!reference || reference.length > 150) {
-       setActionError('Enter a bank reference / UTR (maximum 150 characters).')
-       return
-     }
-     if (!transferDate || transferDate > today()) {
-       setActionError('Enter a valid transfer date that is not in the future.')
-       return
-     }
-     submitBankAction('transfer', transferring, {
-       transactionReference: reference,
-       transferDate,
-     })
-   }
+      if (!allowed.includes(currentStatus)) {
+        const error = new Error(
+          `Settlement is now ${currentStatus || 'unavailable'}. Refresh and review before continuing.`,
+        )
+        error.insurexPreflightError = true
+        throw error
+      }
 
-   function submitConfirmation() {
-     if (!confirming || !isProcessing(confirming)) return
-     if (!paymentVerified || !confirmationRemarks.trim()) {
-       setActionError('Verify the bank payment and enter confirmation evidence before proceeding.')
-       return
-     }
-     submitBankAction('confirm', confirming, {
-       paymentVerified: true,
-       confirmationRemarks: confirmationRemarks.trim(),
-     })
-   }
+      if (
+        action === 'confirm' &&
+        (!latest.transactionReference || !latest.transferDate)
+      ) {
+        const error = new Error(
+          'Bank reference or transfer date is missing. Confirmation is blocked.',
+        )
+        error.insurexPreflightError = true
+        throw error
+      }
 
-   function submitFailure() {
-     if (!failing || !isProcessing(failing)) return
-     if (!failureReason.trim()) {
-       setActionError('Enter a reason why the bank transfer failed.')
-       return
-     }
-     submitBankAction('fail', failing, { reason: failureReason.trim() })
-   }
+      if (action === 'transfer') return settlements.transfer(id, body)
+      if (action === 'confirm') return settlements.confirm(id, body)
+      if (action === 'fail') return settlements.fail(id, body.reason)
 
-/* =======================================================
+      throw new Error('Unsupported settlement action.')
+    },
+
+    retry: false,
+
+    onSuccess: async (_data, variables) => {
+      setTransferId(null)
+      setConfirmId(null)
+      setFailId(null)
+      setActionError('')
+      setPageError('')
+      setTransferReference('')
+      setConfirmationRemarks('')
+      setFailureReason('')
+      setPaymentVerified(false)
+
+      try {
+        await refreshRelatedData()
+      } catch {
+        // Mutation succeeded.
+      }
+
+      toast.success({
+        transfer: 'Bank transfer recorded. Awaiting confirmation.',
+        confirm: 'Settlement confirmed by administrator.',
+        fail: 'Transfer failure recorded. Claim remains approved.',
+      }[variables.action])
+    },
+
+    onError: async (error, variables) => {
+      if (
+        !error?.insurexPreflightError &&
+        isUncertainError(error)
+      ) {
+        markUncertain(variables.action, variables.id)
+
+        setActionError(
+          'The server response is uncertain. Check the refreshed settlement record before taking another action.',
+        )
+
+        try {
+          await refreshRelatedData()
+        } catch {
+          // Keep warning.
+        }
+      } else {
+        setActionError(
+          errorMessage(error, 'Unable to update settlement.'),
+        )
+      }
+    },
+
+    onSettled: () => {
+      actionLock.current = false
+    },
+  })
+
+  function submitBankAction(action, settlement, body) {
+    if (
+      !settlement ||
+      actionLock.current ||
+      bankAction.isPending ||
+      actionBlocked(action, settlement.settlementNumber)
+    ) {
+      return
+    }
+
+    setActionError('')
+    actionLock.current = true
+
+    bankAction.mutate({
+      action,
+      id: settlement.settlementNumber,
+      body,
+    })
+  }
+
+  function submitTransfer() {
+    if (
+      !transferring ||
+      !(isPending(transferring) || isFailed(transferring))
+    ) {
+      return
+    }
+
+    const reference = transferReference.trim()
+
+    if (!reference || reference.length > 150) {
+      setActionError(
+        'Enter a bank reference / UTR (maximum 150 characters).',
+      )
+      return
+    }
+
+    if (!transferDate || transferDate > today()) {
+      setActionError(
+        'Enter a valid transfer date that is not in the future.',
+      )
+      return
+    }
+
+    submitBankAction('transfer', transferring, {
+      transactionReference: reference,
+      transferDate,
+    })
+  }
+
+  function submitConfirmation() {
+    if (!confirming || !isProcessing(confirming)) return
+
+    if (!paymentVerified || !confirmationRemarks.trim()) {
+      setActionError(
+        'Verify the bank payment and enter confirmation evidence before proceeding.',
+      )
+      return
+    }
+
+    submitBankAction('confirm', confirming, {
+      paymentVerified: true,
+      confirmationRemarks: confirmationRemarks.trim(),
+    })
+  }
+
+  function submitFailure() {
+    if (!failing || !isProcessing(failing)) return
+
+    if (!failureReason.trim()) {
+      setActionError('Enter a reason why the bank transfer failed.')
+      return
+    }
+
+    submitBankAction('fail', failing, {
+      reason: failureReason.trim(),
+    })
+  }
+
+  /* =======================================================
      DELETE SETTLEMENT
   ======================================================= */
 
   const remove = useMutation({
     mutationFn: (settlementNumber) =>
-      settlements.remove(
-        settlementNumber,
-      ),
+      settlements.remove(settlementNumber),
 
     retry: false,
 
@@ -1213,9 +984,7 @@ export default function Settlements() {
         // Deletion already succeeded.
       }
 
-      toast.success(
-        'Settlement deleted successfully.',
-      )
+      toast.success('Settlement deleted successfully.')
     },
 
     onError: async (error, id) => {
@@ -1238,10 +1007,7 @@ export default function Settlements() {
       }
 
       toast.error(
-        errorMessage(
-          error,
-          'Could not delete settlement.',
-        ),
+        errorMessage(error, 'Could not delete settlement.'),
       )
     },
 
@@ -1259,10 +1025,7 @@ export default function Settlements() {
       settlementNumber,
       rejectionReason: reason,
     }) =>
-      settlements.reject(
-        settlementNumber,
-        reason,
-      ),
+      settlements.reject(settlementNumber, reason),
 
     retry: false,
 
@@ -1278,20 +1041,12 @@ export default function Settlements() {
         // Rejection already succeeded.
       }
 
-      toast.success(
-        'Settlement rejected successfully.',
-      )
+      toast.success('Settlement rejected successfully.')
     },
 
-    onError: async (
-      error,
-      variables,
-    ) => {
+    onError: async (error, variables) => {
       if (isUncertainError(error)) {
-        markUncertain(
-          'reject',
-          variables.settlementNumber,
-        )
+        markUncertain('reject', variables.settlementNumber)
 
         setRejectError(
           'The rejection outcome could not be confirmed. Refresh the settlement status before taking further action.',
@@ -1307,10 +1062,7 @@ export default function Settlements() {
       }
 
       setRejectError(
-        errorMessage(
-          error,
-          'Could not reject this settlement.',
-        ),
+        errorMessage(error, 'Could not reject this settlement.'),
       )
     },
 
@@ -1319,48 +1071,29 @@ export default function Settlements() {
     },
   })
 
-  /* =======================================================
-     DELETE ACTION
-  ======================================================= */
-
   function submitDelete() {
     if (
       !deleting ||
       !isPending(deleting) ||
       actionLock.current ||
       remove.isPending ||
-      actionBlocked(
-        'delete',
-        deleting.settlementNumber,
-      )
+      actionBlocked('delete', deleting.settlementNumber)
     ) {
       return
     }
 
     actionLock.current = true
-
-    remove.mutate(
-      deleting.settlementNumber,
-    )
+    remove.mutate(deleting.settlementNumber)
   }
 
-  /* =======================================================
-     REJECT ACTION
-  ======================================================= */
-
   function openReject(settlement) {
-    setRejectId(
-      settlement.settlementNumber,
-    )
-
+    setRejectId(settlement.settlementNumber)
     setRejectionReason('')
     setRejectError('')
   }
 
   function closeReject() {
-    if (reject.isPending) {
-      return
-    }
+    if (reject.isPending) return
 
     setRejectId(null)
     setRejectionReason('')
@@ -1375,28 +1108,20 @@ export default function Settlements() {
       !isPending(rejecting) ||
       reject.isPending ||
       actionLock.current ||
-      actionBlocked(
-        'reject',
-        rejecting.settlementNumber,
-      )
+      actionBlocked('reject', rejecting.settlementNumber)
     ) {
       return
     }
 
-    const reason =
-      rejectionReason.trim()
+    const reason = rejectionReason.trim()
 
     if (!reason) {
-      setRejectError(
-        'Please enter a rejection reason.',
-      )
+      setRejectError('Please enter a rejection reason.')
       return
     }
 
     if (reason.length > 1000) {
-      setRejectError(
-        'The rejection reason cannot exceed 1000 characters.',
-      )
+      setRejectError('The rejection reason cannot exceed 1000 characters.')
       return
     }
 
@@ -1404,16 +1129,10 @@ export default function Settlements() {
     setRejectError('')
 
     reject.mutate({
-      settlementNumber:
-        rejecting.settlementNumber,
-
+      settlementNumber: rejecting.settlementNumber,
       rejectionReason: reason,
     })
   }
-
-  /* =======================================================
-     GLOBAL ACTION STATUS
-  ======================================================= */
 
   const busy =
     bankAction.isPending ||
@@ -1426,10 +1145,6 @@ export default function Settlements() {
 
   return (
     <>
-      {/* ===================================================
-          PAGE HEADER
-      =================================================== */}
-
       <PageHeader
         title="Settlements"
         subtitle="Manage settlements for approved insurance claims."
@@ -1439,9 +1154,7 @@ export default function Settlements() {
           variant="primary"
           icon="plus"
           disabled={busy}
-          onClick={() =>
-            setForm({})
-          }
+          onClick={() => setForm({})}
         >
           New settlement
         </Button>
@@ -1449,226 +1162,99 @@ export default function Settlements() {
         <Button
           type="button"
           onClick={refreshSettlements}
-          disabled={
-            q.isFetching ||
-            busy
-          }
+          disabled={q.isFetching || busy}
         >
           <RefreshCw size={16} />
-
-          {q.isFetching
-            ? 'Refreshing…'
-            : 'Refresh'}
+          {q.isFetching ? 'Refreshing…' : 'Refresh'}
         </Button>
+
         {uncertainActions.size > 0 && (
-          <Button type="button" disabled={verifyingAction || busy} onClick={verifyUncertainActions}>
-            {verifyingAction ? 'Verifying…' : 'Verify uncertain actions'}
+          <Button
+            type="button"
+            disabled={verifyingAction || busy}
+            onClick={verifyUncertainActions}
+          >
+            {verifyingAction
+              ? 'Verifying…'
+              : 'Verify uncertain actions'}
           </Button>
         )}
       </PageHeader>
 
-      {/* ===================================================
-          PAGE ERROR
-      =================================================== */}
-
       {pageError && (
-        <div
-          className="alert error"
-          role="alert"
-        >
+        <div className="alert error" role="alert">
           <AlertCircle size={17} />
-
-          <span>
-            {pageError}
-          </span>
-
-          <Button
-            size="sm"
-            onClick={() =>
-              setPageError('')
-            }
-          >
+          <span>{pageError}</span>
+          <Button size="sm" onClick={() => setPageError('')}>
             Dismiss
           </Button>
         </div>
       )}
 
-      {/* ===================================================
-          SUMMARY LEDGER
-      =================================================== */}
-
-      <div className="ledger ix-settlement-ledger">
+      <div className="ledger">
         <div>
-          <div className="label">
-            Pending
-          </div>
-
+          <div className="label">Pending</div>
           <div className="value">
-            {q.isPending
-              ? '…'
-              : summary.pendingCount}
+            {q.isPending ? '…' : summary.pendingCount}
           </div>
-
           <div className="sub">
-            {inr(summary.pendingAmount)}
-            {' '}awaiting processing
+            {inr(summary.pendingAmount)} awaiting processing
           </div>
         </div>
 
         <div>
           <div className="label">Processing</div>
-          <div className="value">{q.isPending ? '…' : summary.processingCount}</div>
-          <div className="sub">{inr(summary.processingAmount)} awaiting bank confirmation</div>
+          <div className="value">
+            {q.isPending ? '…' : summary.processingCount}
+          </div>
+          <div className="sub">
+            {inr(summary.processingAmount)} awaiting bank confirmation
+          </div>
         </div>
 
         <div>
           <div className="label">Failed</div>
-          <div className="value">{q.isPending ? '…' : summary.failedCount}</div>
-          <div className="sub">{inr(summary.failedAmount)} eligible for transfer retry</div>
-        </div>
-
-        <div>
-          <div className="label">
-            Settled
-          </div>
-
           <div className="value">
-            {q.isPending
-              ? '…'
-              : summary.settledCount}
+            {q.isPending ? '…' : summary.failedCount}
           </div>
-
           <div className="sub">
-            {inr(summary.settledAmount)}
-            {' '}recorded as settled
+            {inr(summary.failedAmount)} eligible for transfer retry
           </div>
         </div>
 
         <div>
-          <div className="label">
-            Rejected
-          </div>
-
+          <div className="label">Settled</div>
           <div className="value">
-            {q.isPending
-              ? '…'
-              : summary.rejectedCount}
+            {q.isPending ? '…' : summary.settledCount}
           </div>
-
           <div className="sub">
-            {inr(summary.rejectedAmount)}
-            {' '}rejected
+            {inr(summary.settledAmount)} recorded as settled
           </div>
         </div>
 
         <div>
-          <div className="label">
-            All settlements
-          </div>
-
+          <div className="label">Rejected</div>
           <div className="value">
-            {q.isPending
-              ? '…'
-              : summary.totalCount}
+            {q.isPending ? '…' : summary.rejectedCount}
           </div>
-
           <div className="sub">
-            Total recorded:{' '}
-            {inr(summary.totalAmount)}
+            {inr(summary.rejectedAmount)} rejected
+          </div>
+        </div>
+
+        <div>
+          <div className="label">All settlements</div>
+          <div className="value">
+            {q.isPending ? '…' : summary.totalCount}
+          </div>
+          <div className="sub">
+            Total recorded: {inr(summary.totalAmount)}
           </div>
         </div>
       </div>
 
-      {/* ===================================================
-          RESPONSIVE STYLES
-      =================================================== */}
-
-      <style>{`
-        .ix-settlement-ledger {
-          margin-bottom: 20px;
-        }
-
-        .ix-settlement-toolbar {
-          display: flex;
-          align-items: center;
-          gap: 12px;
-          flex-wrap: wrap;
-        }
-
-        .ix-settlement-table {
-          width: 100%;
-          max-width: 100%;
-          min-width: 0;
-          overflow-x: auto;
-          -webkit-overflow-scrolling: touch;
-        }
-
-        .ix-settlement-table .table-wrap {
-          width: 100%;
-          max-width: 100%;
-          overflow-x: auto;
-        }
-
-        .ix-settlement-table table {
-          width: 100%;
-          min-width: 1000px;
-          border-collapse: collapse;
-        }
-
-        .ix-settlement-table th,
-        .ix-settlement-table td {
-          padding: 14px 15px;
-          vertical-align: middle;
-          white-space: nowrap;
-        }
-
-        .ix-settlement-actions {
-          display: flex;
-          align-items: center;
-          justify-content: flex-end;
-          flex-wrap: nowrap;
-          gap: 6px;
-        }
-
-        .ix-settlement-actions button {
-          flex-shrink: 0;
-          white-space: nowrap;
-        }
-
-        .ix-settlement-modal-actions {
-          display: flex;
-          justify-content: flex-end;
-          align-items: center;
-          flex-wrap: wrap;
-          gap: 8px;
-        }
-
-        @media (max-width: 700px) {
-          .ix-settlement-table table {
-            min-width: 800px;
-          }
-
-          .ix-settlement-table th,
-          .ix-settlement-table td {
-            padding: 12px 11px;
-          }
-
-          .ix-settlement-modal-actions {
-            justify-content: stretch;
-          }
-
-          .ix-settlement-modal-actions > * {
-            flex: 1;
-          }
-        }
-      `}</style>
-
-      {/* ===================================================
-          SETTLEMENTS TABLE
-      =================================================== */}
-
       <Panel flush>
-        <div className="toolbar ix-settlement-toolbar">
+        <div className="toolbar">
           <SearchBox
             value={search}
             onChange={setSearch}
@@ -1679,30 +1265,12 @@ export default function Settlements() {
             value={status}
             onChange={setStatus}
             options={[
-              {
-                value: 'all',
-                label: 'All',
-              },
-              {
-                value: 'PENDING',
-                label: 'Pending',
-              },
-              {
-                value: 'PROCESSING',
-                label: 'Processing',
-              },
-              {
-                value: 'FAILED',
-                label: 'Failed',
-              },
-              {
-                value: 'SETTLED',
-                label: 'Settled',
-              },
-              {
-                value: 'REJECTED',
-                label: 'Rejected',
-              },
+              { value: 'all', label: 'All' },
+              { value: 'PENDING', label: 'Pending' },
+              { value: 'PROCESSING', label: 'Processing' },
+              { value: 'FAILED', label: 'Failed' },
+              { value: 'SETTLED', label: 'Settled' },
+              { value: 'REJECTED', label: 'Rejected' },
             ]}
           />
         </div>
@@ -1717,9 +1285,7 @@ export default function Settlements() {
             <Button
               type="button"
               variant="dark"
-              onClick={() =>
-                setForm({})
-              }
+              onClick={() => setForm({})}
             >
               New settlement
             </Button>
@@ -1728,15 +1294,10 @@ export default function Settlements() {
           {() =>
             rows.length === 0 ? (
               <div className="empty">
-                <h4>
-                  No matching settlements
-                </h4>
-
+                <h4>No matching settlements</h4>
                 <p className="muted">
-                  Try changing the search
-                  term or status filter.
+                  Try changing the search term or status filter.
                 </p>
-
                 <Button
                   onClick={() => {
                     setSearch('')
@@ -1748,7 +1309,6 @@ export default function Settlements() {
               </div>
             ) : (
               <div
-                className="ix-settlement-table"
                 role="region"
                 aria-label="Admin settlements table"
                 tabIndex={0}
@@ -1757,126 +1317,116 @@ export default function Settlements() {
                   rowKey="settlementNumber"
                   rows={rows}
                   onRowClick={(settlement) =>
-                    setViewId(
-                      settlement.settlementNumber,
-                    )
+                    setViewId(settlement.settlementNumber)
                   }
                   columns={[
                     {
                       key: 'settlementNumber',
                       header: 'Settlement',
-                      render: (s) => (
-                        <b>
-                          #{s.settlementNumber}
-                        </b>
-                      ),
+                      render: (s) => <b>#{s.settlementNumber}</b>,
                     },
-
                     {
                       key: 'claimNumber',
                       header: 'Claim',
-                      render: (s) =>
-                        `#${s.claimNumber}`,
+                      render: (s) => `#${s.claimNumber}`,
                     },
-
                     {
                       key: 'amount',
                       header: 'Amount',
-                      render: (s) => (
-                        <strong>
-                          {inr(s.amount)}
-                        </strong>
-                      ),
+                      render: (s) => <strong>{inr(s.amount)}</strong>,
                     },
-
                     {
                       key: 'settlementDate',
                       header: 'Date',
-                      render: (s) =>
-                        date(
-                          s.settlementDate,
-                        ),
+                      render: (s) => date(s.settlementDate),
                     },
-
                     {
                       key: 'settlementStatus',
                       header: 'Status',
                       render: (s) => (
-                        <StatusBadge
-                          value={
-                            s.settlementStatus
-                          }
-                        />
+                        <StatusBadge value={s.settlementStatus} />
                       ),
                     },
-
                     {
                       key: 'actions',
                       header: '',
                       align: 'right',
-
                       render: (s) => {
-                        const pending =
-                          isPending(s)
+                        const pending = isPending(s)
+                        const rejected = s.settlementStatus === 'REJECTED'
+                        const blocked = busy
 
-                        const rejected =
-                          s.settlementStatus ===
-                          'REJECTED'
-
-                        const blocked =
-                          busy
-
-                        function stop(
-                          event,
-                          action,
-                        ) {
+                        function stop(event, action) {
                           event?.stopPropagation?.()
-
                           action()
                         }
 
                         return (
-                          <div className="ix-settlement-actions">
+                          <div>
+                            {(pending || isFailed(s)) && (
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="dark"
+                                disabled={
+                                  blocked ||
+                                  actionBlocked('transfer', s.settlementNumber)
+                                }
+                                onClick={(event) =>
+                                  stop(event, () => {
+                                    setActionError('')
+                                    setTransferReference('')
+                                    setTransferDate(today())
+                                    setTransferId(s.settlementNumber)
+                                  })
+                                }
+                              >
+                                {isFailed(s) ? 'Retry transfer' : 'Record transfer'}
+                              </Button>
+                            )}
 
-                             {(pending || isFailed(s)) && (
-                               <Button
-                                 type="button"
-                                 size="sm"
-                                 variant="dark"
-                                 disabled={blocked || actionBlocked('transfer', s.settlementNumber)}
-                                 onClick={(event) => stop(event, () => {
-                                   setActionError('')
-                                   setTransferReference('')
-                                   setTransferDate(today())
-                                   setTransferId(s.settlementNumber)
-                                 })}
-                               >
-                                 {isFailed(s) ? 'Retry transfer' : 'Record transfer'}
-                               </Button>
-                             )}
-                             {isProcessing(s) && (
-                               <>
-                                 <Button type="button" size="sm" variant="dark"
-                                   disabled={blocked || actionBlocked('confirm', s.settlementNumber)}
-                                   onClick={(event) => stop(event, () => {
-                                     setActionError('')
-                                     setPaymentVerified(false)
-                                     setConfirmationRemarks('')
-                                     setConfirmId(s.settlementNumber)
-                                   })}>
-                                   Confirm payment
-                                 </Button>
-                                 <Button type="button" size="sm" variant="danger"
-                                   disabled={blocked || actionBlocked('fail', s.settlementNumber)}
-                                   onClick={(event) => stop(event, () => {
-                                     setActionError('')
-                                     setFailureReason('')
-                                     setFailId(s.settlementNumber)
-                                   })}>
-                                   Mark failed
-                                 </Button>
-                               </>
-                             )}
+                            {isProcessing(s) && (
+                              <>
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="dark"
+                                  disabled={
+                                    blocked ||
+                                    actionBlocked('confirm', s.settlementNumber)
+                                  }
+                                  onClick={(event) =>
+                                    stop(event, () => {
+                                      setActionError('')
+                                      setPaymentVerified(false)
+                                      setConfirmationRemarks('')
+                                      setConfirmId(s.settlementNumber)
+                                    })
+                                  }
+                                >
+                                  Confirm payment
+                                </Button>
+
+                                <Button
+                                  type="button"
+                                  size="sm"
+                                  variant="danger"
+                                  disabled={
+                                    blocked ||
+                                    actionBlocked('fail', s.settlementNumber)
+                                  }
+                                  onClick={(event) =>
+                                    stop(event, () => {
+                                      setActionError('')
+                                      setFailureReason('')
+                                      setFailId(s.settlementNumber)
+                                    })
+                                  }
+                                >
+                                  Mark failed
+                                </Button>
+                              </>
+                            )}
 
                             {pending && (
                               <Button
@@ -1884,10 +1434,7 @@ export default function Settlements() {
                                 size="sm"
                                 disabled={blocked}
                                 onClick={(event) =>
-                                  stop(
-                                    event,
-                                    () => setForm(s),
-                                  )
+                                  stop(event, () => setForm(s))
                                 }
                               >
                                 Edit
@@ -1901,16 +1448,10 @@ export default function Settlements() {
                                 variant="danger"
                                 disabled={
                                   blocked ||
-                                  actionBlocked(
-                                    'reject',
-                                    s.settlementNumber,
-                                  )
+                                  actionBlocked('reject', s.settlementNumber)
                                 }
                                 onClick={(event) =>
-                                  stop(
-                                    event,
-                                    () => openReject(s),
-                                  )
+                                  stop(event, () => openReject(s))
                                 }
                               >
                                 Reject
@@ -1924,17 +1465,12 @@ export default function Settlements() {
                                 variant="ghost"
                                 disabled={
                                   blocked ||
-                                  actionBlocked(
-                                    'delete',
-                                    s.settlementNumber,
-                                  )
+                                  actionBlocked('delete', s.settlementNumber)
                                 }
                                 onClick={(event) =>
                                   stop(
                                     event,
-                                    () => setDeleteId(
-                                      s.settlementNumber,
-                                    ),
+                                    () => setDeleteId(s.settlementNumber),
                                   )
                                 }
                               >
@@ -1949,15 +1485,11 @@ export default function Settlements() {
                                 onClick={(event) =>
                                   stop(
                                     event,
-                                    () => setViewId(
-                                      s.settlementNumber,
-                                    ),
+                                    () => setViewId(s.settlementNumber),
                                   )
                                 }
                               >
-                                {rejected
-                                  ? 'View reason'
-                                  : 'View'}
+                                {rejected ? 'View reason' : 'View'}
                               </Button>
                             )}
                           </div>
@@ -1972,43 +1504,22 @@ export default function Settlements() {
         </DataState>
       </Panel>
 
-      {/* ===================================================
-          CREATE / EDIT FORM
-      =================================================== */}
-
       {form && (
         <SettlementForm
-          key={
-            form.settlementNumber ||
-            'new'
-          }
-          settlement={
-            form.settlementNumber
-              ? form
-              : null
-          }
-          onClose={() =>
-            setForm(null)
-          }
+          key={form.settlementNumber || 'new'}
+          settlement={form.settlementNumber ? form : null}
+          onClose={() => setForm(null)}
         />
       )}
-
-      {/* ===================================================
-          SETTLEMENT DETAILS
-      =================================================== */}
 
       {viewed && (
         <Modal
           title={`Settlement #${viewed.settlementNumber}`}
-          onClose={() =>
-            setViewId(null)
-          }
+          onClose={() => setViewId(null)}
           footer={
             <Button
               type="button"
-              onClick={() =>
-                setViewId(null)
-              }
+              onClick={() => setViewId(null)}
             >
               Close
             </Button>
@@ -2016,32 +1527,11 @@ export default function Settlements() {
         >
           <Details
             items={[
-              [
-                'Settlement',
-                `#${viewed.settlementNumber}`,
-              ],
-              [
-                'Claim',
-                `#${viewed.claimNumber}`,
-              ],
-              [
-                'Amount',
-                inr(viewed.amount),
-              ],
-              [
-                'Settlement date',
-                date(
-                  viewed.settlementDate,
-                ),
-              ],
-              [
-                'Status',
-                <StatusBadge
-                  value={
-                    viewed.settlementStatus
-                  }
-                />,
-              ],
+              ['Settlement', `#${viewed.settlementNumber}`],
+              ['Claim', `#${viewed.claimNumber}`],
+              ['Amount', inr(viewed.amount)],
+              ['Settlement date', date(viewed.settlementDate)],
+              ['Status', <StatusBadge value={viewed.settlementStatus} />],
               ['Bank reference', viewed.transactionReference || '—'],
               ['Transfer date', viewed.transferDate ? date(viewed.transferDate) : '—'],
               ['Recorded by', viewed.transferRecordedBy || '—'],
@@ -2051,7 +1541,9 @@ export default function Settlements() {
               ...(
                 ['REJECTED', 'FAILED'].includes(viewed.settlementStatus)
                   ? [[
-                      viewed.settlementStatus === 'FAILED' ? 'Failure reason' : 'Rejection reason',
+                      viewed.settlementStatus === 'FAILED'
+                        ? 'Failure reason'
+                        : 'Rejection reason',
                       viewed.rejectionReason ||
                         'No rejection reason was provided.',
                     ]]
@@ -2060,28 +1552,16 @@ export default function Settlements() {
             ]}
           />
 
-          {viewed.settlementStatus ===
-            'SETTLED' && (
-            <div
-              className="alert success"
-              style={{
-                marginTop: 16,
-              }}
-            >
+          {viewed.settlementStatus === 'SETTLED' && (
+            <div className="alert success">
               <CheckCircle2 size={17} />
-
               <span>
-                This settlement is recorded
-                as settled by the backend.
+                This settlement is recorded as settled by the backend.
               </span>
             </div>
           )}
         </Modal>
       )}
-
-      {/* ===================================================
-          REJECT SETTLEMENT
-      =================================================== */}
 
       {rejecting && (
         <Modal
@@ -2104,10 +1584,7 @@ export default function Settlements() {
                 disabled={
                   reject.isPending ||
                   !rejectionReason.trim() ||
-                  actionBlocked(
-                    'reject',
-                    rejecting.settlementNumber,
-                  )
+                  actionBlocked('reject', rejecting.settlementNumber)
                 }
                 onClick={submitRejection}
               >
@@ -2116,39 +1593,19 @@ export default function Settlements() {
             </div>
           }
         >
-          <form
-            className="stack"
-            onSubmit={submitRejection}
-          >
+          <form className="stack" onSubmit={submitRejection}>
             {rejectError && (
-              <div
-                className="alert error"
-                role="alert"
-              >
+              <div className="alert error" role="alert">
                 <AlertCircle size={17} />
-
-                <span>
-                  {rejectError}
-                </span>
+                <span>{rejectError}</span>
               </div>
             )}
 
             <div className="alert info">
               <Wallet size={17} />
-
               <span>
-                Settlement amount:{' '}
-                <strong>
-                  {inr(
-                    rejecting.amount,
-                  )}
-                </strong>
-
-                {' · '}Claim{' '}
-
-                <strong>
-                  #{rejecting.claimNumber}
-                </strong>
+                Settlement amount: <strong>{inr(rejecting.amount)}</strong>
+                {' · '}Claim <strong>#{rejecting.claimNumber}</strong>
               </span>
             </div>
 
@@ -2162,13 +1619,7 @@ export default function Settlements() {
                 className="textarea"
                 value={rejectionReason}
                 onChange={(event) => {
-                  setRejectionReason(
-                    event.target.value.slice(
-                      0,
-                      1000,
-                    ),
-                  )
-
+                  setRejectionReason(event.target.value.slice(0, 1000))
                   setRejectError('')
                 }}
                 placeholder="Explain why this settlement is being rejected..."
@@ -2177,113 +1628,237 @@ export default function Settlements() {
                 required
                 disabled={
                   reject.isPending ||
-                  actionBlocked(
-                    'reject',
-                    rejecting.settlementNumber,
-                  )
+                  actionBlocked('reject', rejecting.settlementNumber)
                 }
-                style={{
-                  width: '100%',
-                  minHeight: 130,
-                  resize: 'vertical',
-                  boxSizing: 'border-box',
-                }}
               />
 
               <small className="hint">
-                {rejectionReason.length}/1000
-                {' '}characters.
-                The backend records this
-                reason and handles any
-                customer notification.
+                {rejectionReason.length}/1000 characters.
+                The backend records this reason and handles any customer notification.
               </small>
             </div>
           </form>
         </Modal>
       )}
 
-      {/* ===================================================
-          MANUAL BANK TRANSFER ACTIONS
-      =================================================== */}
+      {transferring && (
+        <Modal
+          title={`Record bank transfer · #${transferring.settlementNumber}`}
+          onClose={() => {
+            if (!bankAction.isPending) {
+              setTransferId(null)
+              setActionError('')
+            }
+          }}
+          footer={
+            <div className="ix-settlement-modal-actions">
+              <Button
+                disabled={bankAction.isPending}
+                onClick={() => setTransferId(null)}
+              >
+                Cancel
+              </Button>
 
-             {transferring && (
-         <Modal title={`Record bank transfer · #${transferring.settlementNumber}`}
-           onClose={() => { if (!bankAction.isPending) { setTransferId(null); setActionError('') } }}
-           footer={<div className="ix-settlement-modal-actions">
-             <Button disabled={bankAction.isPending} onClick={() => setTransferId(null)}>Cancel</Button>
-             <Button variant="dark" loading={bankAction.isPending}
-               disabled={bankAction.isPending || actionBlocked('transfer', transferring.settlementNumber)}
-               onClick={submitTransfer}>Record transfer</Button>
-           </div>}>
-           <div className="stack">
-             <div className="alert info">Recording a transfer does not mark the claim settled. Check the bank reference before saving.</div>
-             {actionError && <div className="alert error" role="alert">{actionError}</div>}
-             <TextInput label="Bank reference / UTR" value={transferReference}
-               disabled={bankAction.isPending} onChange={e => setTransferReference(e.target.value.slice(0,150))} />
-             <TextInput label="Transfer date" type="date" value={transferDate}
-               disabled={bankAction.isPending} onChange={e => setTransferDate(e.target.value)} />
-           </div>
-         </Modal>
-       )}
+              <Button
+                variant="dark"
+                loading={bankAction.isPending}
+                disabled={
+                  bankAction.isPending ||
+                  actionBlocked('transfer', transferring.settlementNumber)
+                }
+                onClick={submitTransfer}
+              >
+                Record transfer
+              </Button>
+            </div>
+          }
+        >
+          <div className="stack">
+            <div className="alert info">
+              Recording a transfer does not mark the claim settled.
+              Check the bank reference before saving.
+            </div>
 
-       {confirming && (
-         <Modal title={`Confirm settlement · #${confirming.settlementNumber}`}
-           onClose={() => { if (!bankAction.isPending) { setConfirmId(null); setActionError('') } }}
-           footer={<div className="ix-settlement-modal-actions">
-             <Button disabled={bankAction.isPending} onClick={() => setConfirmId(null)}>Cancel</Button>
-             <Button variant="dark" loading={bankAction.isPending}
-               disabled={bankAction.isPending || !paymentVerified || !confirmationRemarks.trim() || actionBlocked('confirm', confirming.settlementNumber)}
-               onClick={submitConfirmation}>Confirm payment</Button>
-           </div>}>
-           <div className="stack">
-             <div className="alert info">Confirm only after independently checking the bank statement or transfer receipt. This is an administrator attestation, not automatic bank verification.</div>
-             <Details items={[
-               ['Claim', `#${confirming.claimNumber}`],
-               ['Amount', inr(confirming.amount)],
-               ['Bank reference', confirming.transactionReference || 'Missing'],
-               ['Transfer date', date(confirming.transferDate)],
-             ]} />
-             {actionError && <div className="alert error" role="alert">{actionError}</div>}
-             <div className="field">
-               <label htmlFor="ix-confirmation-remarks">How was payment verified? *</label>
-               <textarea id="ix-confirmation-remarks" className="textarea" rows={3} maxLength={1000}
-                 style={{width:'100%',boxSizing:'border-box'}} value={confirmationRemarks}
-                 onChange={e => setConfirmationRemarks(e.target.value)} disabled={bankAction.isPending} />
-             </div>
-             <label style={{display:'flex',gap:10,alignItems:'flex-start'}}>
-               <input type="checkbox" checked={paymentVerified} disabled={bankAction.isPending}
-                 onChange={e => setPaymentVerified(e.target.checked)} />
-               I checked the bank records and confirm this transfer succeeded.
-             </label>
-           </div>
-         </Modal>
-       )}
+            {actionError && (
+              <div className="alert error" role="alert">
+                {actionError}
+              </div>
+            )}
 
-       {failing && (
-         <Modal title={`Record transfer failure · #${failing.settlementNumber}`}
-           onClose={() => { if (!bankAction.isPending) { setFailId(null); setActionError('') } }}
-           footer={<div className="ix-settlement-modal-actions">
-             <Button disabled={bankAction.isPending} onClick={() => setFailId(null)}>Cancel</Button>
-             <Button variant="danger" loading={bankAction.isPending}
-               disabled={bankAction.isPending || !failureReason.trim() || actionBlocked('fail', failing.settlementNumber)}
-               onClick={submitFailure}>Mark transfer failed</Button>
-           </div>}>
-           <div className="stack">
-             <div className="alert info">The claim stays APPROVED. The settlement can be retried with a new bank transfer reference.</div>
-             {actionError && <div className="alert error" role="alert">{actionError}</div>}
-             <div className="field">
-               <label htmlFor="ix-failure-reason">Bank failure reason *</label>
-               <textarea id="ix-failure-reason" className="textarea" rows={4} maxLength={1000}
-                 style={{width:'100%',boxSizing:'border-box'}} value={failureReason}
-                 onChange={e => setFailureReason(e.target.value)} disabled={bankAction.isPending} />
-             </div>
-           </div>
-         </Modal>
-       )}
+            <TextInput
+              label="Bank reference / UTR"
+              value={transferReference}
+              disabled={bankAction.isPending}
+              onChange={(event) =>
+                setTransferReference(event.target.value.slice(0, 150))
+              }
+            />
 
-      {/* ===================================================
-          DELETE CONFIRMATION
-      =================================================== */}
+            <TextInput
+              label="Transfer date"
+              type="date"
+              value={transferDate}
+              disabled={bankAction.isPending}
+              onChange={(event) => setTransferDate(event.target.value)}
+            />
+          </div>
+        </Modal>
+      )}
+
+      {confirming && (
+        <Modal
+          title={`Confirm settlement · #${confirming.settlementNumber}`}
+          onClose={() => {
+            if (!bankAction.isPending) {
+              setConfirmId(null)
+              setActionError('')
+            }
+          }}
+          footer={
+            <div className="ix-settlement-modal-actions">
+              <Button
+                disabled={bankAction.isPending}
+                onClick={() => setConfirmId(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="dark"
+                loading={bankAction.isPending}
+                disabled={
+                  bankAction.isPending ||
+                  !paymentVerified ||
+                  !confirmationRemarks.trim() ||
+                  actionBlocked('confirm', confirming.settlementNumber)
+                }
+                onClick={submitConfirmation}
+              >
+                Confirm payment
+              </Button>
+            </div>
+          }
+        >
+          <div className="stack">
+            <div className="alert info">
+              Confirm only after independently checking the bank statement
+              or transfer receipt. This is an administrator attestation,
+              not automatic bank verification.
+            </div>
+
+            <Details
+              items={[
+                ['Claim', `#${confirming.claimNumber}`],
+                ['Amount', inr(confirming.amount)],
+                ['Bank reference', confirming.transactionReference || 'Missing'],
+                ['Transfer date', date(confirming.transferDate)],
+              ]}
+            />
+
+            {actionError && (
+              <div className="alert error" role="alert">
+                {actionError}
+              </div>
+            )}
+
+            <div className="field">
+              <label htmlFor="ix-confirmation-remarks">
+                How was payment verified? *
+              </label>
+
+              <textarea
+                id="ix-confirmation-remarks"
+                className="textarea"
+                rows={3}
+                maxLength={1000}
+                value={confirmationRemarks}
+                onChange={(event) =>
+                  setConfirmationRemarks(event.target.value)
+                }
+                disabled={bankAction.isPending}
+              />
+            </div>
+
+            <label>
+              <input
+                type="checkbox"
+                checked={paymentVerified}
+                disabled={bankAction.isPending}
+                onChange={(event) =>
+                  setPaymentVerified(event.target.checked)
+                }
+              />
+              I checked the bank records and confirm this transfer succeeded.
+            </label>
+          </div>
+        </Modal>
+      )}
+
+      {failing && (
+        <Modal
+          title={`Record transfer failure · #${failing.settlementNumber}`}
+          onClose={() => {
+            if (!bankAction.isPending) {
+              setFailId(null)
+              setActionError('')
+            }
+          }}
+          footer={
+            <div className="ix-settlement-modal-actions">
+              <Button
+                disabled={bankAction.isPending}
+                onClick={() => setFailId(null)}
+              >
+                Cancel
+              </Button>
+
+              <Button
+                variant="danger"
+                loading={bankAction.isPending}
+                disabled={
+                  bankAction.isPending ||
+                  !failureReason.trim() ||
+                  actionBlocked('fail', failing.settlementNumber)
+                }
+                onClick={submitFailure}
+              >
+                Mark transfer failed
+              </Button>
+            </div>
+          }
+        >
+          <div className="stack">
+            <div className="alert info">
+              The claim stays APPROVED. The settlement can be retried
+              with a new bank transfer reference.
+            </div>
+
+            {actionError && (
+              <div className="alert error" role="alert">
+                {actionError}
+              </div>
+            )}
+
+            <div className="field">
+              <label htmlFor="ix-failure-reason">
+                Bank failure reason *
+              </label>
+
+              <textarea
+                id="ix-failure-reason"
+                className="textarea"
+                rows={4}
+                maxLength={1000}
+                value={failureReason}
+                onChange={(event) =>
+                  setFailureReason(event.target.value)
+                }
+                disabled={bankAction.isPending}
+              />
+            </div>
+          </div>
+        </Modal>
+      )}
 
       {deleting && (
         <Confirm
