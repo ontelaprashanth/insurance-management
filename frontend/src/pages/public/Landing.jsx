@@ -1,5 +1,5 @@
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ArrowRight,
@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ShieldCheck,
   Sparkles,
+  X,
 } from 'lucide-react'
 
 import CoverageDial from '../../components/CoverageDial'
@@ -23,8 +24,8 @@ const DEFAULT_PLAN =
 
 export default function Landing() {
   const { user } = useAuth()
-  const calculatorRef = useRef(null)
 
+  const [calculatorOpen, setCalculatorOpen] = useState(false)
   const [plan, setPlan] = useState(DEFAULT_PLAN?.key ?? '')
   const [val, setVal] = useState({
     coverage: DEFAULT_PLAN?.coverage ?? 300000,
@@ -34,30 +35,22 @@ export default function Landing() {
   const selectedPlan =
     ACTIVE_PLANS.find((item) => item.key === plan) || DEFAULT_PLAN
 
-  const openCalculator = () => {
-    if (calculatorRef.current) {
-      calculatorRef.current.scrollIntoView({
-        behavior: 'smooth',
-        block: 'center',
-      })
+  const openCalculator = (planKey) => {
+    if (planKey) {
+      const nextPlan = ACTIVE_PLANS.find(
+        (item) => item.key === planKey,
+      )
+
+      if (nextPlan) {
+        setPlan(nextPlan.key)
+        setVal((current) => ({
+          ...current,
+          coverage: nextPlan.coverage,
+        }))
+      }
     }
-  }
 
-  const selectPlan = (key) => {
-    const nextPlan = ACTIVE_PLANS.find((item) => item.key === key)
-
-    if (!nextPlan) return
-
-    setPlan(nextPlan.key)
-    setVal((current) => ({
-      ...current,
-      coverage: nextPlan.coverage,
-    }))
-
-    calculatorRef.current?.scrollIntoView({
-      behavior: 'smooth',
-      block: 'center',
-    })
+    setCalculatorOpen(true)
   }
 
   const portalPath =
@@ -102,6 +95,7 @@ export default function Landing() {
           gap: 16px;
           min-height: 72px;
           border-bottom: 1px solid #e5f0e9;
+          animation: ix-enter .45s ease both;
         }
 
         .ix-brand {
@@ -140,26 +134,26 @@ export default function Landing() {
         }
 
         .ix-nav-link-primary {
-          color: white;
+          color: #fff;
           background: var(--ix-green);
         }
 
         .ix-nav-link-primary:hover {
-          color: white;
+          color: #fff;
           background: var(--ix-green-dark);
         }
 
         .ix-hero {
-          padding: 55px 0 24px;
+          padding: 76px 0 58px;
           text-align: center;
-          animation: ix-rise .6s ease both;
+          animation: ix-enter .65s ease both;
         }
 
         .ix-eyebrow {
           display: inline-flex;
           align-items: center;
           gap: 8px;
-          margin-bottom: 18px;
+          margin-bottom: 20px;
           padding: 7px 12px;
           border: 1px solid #ccebd9;
           border-radius: 999px;
@@ -180,13 +174,13 @@ export default function Landing() {
         }
 
         .ix-hero h1 {
-          max-width: 800px;
+          max-width: 820px;
           margin: 0 auto;
           color: #103d2c;
-          font-size: clamp(34px, 5vw, 56px);
+          font-size: clamp(36px, 5.5vw, 62px);
           font-weight: 850;
-          letter-spacing: -.05em;
-          line-height: 1.1;
+          letter-spacing: -.055em;
+          line-height: 1.08;
         }
 
         .ix-hero h1 span {
@@ -195,10 +189,10 @@ export default function Landing() {
 
         .ix-hero-copy {
           max-width: 620px;
-          margin: 17px auto 0;
+          margin: 20px auto 0;
           color: var(--ix-muted);
           font-size: 14px;
-          line-height: 1.8;
+          line-height: 1.85;
         }
 
         .ix-hero-actions {
@@ -206,8 +200,8 @@ export default function Landing() {
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
-          gap: 10px;
-          margin-top: 23px;
+          gap: 11px;
+          margin-top: 27px;
         }
 
         .ix-open-calculator {
@@ -215,8 +209,8 @@ export default function Landing() {
           align-items: center;
           justify-content: center;
           gap: 8px;
-          min-height: 38px;
-          padding: 9px 14px;
+          min-height: 40px;
+          padding: 10px 15px;
           border: 1px solid var(--ix-green);
           border-radius: 9px;
           color: #fff;
@@ -235,27 +229,25 @@ export default function Landing() {
           box-shadow: 0 7px 16px rgba(5,150,105,.20);
         }
 
-        .ix-open-calculator:focus-visible,
-        .ix-plan-button:focus-visible,
-        .ix-nav-link:focus-visible {
-          outline: 3px solid #a7f3d0;
-          outline-offset: 3px;
+        .ix-open-calculator:active {
+          transform: translateY(0);
         }
 
         .ix-secondary-link {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          gap: 6px;
-          min-height: 38px;
-          padding: 9px 13px;
+          gap: 7px;
+          min-height: 40px;
+          padding: 10px 14px;
           border: 1px solid var(--ix-border);
           border-radius: 9px;
           color: #285b44;
-          background: white;
+          background: #fff;
           font-size: 12px;
           font-weight: 750;
           text-decoration: none;
+          cursor: pointer;
           transition: background .2s ease, border-color .2s ease;
         }
 
@@ -269,8 +261,8 @@ export default function Landing() {
           align-items: center;
           justify-content: center;
           flex-wrap: wrap;
-          gap: 17px;
-          margin-top: 22px;
+          gap: 22px;
+          margin-top: 28px;
           color: #587367;
           font-size: 11px;
           font-weight: 650;
@@ -279,227 +271,22 @@ export default function Landing() {
         .ix-trust span {
           display: inline-flex;
           align-items: center;
-          gap: 6px;
+          gap: 7px;
         }
 
         .ix-trust svg {
           color: var(--ix-green);
         }
 
-        .ix-calculator-section {
-          padding: 14px 0 64px;
-          scroll-margin-top: 24px;
-        }
-
-        .ix-dial-animated {
-          position: relative;
-          width: 100%;
-          max-width: 650px;
-          margin: 0 auto;
-          padding: 23px;
-          overflow: hidden;
-          border: 1px solid #d4e9dc;
-          border-radius: 19px;
-          background: #fff;
-          box-shadow: 0 16px 45px rgba(18,77,51,.085);
-          animation: ix-card-in .65s ease both;
-          scroll-margin-top: 25px;
-        }
-
-        .ix-dial-animated::before {
-          position: absolute;
-          top: 0;
-          right: 0;
-          left: 0;
-          height: 3px;
-          background: linear-gradient(90deg, #059669, #a7f3d0, #059669);
-          background-size: 200% 100%;
-          content: "";
-          animation: ix-shimmer 4s linear infinite;
-        }
-
-        .ix-calc-heading {
-          margin-bottom: 18px;
-          text-align: center;
-        }
-
-        .ix-calc-heading h2 {
-          margin: 0;
-          color: #124532;
-          font-size: 21px;
-          font-weight: 850;
-          letter-spacing: -.035em;
-        }
-
-        .ix-calc-heading p {
-          margin: 7px 0 0;
-          color: #708579;
-          font-size: 12px;
-          line-height: 1.7;
-        }
-
-        /* Styling for the existing CoverageDial component */
-        .ix-landing .dial-header {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 12px;
-          margin-bottom: 15px;
-        }
-
-        .ix-landing .dial-heading {
-          color: #153f2f;
-          font-size: 16px;
-          font-weight: 800;
-        }
-
-        .ix-landing .dial-eyebrow {
-          color: #07815a;
-          font-size: 10px;
-          font-weight: 800;
-          letter-spacing: .08em;
-          text-transform: uppercase;
-        }
-
-        .ix-landing .dial-shield {
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          width: 36px;
-          height: 36px;
-          flex-shrink: 0;
-          border-radius: 10px;
-          color: #047857;
-          background: #e9f9ef;
-        }
-
-        .ix-landing .dial-label {
-          margin-bottom: 8px;
-          color: #526e61;
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .ix-landing .dial-plan-options {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 7px;
-        }
-
-        .ix-landing .dial-plan-chip {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 10px;
-          width: 100%;
-          min-height: 42px;
-          padding: 10px 12px;
-          border: 1px solid #e0ebe4;
-          border-radius: 9px;
-          color: #355c4b;
-          background: #fff;
-          text-align: left;
-          cursor: pointer;
-          transition: border-color .2s ease, background .2s ease,
-            transform .2s ease;
-        }
-
-        .ix-landing .dial-plan-chip:hover {
-          border-color: #9bdabb;
-          background: #f5fcf7;
-          transform: translateX(2px);
-        }
-
-        .ix-landing .dial-plan-chip.active,
-        .ix-landing .dial-plan-chip[aria-pressed="true"] {
-          border-color: #34b981;
-          color: #075c40;
-          background: #edfbf3;
-        }
-
-        .ix-landing .dial-premium {
-          border-radius: 12px;
-          background: #effbf4;
-        }
-
-        .ix-landing .dial-premium-main {
-          color: #075c40;
-        }
-
-        .ix-landing .dial-price {
-          color: #047857;
-          font-weight: 850;
-        }
-
-        .ix-landing .dial-price-caption {
-          color: #708579;
-          font-size: 11px;
-        }
-
-        .ix-landing .dial-price-tag {
-          border-radius: 7px;
-          color: #047857;
-          background: #d8f7e6;
-        }
-
-        .ix-landing .dial-control {
-          padding: 12px;
-          border: 1px solid #e1eee6;
-          border-radius: 11px;
-          background: #fff;
-        }
-
-        .ix-landing .dial-control-heading {
-          color: #456657;
-          font-size: 12px;
-          font-weight: 750;
-        }
-
-        .ix-landing .dial-control-value {
-          color: #124532;
-          font-size: 15px;
-          font-weight: 800;
-        }
-
-        .ix-landing .dial-range {
-          accent-color: #059669;
-          cursor: pointer;
-        }
-
-        .ix-landing .dial-range-labels {
-          color: #71867c;
-          font-size: 10px;
-        }
-
-        .ix-landing .dial-breakdown {
-          border-color: #e0ebe4;
-        }
-
-        .ix-landing .dial-breakdown-row {
-          color: #526e61;
-          font-size: 12px;
-        }
-
-        .ix-landing .dial-breakdown-total {
-          color: #075c40;
-          font-weight: 850;
-        }
-
-        .ix-landing .dial-disclaimer {
-          color: #7b8e84;
-          font-size: 10px;
-          line-height: 1.6;
-        }
-
-        .ix-plans-section {
-          padding: 60px 0 70px;
+        .ix-plan-section {
+          padding: 55px 0 65px;
           border-top: 1px solid #e5f0e9;
           background: rgba(245,252,247,.85);
         }
 
         .ix-section-heading {
           max-width: 650px;
-          margin: 0 auto 28px;
+          margin: 0 auto 30px;
           text-align: center;
         }
 
@@ -515,50 +302,50 @@ export default function Landing() {
         .ix-section-heading h2 {
           margin: 0;
           color: #103d2d;
-          font-size: clamp(26px, 3.5vw, 35px);
+          font-size: clamp(27px, 3.5vw, 36px);
           font-weight: 850;
-          letter-spacing: -.04em;
+          letter-spacing: -.045em;
         }
 
         .ix-section-heading p {
-          margin: 10px 0 0;
+          margin: 11px 0 0;
           color: #667d71;
           font-size: 13px;
-          line-height: 1.75;
+          line-height: 1.8;
         }
 
         .ix-plan-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 16px;
+          gap: 17px;
         }
 
         .ix-plan-card {
           display: flex;
           flex-direction: column;
           min-width: 0;
-          padding: 20px;
+          padding: 21px;
           border: 1px solid #dfebe3;
           border-radius: 15px;
-          background: white;
+          background: #fff;
           box-shadow: 0 4px 15px rgba(20,74,48,.025);
-          animation: ix-rise .55s ease both;
+          animation: ix-enter .55s ease both;
           transition: transform .22s ease, border-color .22s ease,
             box-shadow .22s ease;
         }
 
         .ix-plan-card:hover {
-          transform: translateY(-4px);
+          transform: translateY(-5px);
           border-color: #a9dec0;
-          box-shadow: 0 13px 28px rgba(20,74,48,.07);
+          box-shadow: 0 14px 30px rgba(20,74,48,.075);
         }
 
         .ix-plan-meta {
           display: flex;
           align-items: flex-start;
           justify-content: space-between;
-          gap: 8px;
-          margin-bottom: 14px;
+          gap: 9px;
+          margin-bottom: 15px;
         }
 
         .ix-plan-type {
@@ -592,10 +379,10 @@ export default function Landing() {
 
         .ix-plan-description {
           flex: 1;
-          margin: 9px 0 16px;
+          margin: 9px 0 17px;
           color: #6b8075;
           font-size: 12px;
-          line-height: 1.7;
+          line-height: 1.75;
         }
 
         .ix-plan-coverage {
@@ -608,7 +395,7 @@ export default function Landing() {
           border-bottom: 1px solid #edf3ef;
         }
 
-        .ix-plan-coverage span:first-child {
+        .ix-plan-coverage span {
           color: #74887d;
           font-size: 11px;
         }
@@ -672,7 +459,7 @@ export default function Landing() {
           padding: 22px;
           border: 1px solid #ccebd8;
           border-radius: 15px;
-          background: linear-gradient(120deg, #effcf4, white);
+          background: linear-gradient(120deg, #effcf4, #fff);
         }
 
         .ix-bottom-cta h3 {
@@ -686,7 +473,7 @@ export default function Landing() {
           margin: 6px 0 0;
           color: #6a8175;
           font-size: 12px;
-          line-height: 1.65;
+          line-height: 1.7;
         }
 
         .ix-footer {
@@ -704,26 +491,173 @@ export default function Landing() {
           gap: 12px;
         }
 
-        @keyframes ix-rise {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
+        /* Calculator modal */
+        .ix-modal-backdrop {
+          position: fixed;
+          z-index: 1000;
+          inset: 0;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 20px;
+          overflow-y: auto;
+          background: rgba(6, 32, 22, .62);
+          backdrop-filter: blur(6px);
+          animation: ix-backdrop-in .2s ease both;
         }
 
-        @keyframes ix-card-in {
-          from {
-            opacity: 0;
-            transform: translateY(10px) scale(.99);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0) scale(1);
-          }
+        .ix-modal {
+          position: relative;
+          width: 100%;
+          max-width: 650px;
+          max-height: calc(100vh - 40px);
+          overflow-y: auto;
+          border: 1px solid #d4e9dc;
+          border-radius: 18px;
+          background: #fff;
+          box-shadow: 0 25px 80px rgba(0,0,0,.22);
+          animation: ix-modal-in .25s ease both;
+        }
+
+        .ix-modal-top {
+          position: sticky;
+          z-index: 2;
+          top: 0;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          gap: 14px;
+          padding: 18px 21px;
+          border-bottom: 1px solid #e5f0e9;
+          background: rgba(255,255,255,.97);
+          backdrop-filter: blur(8px);
+        }
+
+        .ix-modal-title {
+          display: flex;
+          align-items: center;
+          gap: 11px;
+        }
+
+        .ix-modal-icon {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 38px;
+          height: 38px;
+          flex-shrink: 0;
+          border-radius: 11px;
+          color: #047857;
+          background: #e8f9ef;
+        }
+
+        .ix-modal-title h2 {
+          margin: 0;
+          color: #124532;
+          font-size: 17px;
+          font-weight: 850;
+        }
+
+        .ix-modal-title p {
+          margin: 4px 0 0;
+          color: #708579;
+          font-size: 11px;
+        }
+
+        .ix-modal-close {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 35px;
+          height: 35px;
+          flex-shrink: 0;
+          border: 1px solid #e0ebe4;
+          border-radius: 9px;
+          color: #426453;
+          background: #fff;
+          cursor: pointer;
+          transition: color .2s ease, background .2s ease,
+            transform .2s ease;
+        }
+
+        .ix-modal-close:hover {
+          color: #b42318;
+          background: #fff1f0;
+          transform: rotate(4deg);
+        }
+
+        .ix-modal-body {
+          padding: 20px;
+        }
+
+        .ix-modal-body .dial-plan-options {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 7px;
+        }
+
+        .ix-modal-body .dial-plan-chip {
+          width: 100%;
+          min-height: 41px;
+          border-radius: 9px;
+          transition: background .2s ease, border-color .2s ease,
+            transform .2s ease;
+        }
+
+        .ix-modal-body .dial-plan-chip:hover {
+          transform: translateX(2px);
+        }
+
+        .ix-modal-body .dial-plan-chip.active,
+        .ix-modal-body .dial-plan-chip[aria-pressed="true"] {
+          border-color: #34b981;
+          color: #075c40;
+          background: #edfbf3;
+        }
+
+        .ix-modal-body .dial-premium {
+          border-radius: 12px;
+          background: #effbf4;
+        }
+
+        .ix-modal-body .dial-price {
+          color: #047857;
+          font-weight: 850;
+        }
+
+        .ix-modal-body .dial-control {
+          border-radius: 11px;
+        }
+
+        .ix-modal-body .dial-range {
+          accent-color: #059669;
+        }
+
+        .ix-modal-body .dial-disclaimer {
+          color: #7b8e84;
+          font-size: 10px;
+          line-height: 1.6;
+        }
+
+        .ix-landing button:focus-visible,
+        .ix-landing a:focus-visible {
+          outline: 3px solid #a7f3d0;
+          outline-offset: 3px;
+        }
+
+        @keyframes ix-enter {
+          from { opacity: 0; transform: translateY(12px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes ix-backdrop-in {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        @keyframes ix-modal-in {
+          from { opacity: 0; transform: translateY(15px) scale(.985); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
         }
 
         @keyframes ix-shimmer {
@@ -757,7 +691,7 @@ export default function Landing() {
           }
 
           .ix-hero {
-            padding-top: 40px;
+            padding: 48px 0 42px;
           }
 
           .ix-hero h1 {
@@ -769,29 +703,16 @@ export default function Landing() {
           }
 
           .ix-trust {
-            gap: 11px;
+            gap: 12px;
             font-size: 10px;
-          }
-
-          .ix-calculator-section {
-            padding: 12px 0 45px;
-          }
-
-          .ix-dial-animated {
-            padding: 17px 12px;
-            border-radius: 15px;
-          }
-
-          .ix-calc-heading h2 {
-            font-size: 19px;
           }
 
           .ix-plan-grid {
             grid-template-columns: minmax(0, 1fr);
           }
 
-          .ix-plans-section {
-            padding: 45px 0;
+          .ix-plan-section {
+            padding: 42px 0;
           }
 
           .ix-bottom-cta {
@@ -802,6 +723,28 @@ export default function Landing() {
 
           .ix-bottom-cta .ix-open-calculator {
             width: 100%;
+          }
+
+          .ix-modal-backdrop {
+            align-items: center;
+            padding: 10px;
+          }
+
+          .ix-modal {
+            max-height: calc(100dvh - 20px);
+            border-radius: 14px;
+          }
+
+          .ix-modal-top {
+            padding: 14px;
+          }
+
+          .ix-modal-body {
+            padding: 14px;
+          }
+
+          .ix-modal-title h2 {
+            font-size: 15px;
           }
 
           .ix-footer-inner {
@@ -863,7 +806,7 @@ export default function Landing() {
         </h1>
 
         <p className="ix-hero-copy">
-          Compare insurance plans, adjust your coverage, and estimate
+          Compare insurance plans, customise your coverage, and estimate
           your premium in one place. Explore your options before making
           your decision.
         </p>
@@ -872,7 +815,7 @@ export default function Landing() {
           <button
             type="button"
             className="ix-open-calculator"
-            onClick={openCalculator}
+            onClick={() => openCalculator()}
           >
             <Calculator size={15} />
             Open Insurance Calculator
@@ -899,36 +842,14 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="ix-wrap ix-calculator-section">
-        <div className="ix-dial-animated" ref={calculatorRef}>
-          <div className="ix-calc-heading">
-            <h2>Insurance Premium Calculator</h2>
-            <p>
-              Select your plan and customise your coverage and policy duration.
-            </p>
-          </div>
-
-          {selectedPlan && (
-            <CoverageDial
-              value={val}
-              onChange={setVal}
-              planKey={selectedPlan.key}
-              onPlanChange={setPlan}
-              showPlans
-              lockedPlan={false}
-            />
-          )}
-        </div>
-      </section>
-
-      <section className="ix-plans-section" id="insurance-plans">
+      <section className="ix-plan-section" id="insurance-plans">
         <div className="ix-wrap">
           <div className="ix-section-heading">
             <div className="ix-section-kicker">Find your protection</div>
             <h2>Explore insurance plans</h2>
             <p>
-              Compare available plans by their listed coverage and yearly
-              premium, then select one to open the calculator.
+              Browse available plans and select one to open the calculator
+              with that plan selected.
             </p>
           </div>
 
@@ -937,9 +858,7 @@ export default function Landing() {
               <article
                 className="ix-plan-card"
                 key={item.key}
-                style={{
-                  animationDelay: `${Math.min(index, 5) * 60}ms`,
-                }}
+                style={{ animationDelay: `${Math.min(index, 5) * 60}ms` }}
               >
                 <div className="ix-plan-meta">
                   <span className="ix-plan-type">
@@ -966,7 +885,7 @@ export default function Landing() {
                 <button
                   type="button"
                   className="ix-plan-button"
-                  onClick={() => selectPlan(item.key)}
+                  onClick={() => openCalculator(item.key)}
                 >
                   Calculate this plan
                   <ArrowRight size={14} />
@@ -979,14 +898,15 @@ export default function Landing() {
             <div>
               <h3>Ready to estimate your premium?</h3>
               <p>
-                Adjust your coverage and policy duration in the calculator.
+                Open the calculator and customise your coverage and policy
+                duration.
               </p>
             </div>
 
             <button
               type="button"
               className="ix-open-calculator"
-              onClick={openCalculator}
+              onClick={() => openCalculator()}
             >
               <Calculator size={15} />
               Open calculator
@@ -1011,6 +931,60 @@ export default function Landing() {
           </button>
         </div>
       </footer>
+
+      {calculatorOpen && (
+        <div
+          className="ix-modal-backdrop"
+          onMouseDown={(event) => {
+            if (event.target === event.currentTarget) {
+              setCalculatorOpen(false)
+            }
+          }}
+        >
+          <section
+            className="ix-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="ix-calculator-title"
+          >
+            <header className="ix-modal-top">
+              <div className="ix-modal-title">
+                <span className="ix-modal-icon">
+                  <Calculator size={19} />
+                </span>
+                <div>
+                  <h2 id="ix-calculator-title">
+                    Insurance Calculator
+                  </h2>
+                  <p>Customise your plan and estimate your premium</p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="ix-modal-close"
+                aria-label="Close insurance calculator"
+                onClick={() => setCalculatorOpen(false)}
+              >
+                <X size={19} />
+              </button>
+            </header>
+
+            <div className="ix-modal-body">
+              {selectedPlan && (
+                <CoverageDial
+                  value={val}
+                  onChange={setVal}
+                  planKey={selectedPlan.key}
+                  onPlanChange={setPlan}
+                  showPlans
+                  lockedPlan={false}
+                />
+              )}
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   )
 }
