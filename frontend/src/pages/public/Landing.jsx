@@ -1,4 +1,3 @@
-
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../auth/AuthContext'
@@ -150,6 +149,8 @@ export default function Landing() {
           margin-inline: auto;
         }
 
+        /* NAVIGATION */
+
         .ix-nav {
           position: relative;
           z-index: 5;
@@ -177,22 +178,33 @@ export default function Landing() {
           letter-spacing: -0.9px;
         }
 
-        .ix-brand-mark {
+        .ix-brand-logo-wrap {
           display: grid;
-          width: 39px;
-          height: 39px;
+          width: 42px;
+          height: 42px;
           flex-shrink: 0;
           place-items: center;
-          border-radius: 12px;
-          color: #ffffff;
-          background: linear-gradient(145deg, #0ba875, #066747);
-          box-shadow: 0 5px 14px rgba(8, 127, 91, 0.18);
-          font-size: 21px;
+          overflow: hidden;
+          border-radius: 11px;
+          background: #ffffff;
         }
 
-        .ix-brand span small {
+        .ix-brand-logo {
           display: block;
-          margin-top: 1px;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          object-position: center;
+        }
+
+        .ix-brand-text {
+          display: block;
+          line-height: 1.15;
+        }
+
+        .ix-brand-text small {
+          display: block;
+          margin-top: 4px;
           color: #7b9085;
           font-size: 9px;
           font-weight: 650;
@@ -856,6 +868,7 @@ export default function Landing() {
             opacity: 0;
             transform: translateY(13px);
           }
+
           to {
             opacity: 1;
             transform: translateY(0);
@@ -867,6 +880,7 @@ export default function Landing() {
             opacity: 0;
             transform: translateX(12px);
           }
+
           to {
             opacity: 1;
             transform: translateX(0);
@@ -877,6 +891,7 @@ export default function Landing() {
           0%, 100% {
             box-shadow: 0 0 0 4px #d9f4e4;
           }
+
           50% {
             box-shadow: 0 0 0 7px rgba(217, 244, 228, 0.55);
           }
@@ -1002,12 +1017,12 @@ export default function Landing() {
             font-size: 20px;
           }
 
-          .ix-brand-mark {
+          .ix-brand-logo-wrap {
             width: 35px;
             height: 35px;
           }
 
-          .ix-brand span small {
+          .ix-brand-text small {
             font-size: 8px;
             letter-spacing: 1.7px;
           }
@@ -1147,11 +1162,18 @@ export default function Landing() {
       <header className="ix-nav">
         <div className="ix-container ix-nav-inner">
           <Link className="ix-brand" to="/" aria-label="InsureX home">
-            <span className="ix-brand-mark" aria-hidden="true">
-              ◈
+            <span className="ix-brand-logo-wrap" aria-hidden="true">
+              <img
+                className="ix-brand-logo"
+                src="/logo.png"
+                alt=""
+                onError={(event) => {
+                  event.currentTarget.style.display = 'none'
+                }}
+              />
             </span>
 
-            <span>
+            <span className="ix-brand-text">
               InsureX
               <small>INSURANCE PLATFORM</small>
             </span>
