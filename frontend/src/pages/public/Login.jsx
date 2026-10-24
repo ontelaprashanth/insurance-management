@@ -49,7 +49,8 @@ function safeDestination(from, role) {
     return fallback
   }
 
-  const allowedPrefix = role === 'ADMIN' ? '/admin' : '/app'
+  const allowedPrefix =
+    role === 'ADMIN' ? '/admin' : '/app'
 
   if (
     from === allowedPrefix ||
@@ -87,25 +88,35 @@ export default function Login() {
 
   function updateIdentifier(event) {
     setIdentifier(event.target.value)
-    if (error) setError('')
+
+    if (error) {
+      setError('')
+    }
   }
 
   function updatePassword(event) {
     setPassword(event.target.value)
-    if (error) setError('')
+
+    if (error) {
+      setError('')
+    }
   }
 
   async function submit(event) {
     event.preventDefault()
 
-    if (submissionLock.current || loading) return
+    if (submissionLock.current || loading) {
+      return
+    }
 
     setError('')
 
     const cleanIdentifier = identifier.trim()
 
     if (!cleanIdentifier) {
-      setError('Enter your username, email or mobile number.')
+      setError(
+        'Enter your username, email or mobile number.',
+      )
       return
     }
 
@@ -118,7 +129,11 @@ export default function Login() {
     setLoading(true)
 
     try {
-      const session = await login(cleanIdentifier, password)
+      const session = await login(
+        cleanIdentifier,
+        password,
+      )
+
       const role = normalizeRole(session?.role)
 
       if (role !== 'ADMIN' && role !== 'USER') {
@@ -132,7 +147,9 @@ export default function Login() {
         role,
       )
 
-      navigate(destination, { replace: true })
+      navigate(destination, {
+        replace: true,
+      })
     } catch (err) {
       if (mountedRef.current) {
         setError(
@@ -235,7 +252,8 @@ export default function Login() {
           font-size: 12px;
           line-height: 1.65;
           overflow-wrap: anywhere;
-          animation: ix-login-error-in 350ms ease both,
+          animation:
+            ix-login-error-in 350ms ease both,
             ix-login-shake 380ms ease 120ms both;
         }
 
@@ -356,23 +374,12 @@ export default function Login() {
           font-size: 13px;
         }
 
-        .ix-login-spinner {
-          display: inline-block;
-          width: 14px;
-          height: 14px;
-          margin-right: 7px;
-          vertical-align: -2px;
-          border: 2px solid rgba(255, 255, 255, .4);
-          border-top-color: #ffffff;
-          border-radius: 50%;
-          animation: ix-login-spin 700ms linear infinite;
-        }
-
         @keyframes ix-login-enter {
           from {
             opacity: 0;
             transform: translateY(14px);
           }
+
           to {
             opacity: 1;
             transform: translateY(0);
@@ -384,6 +391,7 @@ export default function Login() {
             opacity: 0;
             transform: translateY(9px);
           }
+
           to {
             opacity: 1;
             transform: translateY(0);
@@ -395,6 +403,7 @@ export default function Login() {
             opacity: 0;
             transform: translateY(-5px);
           }
+
           to {
             opacity: 1;
             transform: translateY(0);
@@ -406,10 +415,6 @@ export default function Login() {
           25% { translate: -3px 0; }
           50% { translate: 3px 0; }
           75% { translate: -2px 0; }
-        }
-
-        @keyframes ix-login-spin {
-          to { transform: rotate(360deg); }
         }
 
         @media (max-width: 680px) {
@@ -445,7 +450,9 @@ export default function Login() {
       `}</style>
 
       <section className="ix-login">
-        <h1 className="ix-login-heading">Sign in</h1>
+        <h1 className="ix-login-heading">
+          Sign in
+        </h1>
 
         <p className="ix-login-subtitle">
           Use your username, email or mobile number to access your account.
@@ -462,9 +469,13 @@ export default function Login() {
               role="alert"
               aria-live="polite"
             >
-              <span className="ix-login-error-icon" aria-hidden="true">
+              <span
+                className="ix-login-error-icon"
+                aria-hidden="true"
+              >
                 !
               </span>
+
               <span>{error}</span>
             </div>
           )}
@@ -496,7 +507,9 @@ export default function Login() {
               to="/forgot-password"
               aria-disabled={loading}
               onClick={(event) => {
-                if (loading) event.preventDefault()
+                if (loading) {
+                  event.preventDefault()
+                }
               }}
             >
               Forgot password?
@@ -512,14 +525,7 @@ export default function Login() {
               type="submit"
               disabled={loading}
             >
-              {loading ? (
-                <>
-                  <span className="ix-login-spinner" aria-hidden="true" />
-                  Signing in…
-                </>
-              ) : (
-                'Sign in'
-              )}
+              {loading ? 'Signing in…' : 'Sign in'}
             </Button>
           </div>
 
@@ -528,7 +534,9 @@ export default function Login() {
             <Link
               to="/register"
               onClick={(event) => {
-                if (loading) event.preventDefault()
+                if (loading) {
+                  event.preventDefault()
+                }
               }}
             >
               Create an account
