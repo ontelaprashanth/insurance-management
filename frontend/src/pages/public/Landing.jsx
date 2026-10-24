@@ -1,6 +1,7 @@
 
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
+import { Logo } from '../../components/ui'
 import { useAuth } from '../../auth/AuthContext'
 import { PLANS } from '../../lib/premium'
 import { inr } from '../../lib/format'
@@ -148,6 +149,8 @@ export default function Landing() {
           margin-inline: auto;
         }
 
+        /* SHARED INSUREX BRANDING */
+
         .ix-nav {
           position: relative;
           z-index: 5;
@@ -173,21 +176,33 @@ export default function Landing() {
           font-size: 22px;
           font-weight: 850;
           letter-spacing: -0.9px;
+          transition: transform 180ms ease;
         }
 
-        .ix-brand-mark {
-          display: grid;
+        .ix-brand:hover {
+          transform: translateY(-1px);
+        }
+
+        .ix-brand .logo {
+          display: block;
           width: 39px;
           height: 39px;
-          place-items: center;
+          flex-shrink: 0;
           border-radius: 12px;
-          color: #ffffff;
-          background: linear-gradient(145deg, #0ba875, #066747);
           box-shadow: 0 5px 14px rgba(8, 127, 91, 0.18);
-          font-size: 21px;
+          transition: box-shadow 180ms ease;
         }
 
-        .ix-brand span small {
+        .ix-brand:hover .logo {
+          box-shadow: 0 7px 18px rgba(8, 127, 91, 0.24);
+        }
+
+        .ix-brand-name {
+          display: block;
+          white-space: nowrap;
+        }
+
+        .ix-brand-name small {
           display: block;
           margin-top: 1px;
           color: #7b9085;
@@ -221,6 +236,8 @@ export default function Landing() {
           gap: 10px;
         }
 
+        /* BUTTONS */
+
         .ix-btn {
           display: inline-flex;
           min-height: 44px;
@@ -244,6 +261,10 @@ export default function Landing() {
 
         .ix-btn:hover {
           transform: translateY(-2px);
+        }
+
+        .ix-btn:active {
+          transform: translateY(0) scale(0.99);
         }
 
         .ix-btn-primary {
@@ -276,6 +297,8 @@ export default function Landing() {
         .ix-btn-light:hover {
           background: #eaf7ef;
         }
+
+        /* HERO */
 
         .ix-hero {
           display: grid;
@@ -310,6 +333,7 @@ export default function Landing() {
           border-radius: 50%;
           background: #13a56f;
           box-shadow: 0 0 0 4px #d9f4e4;
+          animation: ix-dot-pulse 2.4s ease-in-out infinite;
         }
 
         .ix-hero h1 {
@@ -392,7 +416,7 @@ export default function Landing() {
           height: 100%;
           object-fit: cover;
           object-position: center;
-          transition: transform 700ms ease;
+          transition: transform 700ms ease, opacity 300ms ease;
         }
 
         .ix-hero-image-wrap:hover .ix-hero-image {
@@ -445,6 +469,8 @@ export default function Landing() {
           line-height: 1.7;
         }
 
+        /* SECTION HEADINGS */
+
         .ix-section {
           padding-block: 78px;
         }
@@ -481,6 +507,8 @@ export default function Landing() {
           font-size: 14px;
           line-height: 1.85;
         }
+
+        /* PROTECTION STORY CARDS */
 
         .ix-story-grid {
           display: grid;
@@ -594,6 +622,8 @@ export default function Landing() {
           transform: translateX(4px);
         }
 
+        /* FEATURES */
+
         .ix-feature-grid {
           display: grid;
           grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -642,6 +672,8 @@ export default function Landing() {
           line-height: 1.85;
         }
 
+        /* AVAILABLE PLANS */
+
         .ix-plans-section {
           padding-block: 76px;
           background: #f7fbf8;
@@ -685,6 +717,7 @@ export default function Landing() {
           font-size: 27px;
           font-weight: 850;
           letter-spacing: -0.8px;
+          overflow-wrap: anywhere;
         }
 
         .ix-plan-price small {
@@ -705,6 +738,8 @@ export default function Landing() {
         .ix-plan-card .ix-btn {
           width: 100%;
         }
+
+        /* CALL TO ACTION */
 
         .ix-cta {
           position: relative;
@@ -780,6 +815,8 @@ export default function Landing() {
           background: rgba(255, 255, 255, 0.1);
         }
 
+        /* FOOTER */
+
         .ix-footer {
           padding-block: 31px;
           border-top: 1px solid #eaf1ec;
@@ -810,11 +847,14 @@ export default function Landing() {
           color: #5d7368;
           font-size: 11px;
           font-weight: 650;
+          transition: color 180ms ease;
         }
 
         .ix-footer-links a:hover {
           color: var(--ix-green);
         }
+
+        /* ANIMATIONS */
 
         @keyframes ix-enter {
           from {
@@ -837,6 +877,17 @@ export default function Landing() {
             transform: translateX(0);
           }
         }
+
+        @keyframes ix-dot-pulse {
+          0%, 100% {
+            box-shadow: 0 0 0 4px #d9f4e4;
+          }
+          50% {
+            box-shadow: 0 0 0 7px rgba(217, 244, 228, 0.55);
+          }
+        }
+
+        /* TABLET */
 
         @media (max-width: 1000px) {
           .ix-nav-links {
@@ -862,6 +913,8 @@ export default function Landing() {
             padding: 20px 17px;
           }
         }
+
+        /* SMALLER SCREENS */
 
         @media (max-width: 800px) {
           .ix-nav-inner {
@@ -940,6 +993,8 @@ export default function Landing() {
           }
         }
 
+        /* MOBILE */
+
         @media (max-width: 520px) {
           .ix-container {
             width: calc(100% - 32px);
@@ -954,9 +1009,14 @@ export default function Landing() {
             font-size: 20px;
           }
 
-          .ix-brand-mark {
+          .ix-brand .logo {
             width: 35px;
             height: 35px;
+          }
+
+          .ix-brand-name small {
+            font-size: 8px;
+            letter-spacing: 1.7px;
           }
 
           .ix-nav-actions {
@@ -1076,37 +1136,50 @@ export default function Landing() {
           }
         }
 
+        /* ACCESSIBILITY */
+
         @media (prefers-reduced-motion: reduce) {
           .ix-landing *,
           .ix-landing *::before,
           .ix-landing *::after {
             scroll-behavior: auto !important;
             animation-duration: 0.01ms !important;
+            animation-delay: 0ms !important;
             animation-iteration-count: 1 !important;
             transition-duration: 0.01ms !important;
           }
         }
       `}</style>
 
+      {/* NAVIGATION */}
+
       <header className="ix-nav">
         <div className="ix-container ix-nav-inner">
-          <Link className="ix-brand" to="/" aria-label="InsureX home">
-            <span className="ix-brand-mark" aria-hidden="true">
-              ◈
-            </span>
-            <span>
+          <Link
+            className="ix-brand"
+            to="/"
+            aria-label="InsureX home"
+          >
+            <Logo size={39} />
+
+            <span className="ix-brand-name">
               InsureX
               <small>INSURANCE PLATFORM</small>
             </span>
           </Link>
 
-          <nav className="ix-nav-links" aria-label="Main navigation">
+          <nav
+            className="ix-nav-links"
+            aria-label="Main navigation"
+          >
             <a className="ix-nav-link" href="#protection">
               Protection
             </a>
+
             <a className="ix-nav-link" href="#benefits">
               Benefits
             </a>
+
             <a className="ix-nav-link" href="#plans">
               Plans
             </a>
@@ -1114,15 +1187,25 @@ export default function Landing() {
 
           <div className="ix-nav-actions">
             {user ? (
-              <Link className="ix-btn ix-btn-primary" to={dashboardPath}>
+              <Link
+                className="ix-btn ix-btn-primary"
+                to={dashboardPath}
+              >
                 Dashboard <span aria-hidden="true">→</span>
               </Link>
             ) : (
               <>
-                <Link className="ix-btn ix-btn-outline" to="/login">
+                <Link
+                  className="ix-btn ix-btn-outline"
+                  to="/login"
+                >
                   Sign in
                 </Link>
-                <Link className="ix-btn ix-btn-primary" to="/register">
+
+                <Link
+                  className="ix-btn ix-btn-primary"
+                  to="/register"
+                >
                   Get started
                 </Link>
               </>
@@ -1130,6 +1213,8 @@ export default function Landing() {
           </div>
         </div>
       </header>
+
+      {/* HERO */}
 
       <section className="ix-container ix-hero">
         <div className="ix-hero-copy">
@@ -1151,10 +1236,17 @@ export default function Landing() {
           </p>
 
           <div className="ix-hero-actions">
-            <Link className="ix-btn ix-btn-primary" to="/app/plans">
+            <Link
+              className="ix-btn ix-btn-primary"
+              to="/app/plans"
+            >
               Explore insurance <span aria-hidden="true">→</span>
             </Link>
-            <Link className="ix-btn ix-btn-outline" to="/login">
+
+            <Link
+              className="ix-btn ix-btn-outline"
+              to="/login"
+            >
               Access your account
             </Link>
           </div>
@@ -1164,6 +1256,7 @@ export default function Landing() {
               <span className="ix-trust-check">✓</span>
               Easy policy access
             </span>
+
             <span className="ix-trust-item">
               <span className="ix-trust-check">✓</span>
               Convenient management
@@ -1186,8 +1279,12 @@ export default function Landing() {
             <div className="ix-hero-image-overlay" />
 
             <div className="ix-hero-caption">
-              <span className="ix-caption-label">PROTECTION FOR LIFE</span>
+              <span className="ix-caption-label">
+                PROTECTION FOR LIFE
+              </span>
+
               <h2>For today. For tomorrow.</h2>
+
               <p>
                 Explore options that support the people and things that matter
                 most to you.
@@ -1197,11 +1294,20 @@ export default function Landing() {
         </div>
       </section>
 
-      <section className="ix-section ix-section-soft" id="protection">
+      {/* PROTECTION CATEGORIES */}
+
+      <section
+        className="ix-section ix-section-soft"
+        id="protection"
+      >
         <div className="ix-container">
           <div className="ix-section-heading">
-            <span className="ix-eyebrow">EXPLORE YOUR OPTIONS</span>
+            <span className="ix-eyebrow">
+              EXPLORE YOUR OPTIONS
+            </span>
+
             <h2>Protection for life's priorities</h2>
+
             <p>
               Discover insurance categories that can help you prepare for
               life's different needs.
@@ -1220,11 +1326,17 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* BENEFITS */}
+
       <section className="ix-section" id="benefits">
         <div className="ix-container">
           <div className="ix-section-heading">
-            <span className="ix-eyebrow">THE INSUREX EXPERIENCE</span>
+            <span className="ix-eyebrow">
+              THE INSUREX EXPERIENCE
+            </span>
+
             <h2>Insurance management, made convenient</h2>
+
             <p>
               A straightforward platform to help you navigate your insurance
               journey with greater clarity.
@@ -1233,10 +1345,17 @@ export default function Landing() {
 
           <div className="ix-feature-grid">
             {FEATURES.map((feature) => (
-              <article className="ix-feature-card" key={feature.title}>
-                <div className="ix-feature-icon" aria-hidden="true">
+              <article
+                className="ix-feature-card"
+                key={feature.title}
+              >
+                <div
+                  className="ix-feature-icon"
+                  aria-hidden="true"
+                >
                   {feature.icon}
                 </div>
+
                 <h3>{feature.title}</h3>
                 <p>{feature.description}</p>
               </article>
@@ -1245,12 +1364,18 @@ export default function Landing() {
         </div>
       </section>
 
+      {/* AVAILABLE PLANS */}
+
       {Array.isArray(PLANS) && PLANS.length > 0 && (
         <section className="ix-plans-section" id="plans">
           <div className="ix-container">
             <div className="ix-section-heading">
-              <span className="ix-eyebrow">FIND YOUR COVER</span>
+              <span className="ix-eyebrow">
+                FIND YOUR COVER
+              </span>
+
               <h2>Explore available insurance plans</h2>
+
               <p>
                 Review the options available on InsureX and choose a plan to
                 learn more.
@@ -1260,7 +1385,10 @@ export default function Landing() {
             <div className="ix-plan-grid">
               {PLANS.slice(0, 3).map((plan, index) => {
                 const planName =
-                  plan.name || plan.policyName || plan.planName || 'Insurance plan'
+                  plan.name ||
+                  plan.policyName ||
+                  plan.planName ||
+                  'Insurance plan'
 
                 const planDescription =
                   plan.description ||
@@ -1282,7 +1410,10 @@ export default function Landing() {
                     : null
 
                 return (
-                  <article className="ix-plan-card" key={plan.id || planName || index}>
+                  <article
+                    className="ix-plan-card"
+                    key={plan.id || planName || index}
+                  >
                     <h3>{planName}</h3>
 
                     {price ? (
@@ -1296,9 +1427,14 @@ export default function Landing() {
                       </p>
                     )}
 
-                    <p className="ix-plan-description">{planDescription}</p>
+                    <p className="ix-plan-description">
+                      {planDescription}
+                    </p>
 
-                    <Link className="ix-btn ix-btn-outline" to="/app/plans">
+                    <Link
+                      className="ix-btn ix-btn-outline"
+                      to="/app/plans"
+                    >
                       View plan <span aria-hidden="true">→</span>
                     </Link>
                   </article>
@@ -1309,10 +1445,15 @@ export default function Landing() {
         </section>
       )}
 
+      {/* CALL TO ACTION */}
+
       <section className="ix-cta">
         <div className="ix-container ix-cta-inner">
           <div>
-            <h2>Take the next step towards feeling prepared.</h2>
+            <h2>
+              Take the next step towards feeling prepared.
+            </h2>
+
             <p>
               Explore insurance plans, access your account, and manage your
               insurance journey with InsureX.
@@ -1320,17 +1461,26 @@ export default function Landing() {
           </div>
 
           <div className="ix-cta-actions">
-            <Link className="ix-btn ix-btn-light" to="/app/plans">
+            <Link
+              className="ix-btn ix-btn-light"
+              to="/app/plans"
+            >
               Explore plans <span aria-hidden="true">→</span>
             </Link>
+
             {!user && (
-              <Link className="ix-btn ix-btn-outline" to="/register">
+              <Link
+                className="ix-btn ix-btn-outline"
+                to="/register"
+              >
                 Create account
               </Link>
             )}
           </div>
         </div>
       </section>
+
+      {/* FOOTER */}
 
       <footer className="ix-footer">
         <div className="ix-container ix-footer-inner">
@@ -1340,7 +1490,10 @@ export default function Landing() {
             Your insurance journey, in one place.
           </p>
 
-          <nav className="ix-footer-links" aria-label="Footer navigation">
+          <nav
+            className="ix-footer-links"
+            aria-label="Footer navigation"
+          >
             <Link to="/">Home</Link>
             <Link to="/app/plans">Insurance plans</Link>
             <Link to="/login">Sign in</Link>
