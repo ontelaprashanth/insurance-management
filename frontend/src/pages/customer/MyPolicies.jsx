@@ -20,7 +20,7 @@
 
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 
 import {
   AlertCircle,
@@ -1326,6 +1326,56 @@ export default function MyPolicies() {
     return [...uniquePolicies.values()]
   }, [policiesQuery.data])
 
+  /* =======================================================
+     POLICY DETAILS (motor policies only)
+     The list endpoint does not include vehicle fields, so
+     load GET /policy/get/{number} for each motor policy and
+     merge it in. List fields always win on conflict.
+  ======================================================= */
+
+  const motorPolicyNumbers = useMemo(
+    () =>
+      policyRows
+        .filter((policy) =>
+          /motor|vehicle|\bcar\b|bike|two[- ]?wheeler|four[- ]?wheeler/i.test(
+            String(policy?.coveredTypes ?? ''),
+          ),
+        )
+        .map(policyNumberOf)
+        .filter((number) => number != null),
+    [policyRows],
+  )
+
+  const detailQueries = useQueries({
+    queries: motorPolicyNumbers.map((number) => ({
+      queryKey: ['policy-detail', String(number)],
+      queryFn: () => policies.get(number),
+      staleTime: 60000,
+      retry: 1,
+    })),
+  })
+
+  const detailStamp = detailQueries
+    .map((result) => result.dataUpdatedAt)
+    .join(',')
+
+  const mergedPolicyRows = useMemo(() => {
+    const detailByNumber = new Map()
+
+    motorPolicyNumbers.forEach((number, index) => {
+      const data = detailQueries[index]?.data
+      if (data && typeof data === 'object' && !Array.isArray(data)) {
+        detailByNumber.set(String(number), data)
+      }
+    })
+
+    return policyRows.map((policy) => {
+      const detail = detailByNumber.get(String(policyNumberOf(policy)))
+      return detail ? { ...detail, ...policy } : policy
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [policyRows, motorPolicyNumbers, detailStamp])
+
   const claimRows = useMemo(
     () => normalizeRows(claimsQuery.data),
     [claimsQuery.data],
@@ -1439,7 +1489,7 @@ export default function MyPolicies() {
 
   const enrichedPolicies = useMemo(
     () =>
-      policyRows.map((policy) => {
+      mergedPolicyRows.map((policy) => {
         const number = String(policy.policyNumber)
 
         const relatedClaims = claimsByPolicy.get(number) || []
@@ -1572,7 +1622,7 @@ export default function MyPolicies() {
         }
       }),
     [
-      policyRows,
+      mergedPolicyRows,
       claimsByPolicy,
       purchasesByPolicy,
       renewedSourceNumbers,
