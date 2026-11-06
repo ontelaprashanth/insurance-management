@@ -332,6 +332,9 @@ function getPolicyCategory(policy, purchase) {
   if (
     vehicle.registration ||
     vehicle.model ||
+    vehicle.make ||
+    vehicle.chassis ||
+    vehicle.engine ||
     /\b(motor|vehicle|car|bike|two wheeler|two-wheeler|four wheeler|four-wheeler|automobile|motorcycle)\b/i.test(text)
   ) {
     return 'motor'
@@ -422,6 +425,32 @@ function getPlanDetails(policy, purchase) {
    VEHICLE DETAILS
 ========================================================= */
 
+const VEHICLE_KEY_PATTERN = /vehicle|motor|car|bike|auto|insured/i
+
+// Collects any nested object (up to 4 levels deep) stored under a
+// vehicle-like key, e.g. policy.plan.vehicleInfo or purchase.details.motor
+function collectVehicleSources(root, depth = 0, found = []) {
+  if (!root || typeof root !== 'object' || depth > 4) return found
+
+  for (const [key, value] of Object.entries(root)) {
+    if (!value || typeof value !== 'object') continue
+
+    if (VEHICLE_KEY_PATTERN.test(key)) {
+      if (Array.isArray(value)) {
+        if (value[0] && typeof value[0] === 'object') found.push(value[0])
+      } else {
+        found.push(value)
+      }
+    }
+
+    if (!Array.isArray(value)) {
+      collectVehicleSources(value, depth + 1, found)
+    }
+  }
+
+  return found
+}
+
 function getVehicleDetails(policy, purchase) {
   const sources = [
     policy,
@@ -433,6 +462,8 @@ function getVehicleDetails(policy, purchase) {
     purchase?.vehicle,
     purchase?.vehicleDetails,
     purchase?.insuredVehicle,
+    ...collectVehicleSources(policy),
+    ...collectVehicleSources(purchase),
   ]
 
   const find = (keys) => {
@@ -1018,7 +1049,21 @@ function VehicleDetailsSection({ vehicle }) {
     value !== null && value !== undefined && value !== '',
   )
 
-  if (!entries.length) return null
+  if (!entries.length) {
+    return (
+      <section className="ix-policy-extra-section">
+        <div className="ix-policy-extra-heading">
+          <CarFront size={17} aria-hidden="true" />
+          <strong>Insured vehicle details</strong>
+        </div>
+
+        <p className="ix-policy-extra-empty">
+          Vehicle details were not included in the policy data returned
+          by the server.
+        </p>
+      </section>
+    )
+  }
 
   return (
     <section className="ix-policy-extra-section">
