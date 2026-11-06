@@ -4,8 +4,9 @@
 // =========================================================
 // Features:
 // - Health, Family, Life and Motor plan filters
+// - Duplicate policy prevention
 // - Coverage amount and premium display
-// - Family member details
+// - Properly aligned family member details
 // - Vehicle details
 // - Life beneficiary details
 // - Active, claimed, renewed, inactive and expired policies
@@ -15,7 +16,7 @@
 // - Automatic refresh for unresolved refunds
 // - Search and URL-synchronized filters
 // - Existing API calls and ClaimForm integration preserved
-// - New CSS included internally
+// - Responsive internal CSS
 // =========================================================
 
 import { useMemo, useState } from 'react'
@@ -258,13 +259,6 @@ function getObjectValue(object, keys) {
 
 /* =========================================================
    CATEGORY AND PLAN HELPERS
-
-   Actual plan catalogue:
-   Health: ₹3L, ₹5L, ₹10L
-   Life: ₹10L, ₹25L, ₹50L
-   Motor: ₹1L, ₹5L, ₹10L
-
-   Family is a subtype of Health.
 ========================================================= */
 
 function getFamilyMembers(policy, purchase) {
@@ -386,54 +380,47 @@ function getPlanDetails(policy, purchase) {
     return null
   }
 
-  const coverage = find([
-    'sumInsured',
-    'sumInsuredAmount',
-    'coverageAmount',
-    'insuredAmount',
-    'coverageLimit',
-    'maximumCoverage',
-    'coverAmount',
-    'benefitAmount',
-  ])
-
-  const premium = find([
-    'premiumAmount',
-    'totalPremium',
-    'premium',
-    'amountPaid',
-    'purchaseAmount',
-    'price',
-    'planPrice',
-  ])
-
-  const planName = find([
-    'planName',
-    'name',
-    'policyName',
-    'productName',
-  ])
-
-  const duration = find([
-    'durationYears',
-    'policyTerm',
-    'duration',
-    'termYears',
-    'term',
-  ])
-
   return {
-    coverage,
-    premium,
-    planName,
-    duration,
+    coverage: find([
+      'sumInsured',
+      'sumInsuredAmount',
+      'coverageAmount',
+      'insuredAmount',
+      'coverageLimit',
+      'maximumCoverage',
+      'coverAmount',
+      'benefitAmount',
+    ]),
+
+    premium: find([
+      'premiumAmount',
+      'totalPremium',
+      'premium',
+      'amountPaid',
+      'purchaseAmount',
+      'price',
+      'planPrice',
+    ]),
+
+    planName: find([
+      'planName',
+      'name',
+      'policyName',
+      'productName',
+    ]),
+
+    duration: find([
+      'durationYears',
+      'policyTerm',
+      'duration',
+      'termYears',
+      'term',
+    ]),
   }
 }
 
 /* =========================================================
    VEHICLE DETAILS
-
-   Displays only fields available in the API response.
 ========================================================= */
 
 function getVehicleDetails(policy, purchase) {
@@ -928,13 +915,17 @@ function DetailItem({ label, value }) {
   )
 }
 
+/* =========================================================
+   FAMILY MEMBERS — ALIGNED LAYOUT
+========================================================= */
+
 function FamilyMembersSection({ members }) {
   if (!members?.length) return null
 
   return (
     <section className="ix-policy-extra-section">
       <div className="ix-policy-extra-heading">
-        <Users size={16} />
+        <Users size={17} />
         <strong>Covered family members</strong>
         <span>{members.length}</span>
       </div>
@@ -949,29 +940,43 @@ function FamilyMembersSection({ members }) {
               key={member?.memberId ?? member?.id ?? index}
             >
               <div className="ix-member-name">
-                <UserRound size={17} />
-                <strong>
-                  {details.name || `Member ${index + 1}`}
-                </strong>
+                <div className="ix-member-avatar">
+                  <UserRound size={19} />
+                </div>
+
+                <div className="ix-member-name-content">
+                  <span>Insured member</span>
+                  <strong>
+                    {details.name || `Member ${index + 1}`}
+                  </strong>
+                </div>
               </div>
 
-              <div className="ix-extra-details-grid">
+              <div className="ix-family-member-details">
                 <DetailItem
                   label="Relationship"
                   value={details.relationship}
                 />
-                <DetailItem
-                  label="Age"
-                  value={details.age}
-                />
-                <DetailItem
-                  label="Date of birth"
-                  value={details.dateOfBirth ? date(details.dateOfBirth) : null}
-                />
+
                 <DetailItem
                   label="Gender"
                   value={details.gender}
                 />
+
+                <DetailItem
+                  label="Age"
+                  value={details.age}
+                />
+
+                <DetailItem
+                  label="Date of birth"
+                  value={
+                    details.dateOfBirth
+                      ? date(details.dateOfBirth)
+                      : null
+                  }
+                />
+
                 <DetailItem
                   label="Individual coverage"
                   value={
@@ -981,6 +986,11 @@ function FamilyMembersSection({ members }) {
                   }
                 />
               </div>
+
+              <div className="ix-member-coverage-status">
+                <CheckCircle2 size={15} />
+                <span>Coverage currently active</span>
+              </div>
             </div>
           )
         })}
@@ -988,6 +998,10 @@ function FamilyMembersSection({ members }) {
     </section>
   )
 }
+
+/* =========================================================
+   VEHICLE DETAILS
+========================================================= */
 
 function VehicleDetailsSection({ vehicle }) {
   const entries = [
@@ -1010,7 +1024,7 @@ function VehicleDetailsSection({ vehicle }) {
   return (
     <section className="ix-policy-extra-section">
       <div className="ix-policy-extra-heading">
-        <CarFront size={16} />
+        <CarFront size={17} />
         <strong>Insured vehicle details</strong>
       </div>
 
@@ -1027,13 +1041,17 @@ function VehicleDetailsSection({ vehicle }) {
   )
 }
 
+/* =========================================================
+   BENEFICIARY DETAILS
+========================================================= */
+
 function BeneficiariesSection({ beneficiaries }) {
   if (!beneficiaries?.length) return null
 
   return (
     <section className="ix-policy-extra-section">
       <div className="ix-policy-extra-heading">
-        <UserCheck size={16} />
+        <UserCheck size={17} />
         <strong>Nominee / Beneficiary details</strong>
       </div>
 
@@ -1063,8 +1081,10 @@ function BeneficiariesSection({ beneficiaries }) {
               key={person?.id ?? person?.beneficiaryId ?? index}
             >
               <div className="ix-member-name">
-                <UserCheck size={17} />
-                <strong>{name || `Beneficiary ${index + 1}`}</strong>
+                <UserCheck size={18} />
+                <strong>
+                  {name || `Beneficiary ${index + 1}`}
+                </strong>
               </div>
 
               <div className="ix-extra-details-grid">
@@ -1072,10 +1092,12 @@ function BeneficiariesSection({ beneficiaries }) {
                   label="Relationship"
                   value={relationship}
                 />
+
                 <DetailItem
                   label="Share"
                   value={share != null ? `${share}%` : null}
                 />
+
                 <DetailItem
                   label="Age"
                   value={person?.age}
@@ -1164,11 +1186,13 @@ export default function MyPolicies() {
   const [searchParams, setSearchParams] = useSearchParams()
 
   const requestedFilter = searchParams.get('status') || 'all'
+
   const status = VALID_FILTERS.has(requestedFilter)
     ? requestedFilter
     : 'all'
 
   const requestedCategory = searchParams.get('category') || 'all'
+
   const category = VALID_CATEGORIES.has(requestedCategory)
     ? requestedCategory
     : 'all'
@@ -1224,12 +1248,33 @@ export default function MyPolicies() {
 
   /* =======================================================
      NORMALIZE DATA
+     PREVENT DUPLICATE POLICY NUMBERS
   ======================================================= */
 
-  const policyRows = useMemo(
-    () => normalizeRows(policiesQuery.data),
-    [policiesQuery.data],
-  )
+  const policyRows = useMemo(() => {
+    const rows = normalizeRows(policiesQuery.data)
+    const uniquePolicies = new Map()
+
+    for (const policy of rows) {
+      const number = policyNumberOf(policy)
+
+      if (number == null) {
+        uniquePolicies.set(
+          `unknown-${uniquePolicies.size}`,
+          policy,
+        )
+        continue
+      }
+
+      const key = String(number)
+
+      if (!uniquePolicies.has(key)) {
+        uniquePolicies.set(key, policy)
+      }
+    }
+
+    return [...uniquePolicies.values()]
+  }, [policiesQuery.data])
 
   const claimRows = useMemo(
     () => normalizeRows(claimsQuery.data),
@@ -1782,6 +1827,7 @@ export default function MyPolicies() {
           display: inline-flex;
           align-items: center;
           gap: 6px;
+          min-width: 0;
           padding: 7px 10px;
           border: 1px solid var(--border, rgba(128,128,128,.18));
           border-radius: 8px;
@@ -1798,80 +1844,155 @@ export default function MyPolicies() {
         }
 
         .ix-policy-extra-section {
-          margin-top: 14px;
-          padding: 13px;
+          margin-top: 15px;
+          padding: 14px;
           border: 1px solid var(--border, rgba(128,128,128,.18));
-          border-radius: 10px;
+          border-radius: 11px;
           background: var(--surface-soft, rgba(128,128,128,.035));
         }
 
         .ix-policy-extra-heading {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 11px;
-          font-size: 13px;
+          gap: 9px;
+          margin-bottom: 13px;
           color: var(--text, inherit);
+          font-size: 13px;
         }
 
         .ix-policy-extra-heading > span {
           display: inline-flex;
           align-items: center;
           justify-content: center;
-          min-width: 21px;
-          height: 21px;
+          min-width: 22px;
+          height: 22px;
           padding: 0 6px;
           border-radius: 20px;
           background: var(--border, rgba(128,128,128,.15));
           font-size: 11px;
         }
 
+        /* Standard detail grid */
+
         .ix-extra-details-grid {
           display: grid;
-          grid-template-columns: repeat(3, minmax(0, 1fr));
-          gap: 11px 15px;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 13px 18px;
+          min-width: 0;
         }
 
         .ix-extra-detail {
           display: flex;
           flex-direction: column;
-          gap: 4px;
+          align-items: flex-start;
+          justify-content: flex-start;
+          gap: 5px;
           min-width: 0;
+          text-align: left;
         }
 
         .ix-extra-detail span {
           color: var(--muted, #737373);
           font-size: 11px;
+          line-height: 1.4;
         }
 
         .ix-extra-detail strong {
+          display: block;
+          max-width: 100%;
           color: var(--text, inherit);
-          font-size: 12px;
+          font-size: 13px;
           font-weight: 650;
+          line-height: 1.45;
           overflow-wrap: anywhere;
+          word-break: break-word;
         }
+
+        /* Family member cards */
 
         .ix-family-member-grid {
           display: grid;
           grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 10px;
+          gap: 12px;
+          align-items: stretch;
         }
 
         .ix-family-member-card {
+          display: flex;
+          flex-direction: column;
           min-width: 0;
-          padding: 11px;
+          padding: 14px;
           border: 1px solid var(--border, rgba(128,128,128,.16));
-          border-radius: 9px;
+          border-radius: 10px;
           background: var(--surface, transparent);
         }
 
         .ix-member-name {
           display: flex;
           align-items: center;
-          gap: 8px;
-          margin-bottom: 10px;
-          font-size: 13px;
+          gap: 10px;
+          min-width: 0;
+          margin-bottom: 15px;
+          padding-bottom: 12px;
+          border-bottom: 1px solid var(--border, rgba(128,128,128,.14));
+        }
+
+        .ix-member-avatar {
+          display: flex;
+          flex: 0 0 38px;
+          align-items: center;
+          justify-content: center;
+          width: 38px;
+          height: 38px;
+          border-radius: 10px;
+          color: #087f5b;
+          background: rgba(16,185,129,.12);
+        }
+
+        .ix-member-name-content {
+          display: flex;
+          flex-direction: column;
+          gap: 3px;
+          min-width: 0;
+        }
+
+        .ix-member-name-content > span {
+          color: var(--muted, #737373);
+          font-size: 10px;
+        }
+
+        .ix-member-name-content > strong {
           color: var(--text, inherit);
+          font-size: 14px;
+          font-weight: 700;
+          overflow-wrap: anywhere;
+        }
+
+        /* Explicit family grid for equal alignment */
+
+        .ix-family-member-details {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 16px 20px;
+          align-items: start;
+          min-width: 0;
+        }
+
+        .ix-member-coverage-status {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-top: 16px;
+          padding-top: 12px;
+          border-top: 1px solid var(--border, rgba(128,128,128,.14));
+          color: #087f5b;
+          font-size: 12px;
+          font-weight: 650;
+          line-height: 1.4;
+        }
+
+        .ix-member-coverage-status svg {
+          flex: 0 0 auto;
         }
 
         .ix-policy-vehicle-details {
@@ -1899,13 +2020,32 @@ export default function MyPolicies() {
           font-weight: 700;
         }
 
+        .ix-policy-action-label {
+          font-size: 12px;
+        }
+
+        .ix-policy-action-btn {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          white-space: nowrap;
+        }
+
+        /* Responsive layout */
+
         @media (max-width: 700px) {
+          .ix-family-member-grid {
+            grid-template-columns: 1fr;
+          }
+
           .ix-extra-details-grid {
             grid-template-columns: repeat(2, minmax(0, 1fr));
           }
 
-          .ix-family-member-grid {
-            grid-template-columns: 1fr;
+          .ix-family-member-details {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px 16px;
           }
         }
 
@@ -1915,13 +2055,32 @@ export default function MyPolicies() {
             gap: 7px;
           }
 
-          .ix-extra-details-grid {
-            grid-template-columns: 1fr 1fr;
-          }
-
           .ix-policy-plan-summary {
             display: grid;
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .ix-policy-plan-chip {
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 5px;
+          }
+
+          .ix-policy-extra-section {
+            padding: 11px;
+          }
+
+          .ix-family-member-card {
+            padding: 12px;
+          }
+
+          .ix-family-member-details {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 13px 12px;
+          }
+
+          .ix-extra-detail strong {
+            font-size: 12px;
           }
         }
 
