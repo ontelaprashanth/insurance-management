@@ -1,14 +1,14 @@
-
 // =========================================================
 // INSUREX — MY POLICIES
 // =========================================================
+// Styles live in style.css (Part B sections 07 + Part M).
+// This component has no inline <style> block.
+//
 // Features:
 // - Health, Family, Life and Motor plan filters
 // - Duplicate policy prevention
 // - Coverage amount and premium display
-// - Properly aligned family member details
-// - Vehicle details
-// - Life beneficiary details
+// - Family member, vehicle and beneficiary details
 // - Active, claimed, renewed, inactive and expired policies
 // - Refund pending, processing, refunded and failed statuses
 // - Claim eligibility and pending claim detection
@@ -16,7 +16,6 @@
 // - Automatic refresh for unresolved refunds
 // - Search and URL-synchronized filters
 // - Existing API calls and ClaimForm integration preserved
-// - Responsive internal CSS
 // =========================================================
 
 import { useMemo, useState } from 'react'
@@ -857,38 +856,38 @@ function PolicyStatusBadge({ policy }) {
   return <StatusBadge value={status} />
 }
 
-function PolicyCategoryBadge({ category }) {
-  const config = {
-    health: {
-      label: 'Health',
-      icon: HeartPulse,
-      className: 'ix-category-health',
-    },
-    family: {
-      label: 'Family Health',
-      icon: Users,
-      className: 'ix-category-family',
-    },
-    life: {
-      label: 'Life',
-      icon: ShieldCheck,
-      className: 'ix-category-life',
-    },
-    motor: {
-      label: 'Motor',
-      icon: CarFront,
-      className: 'ix-category-motor',
-    },
-  }
+const CATEGORY_BADGES = {
+  health: {
+    label: 'Health',
+    icon: HeartPulse,
+    className: 'ix-category-health',
+  },
+  family: {
+    label: 'Family Health',
+    icon: Users,
+    className: 'ix-category-family',
+  },
+  life: {
+    label: 'Life',
+    icon: ShieldCheck,
+    className: 'ix-category-life',
+  },
+  motor: {
+    label: 'Motor',
+    icon: CarFront,
+    className: 'ix-category-motor',
+  },
+}
 
-  const item = config[category]
+function PolicyCategoryBadge({ category }) {
+  const item = CATEGORY_BADGES[category]
   if (!item) return null
 
   const Icon = item.icon
 
   return (
     <span className={`ix-category-badge ${item.className}`}>
-      <Icon size={14} />
+      <Icon size={14} aria-hidden="true" />
       {item.label}
     </span>
   )
@@ -916,7 +915,7 @@ function DetailItem({ label, value }) {
 }
 
 /* =========================================================
-   FAMILY MEMBERS — ALIGNED LAYOUT
+   FAMILY MEMBERS
 ========================================================= */
 
 function FamilyMembersSection({ members }) {
@@ -925,7 +924,7 @@ function FamilyMembersSection({ members }) {
   return (
     <section className="ix-policy-extra-section">
       <div className="ix-policy-extra-heading">
-        <Users size={17} />
+        <Users size={17} aria-hidden="true" />
         <strong>Covered family members</strong>
         <span>{members.length}</span>
       </div>
@@ -941,7 +940,7 @@ function FamilyMembersSection({ members }) {
             >
               <div className="ix-member-name">
                 <div className="ix-member-avatar">
-                  <UserRound size={19} />
+                  <UserRound size={19} aria-hidden="true" />
                 </div>
 
                 <div className="ix-member-name-content">
@@ -988,7 +987,7 @@ function FamilyMembersSection({ members }) {
               </div>
 
               <div className="ix-member-coverage-status">
-                <CheckCircle2 size={15} />
+                <CheckCircle2 size={15} aria-hidden="true" />
                 <span>Coverage currently active</span>
               </div>
             </div>
@@ -1024,7 +1023,7 @@ function VehicleDetailsSection({ vehicle }) {
   return (
     <section className="ix-policy-extra-section">
       <div className="ix-policy-extra-heading">
-        <CarFront size={17} />
+        <CarFront size={17} aria-hidden="true" />
         <strong>Insured vehicle details</strong>
       </div>
 
@@ -1051,8 +1050,9 @@ function BeneficiariesSection({ beneficiaries }) {
   return (
     <section className="ix-policy-extra-section">
       <div className="ix-policy-extra-heading">
-        <UserCheck size={17} />
+        <UserCheck size={17} aria-hidden="true" />
         <strong>Nominee / Beneficiary details</strong>
+        <span>{beneficiaries.length}</span>
       </div>
 
       <div className="ix-family-member-grid">
@@ -1081,13 +1081,19 @@ function BeneficiariesSection({ beneficiaries }) {
               key={person?.id ?? person?.beneficiaryId ?? index}
             >
               <div className="ix-member-name">
-                <UserCheck size={18} />
-                <strong>
-                  {name || `Beneficiary ${index + 1}`}
-                </strong>
+                <div className="ix-member-avatar">
+                  <UserCheck size={19} aria-hidden="true" />
+                </div>
+
+                <div className="ix-member-name-content">
+                  <span>Nominee</span>
+                  <strong>
+                    {name || `Beneficiary ${index + 1}`}
+                  </strong>
+                </div>
               </div>
 
-              <div className="ix-extra-details-grid">
+              <div className="ix-family-member-details">
                 <DetailItem
                   label="Relationship"
                   value={relationship}
@@ -1142,7 +1148,7 @@ function PolicyAction({ policy, onClaim }) {
         className="btn primary ix-policy-action-btn"
         to={renewalUrl(policy.policyNumber)}
       >
-        <RefreshCw size={15} />
+        <RefreshCw size={15} aria-hidden="true" />
         Renew policy
       </Link>
     )
@@ -1247,8 +1253,7 @@ export default function MyPolicies() {
   })
 
   /* =======================================================
-     NORMALIZE DATA
-     PREVENT DUPLICATE POLICY NUMBERS
+     NORMALIZE DATA / PREVENT DUPLICATE POLICY NUMBERS
   ======================================================= */
 
   const policyRows = useMemo(() => {
@@ -1747,354 +1752,7 @@ export default function MyPolicies() {
   ======================================================= */
 
   return (
-    <>
-      <style>{`
-        .ix-policy-category-section {
-          margin: 0 0 18px;
-        }
-
-        .ix-policy-category-heading {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          margin-bottom: 10px;
-          color: var(--text, inherit);
-          font-size: 14px;
-          font-weight: 700;
-        }
-
-        .ix-policy-category-filter {
-          display: flex;
-          flex-wrap: wrap;
-          align-items: center;
-          gap: 9px;
-          padding: 12px;
-          border: 1px solid var(--border, rgba(128,128,128,.2));
-          border-radius: 12px;
-          background: var(--surface, transparent);
-        }
-
-        .ix-category-badge {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 6px;
-          width: fit-content;
-          padding: 5px 9px;
-          border-radius: 999px;
-          font-size: 11px;
-          font-weight: 700;
-          line-height: 1.2;
-          white-space: nowrap;
-        }
-
-        .ix-category-health {
-          color: #087f5b;
-          background: rgba(16,185,129,.12);
-        }
-
-        .ix-category-family {
-          color: #2563a6;
-          background: rgba(59,130,246,.12);
-        }
-
-        .ix-category-life {
-          color: #6941a5;
-          background: rgba(139,92,246,.12);
-        }
-
-        .ix-category-motor {
-          color: #a16207;
-          background: rgba(245,158,11,.14);
-        }
-
-        .ix-policy-card-identity {
-          min-width: 0;
-        }
-
-        .ix-policy-card-identity .ix-category-badge {
-          margin-top: 8px;
-        }
-
-        .ix-policy-plan-summary {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 9px;
-          margin-top: 13px;
-        }
-
-        .ix-policy-plan-chip {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          min-width: 0;
-          padding: 7px 10px;
-          border: 1px solid var(--border, rgba(128,128,128,.18));
-          border-radius: 8px;
-          background: var(--surface-soft, rgba(128,128,128,.045));
-          font-size: 12px;
-        }
-
-        .ix-policy-plan-chip span {
-          color: var(--muted, #737373);
-        }
-
-        .ix-policy-plan-chip strong {
-          color: var(--text, inherit);
-        }
-
-        .ix-policy-extra-section {
-          margin-top: 15px;
-          padding: 14px;
-          border: 1px solid var(--border, rgba(128,128,128,.18));
-          border-radius: 11px;
-          background: var(--surface-soft, rgba(128,128,128,.035));
-        }
-
-        .ix-policy-extra-heading {
-          display: flex;
-          align-items: center;
-          gap: 9px;
-          margin-bottom: 13px;
-          color: var(--text, inherit);
-          font-size: 13px;
-        }
-
-        .ix-policy-extra-heading > span {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          min-width: 22px;
-          height: 22px;
-          padding: 0 6px;
-          border-radius: 20px;
-          background: var(--border, rgba(128,128,128,.15));
-          font-size: 11px;
-        }
-
-        /* Standard detail grid */
-
-        .ix-extra-details-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 13px 18px;
-          min-width: 0;
-        }
-
-        .ix-extra-detail {
-          display: flex;
-          flex-direction: column;
-          align-items: flex-start;
-          justify-content: flex-start;
-          gap: 5px;
-          min-width: 0;
-          text-align: left;
-        }
-
-        .ix-extra-detail span {
-          color: var(--muted, #737373);
-          font-size: 11px;
-          line-height: 1.4;
-        }
-
-        .ix-extra-detail strong {
-          display: block;
-          max-width: 100%;
-          color: var(--text, inherit);
-          font-size: 13px;
-          font-weight: 650;
-          line-height: 1.45;
-          overflow-wrap: anywhere;
-          word-break: break-word;
-        }
-
-        /* Family member cards */
-
-        .ix-family-member-grid {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 12px;
-          align-items: stretch;
-        }
-
-        .ix-family-member-card {
-          display: flex;
-          flex-direction: column;
-          min-width: 0;
-          padding: 14px;
-          border: 1px solid var(--border, rgba(128,128,128,.16));
-          border-radius: 10px;
-          background: var(--surface, transparent);
-        }
-
-        .ix-member-name {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          min-width: 0;
-          margin-bottom: 15px;
-          padding-bottom: 12px;
-          border-bottom: 1px solid var(--border, rgba(128,128,128,.14));
-        }
-
-        .ix-member-avatar {
-          display: flex;
-          flex: 0 0 38px;
-          align-items: center;
-          justify-content: center;
-          width: 38px;
-          height: 38px;
-          border-radius: 10px;
-          color: #087f5b;
-          background: rgba(16,185,129,.12);
-        }
-
-        .ix-member-name-content {
-          display: flex;
-          flex-direction: column;
-          gap: 3px;
-          min-width: 0;
-        }
-
-        .ix-member-name-content > span {
-          color: var(--muted, #737373);
-          font-size: 10px;
-        }
-
-        .ix-member-name-content > strong {
-          color: var(--text, inherit);
-          font-size: 14px;
-          font-weight: 700;
-          overflow-wrap: anywhere;
-        }
-
-        /* Explicit family grid for equal alignment */
-
-        .ix-family-member-details {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 16px 20px;
-          align-items: start;
-          min-width: 0;
-        }
-
-        .ix-member-coverage-status {
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          margin-top: 16px;
-          padding-top: 12px;
-          border-top: 1px solid var(--border, rgba(128,128,128,.14));
-          color: #087f5b;
-          font-size: 12px;
-          font-weight: 650;
-          line-height: 1.4;
-        }
-
-        .ix-member-coverage-status svg {
-          flex: 0 0 auto;
-        }
-
-        .ix-policy-vehicle-details {
-          display: flex;
-          flex-wrap: wrap;
-          gap: 8px 16px;
-          margin-top: 12px;
-          padding: 10px 12px;
-          border: 1px solid var(--border, rgba(128,128,128,.18));
-          border-radius: 9px;
-          background: var(--surface-soft, rgba(128,128,128,.045));
-        }
-
-        .ix-policy-vehicle-details span {
-          display: inline-flex;
-          align-items: center;
-          gap: 6px;
-          color: var(--muted, #737373);
-          font-size: 12px;
-          overflow-wrap: anywhere;
-        }
-
-        .ix-policy-vehicle-details strong {
-          color: var(--text, inherit);
-          font-weight: 700;
-        }
-
-        .ix-policy-action-label {
-          font-size: 12px;
-        }
-
-        .ix-policy-action-btn {
-          display: inline-flex;
-          align-items: center;
-          justify-content: center;
-          gap: 7px;
-          white-space: nowrap;
-        }
-
-        /* Responsive layout */
-
-        @media (max-width: 700px) {
-          .ix-family-member-grid {
-            grid-template-columns: 1fr;
-          }
-
-          .ix-extra-details-grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .ix-family-member-details {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 14px 16px;
-          }
-        }
-
-        @media (max-width: 460px) {
-          .ix-policy-category-filter {
-            padding: 9px;
-            gap: 7px;
-          }
-
-          .ix-policy-plan-summary {
-            display: grid;
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-
-          .ix-policy-plan-chip {
-            flex-wrap: wrap;
-            align-items: center;
-            gap: 5px;
-          }
-
-          .ix-policy-extra-section {
-            padding: 11px;
-          }
-
-          .ix-family-member-card {
-            padding: 12px;
-          }
-
-          .ix-family-member-details {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-            gap: 13px 12px;
-          }
-
-          .ix-extra-detail strong {
-            font-size: 12px;
-          }
-        }
-
-        @media (prefers-reduced-motion: no-preference) {
-          .ix-category-badge {
-            transition: transform .18s ease, box-shadow .18s ease;
-          }
-
-          .ix-category-badge:hover {
-            transform: translateY(-1px);
-          }
-        }
-      `}</style>
-
+    <div className="ix-policies-page">
       <PageHeader
         title={claimedSection ? 'Claimed policies' : 'My policies'}
         subtitle={
@@ -2114,7 +1772,7 @@ export default function MyPolicies() {
         <div className="ix-policy-summary-grid">
           <Panel>
             <div className="ix-policy-summary-card">
-              <ShieldCheck size={22} />
+              <ShieldCheck size={22} aria-hidden="true" />
               <div>
                 <div className="muted">Policies with claims</div>
                 <strong>{query.isLoading ? '…' : summary.claimed}</strong>
@@ -2124,7 +1782,7 @@ export default function MyPolicies() {
 
           <Panel>
             <div className="ix-policy-summary-card">
-              <CheckCircle2 size={22} />
+              <CheckCircle2 size={22} aria-hidden="true" />
               <div>
                 <div className="muted">Linked claims</div>
                 <strong>{query.isLoading ? '…' : summary.linkedClaims}</strong>
@@ -2134,7 +1792,7 @@ export default function MyPolicies() {
 
           <Panel>
             <div className="ix-policy-summary-card">
-              <RefreshCw size={22} />
+              <RefreshCw size={22} aria-hidden="true" />
               <div>
                 <div className="muted">Renewed after claim</div>
                 <strong>
@@ -2154,7 +1812,7 @@ export default function MyPolicies() {
         <div className="ix-policy-summary-grid">
           <Panel>
             <div className="ix-policy-summary-card">
-              <ShieldCheck size={22} />
+              <ShieldCheck size={22} aria-hidden="true" />
               <div>
                 <div className="muted">Total policies</div>
                 <strong>{query.isLoading ? '…' : summary.total}</strong>
@@ -2164,7 +1822,7 @@ export default function MyPolicies() {
 
           <Panel>
             <div className="ix-policy-summary-card">
-              <CheckCircle2 size={22} />
+              <CheckCircle2 size={22} aria-hidden="true" />
               <div>
                 <div className="muted">Active</div>
                 <strong>{query.isLoading ? '…' : summary.active}</strong>
@@ -2174,7 +1832,7 @@ export default function MyPolicies() {
 
           <Panel>
             <div className="ix-policy-summary-card">
-              <RefreshCw size={22} />
+              <RefreshCw size={22} aria-hidden="true" />
               <div>
                 <div className="muted">Renewed</div>
                 <strong>{query.isLoading ? '…' : summary.renewed}</strong>
@@ -2184,7 +1842,7 @@ export default function MyPolicies() {
 
           <Panel>
             <div className="ix-policy-summary-card">
-              <RotateCcw size={22} />
+              <RotateCcw size={22} aria-hidden="true" />
               <div>
                 <div className="muted">Pending refunds</div>
                 <strong>{query.isLoading ? '…' : summary.refunds}</strong>
@@ -2202,7 +1860,7 @@ export default function MyPolicies() {
           aria-label="Filter policies by insurance category"
         >
           <div className="ix-policy-category-heading">
-            <ShieldCheck size={17} />
+            <ShieldCheck size={17} aria-hidden="true" />
             <span>Insurance categories</span>
           </div>
 
@@ -2222,7 +1880,7 @@ export default function MyPolicies() {
         !query.isError &&
         unlinkedPaidPurchases.length > 0 && (
           <div className="alert info ix-policy-alert" role="status">
-            <Clock3 size={17} />
+            <Clock3 size={17} aria-hidden="true" />
             <span>
               {unlinkedPaidPurchases.length} paid{' '}
               {unlinkedPaidPurchases.length === 1
@@ -2233,7 +1891,7 @@ export default function MyPolicies() {
             </span>
 
             <Button size="sm" onClick={refreshAll} disabled={refreshing}>
-              <RefreshCw size={15} />
+              <RefreshCw size={15} aria-hidden="true" />
               Refresh
             </Button>
           </div>
@@ -2243,7 +1901,7 @@ export default function MyPolicies() {
 
       {summary.refunds > 0 && (
         <div className="alert info ix-policy-alert" role="status">
-          <Clock3 size={17} />
+          <Clock3 size={17} aria-hidden="true" />
           <span>
             {summary.refunds} policy
             {summary.refunds === 1 ? ' has' : ' policies have'}
@@ -2255,7 +1913,7 @@ export default function MyPolicies() {
 
       {refreshError && (
         <div className="alert error ix-policy-alert" role="alert">
-          <AlertCircle size={17} />
+          <AlertCircle size={17} aria-hidden="true" />
           <span>{refreshError}</span>
         </div>
       )}
@@ -2279,7 +1937,7 @@ export default function MyPolicies() {
           )}
 
           <Button onClick={refreshAll} disabled={refreshing}>
-            <RefreshCw size={15} />
+            <RefreshCw size={15} aria-hidden="true" />
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </Button>
         </div>
@@ -2326,7 +1984,7 @@ export default function MyPolicies() {
                       <div>
                         <div className="muted">Insurance policy</div>
                         <strong>#{policy.policyNumber}</strong>
-                        <div style={{ marginTop: 7 }}>
+                        <div>
                           <PolicyCategoryBadge category={policy.policyCategory} />
                         </div>
                       </div>
@@ -2409,35 +2067,39 @@ export default function MyPolicies() {
 
                       {/* PLAN COVERAGE AND PREMIUM */}
 
-                      <div className="ix-policy-plan-summary">
-                        {plan.coverage != null && (
-                          <div className="ix-policy-plan-chip">
-                            <ShieldCheck size={15} />
-                            <span>Coverage</span>
-                            <strong>{formatMoney(plan.coverage)}</strong>
-                          </div>
-                        )}
+                      {(plan.coverage != null ||
+                        plan.premium != null ||
+                        plan.duration != null) && (
+                        <div className="ix-policy-plan-summary">
+                          {plan.coverage != null && (
+                            <div className="ix-policy-plan-chip">
+                              <ShieldCheck size={15} aria-hidden="true" />
+                              <span>Coverage</span>
+                              <strong>{formatMoney(plan.coverage)}</strong>
+                            </div>
+                          )}
 
-                        {plan.premium != null && (
-                          <div className="ix-policy-plan-chip">
-                            <IndianRupee size={15} />
-                            <span>Premium</span>
-                            <strong>{formatMoney(plan.premium)}</strong>
-                          </div>
-                        )}
+                          {plan.premium != null && (
+                            <div className="ix-policy-plan-chip">
+                              <IndianRupee size={15} aria-hidden="true" />
+                              <span>Premium</span>
+                              <strong>{formatMoney(plan.premium)}</strong>
+                            </div>
+                          )}
 
-                        {plan.duration != null && (
-                          <div className="ix-policy-plan-chip">
-                            <CalendarDays size={15} />
-                            <span>Term</span>
-                            <strong>
-                              {typeof plan.duration === 'number'
-                                ? `${plan.duration} years`
-                                : plan.duration}
-                            </strong>
-                          </div>
-                        )}
-                      </div>
+                          {plan.duration != null && (
+                            <div className="ix-policy-plan-chip">
+                              <CalendarDays size={15} aria-hidden="true" />
+                              <span>Term</span>
+                              <strong>
+                                {typeof plan.duration === 'number'
+                                  ? `${plan.duration} years`
+                                  : plan.duration}
+                              </strong>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* COMMON POLICY DETAILS */}
 
@@ -2531,6 +2193,6 @@ export default function MyPolicies() {
           onClose={() => setClaimFor(null)}
         />
       )}
-    </>
+    </div>
   )
 }
