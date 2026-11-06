@@ -6307,3 +6307,379 @@ p { text-wrap: pretty; }
     transition: none !important;
   }
 }
+
+
+/* #########################################################################
+   PART M — MY POLICIES ADDITIONS  (MyPolicies.jsx)
+   Append to the end of style.css (after Part L).
+
+   Replaces the inline <style> block that used to live in MyPolicies.jsx.
+   Uses the same ix- tokens as Part B (no --text / --border / --surface).
+
+   Covers: category filter · category badges · plan chips · extra sections
+   (family members, vehicle, beneficiaries) · segmented controls inside the
+   My Policies toolbar.
+   ######################################################################### */
+
+/* ---- M0. Category tokens (one place to retune the badge colours) ---- */
+
+.ix-policies-page {
+  --ix-cat-health: #087f5b;
+  --ix-cat-health-bg: rgba(16, 185, 129, .13);
+  --ix-cat-family: #2563a6;
+  --ix-cat-family-bg: rgba(59, 130, 246, .12);
+  --ix-cat-life: #6941a5;
+  --ix-cat-life-bg: rgba(139, 92, 246, .12);
+  --ix-cat-motor: #a16207;
+  --ix-cat-motor-bg: rgba(245, 158, 11, .16);
+
+  min-width: 0;
+  color: var(--ix-deep);
+}
+
+.ix-policies-page,
+.ix-policies-page * { box-sizing: border-box; }
+
+
+/* ---- M1. Segmented controls on this page (green pills, swipeable) ---- */
+
+.ix-policy-toolbar .seg,
+.ix-policy-category-filter .seg {
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-color: #bfdcca;
+  border-radius: 999px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.ix-policy-toolbar .seg::-webkit-scrollbar,
+.ix-policy-category-filter .seg::-webkit-scrollbar { display: none; }
+
+.ix-policy-toolbar .seg button,
+.ix-policy-category-filter .seg button {
+  flex: none;
+  transition: background-color .2s ease, color .2s ease;
+}
+
+.ix-policy-toolbar .seg button:hover,
+.ix-policy-category-filter .seg button:hover { background: var(--ix-green-tint); }
+
+.ix-policy-toolbar .seg button + button,
+.ix-policy-category-filter .seg button + button { border-left-color: #d3e8db; }
+
+.ix-policy-toolbar .seg button[aria-pressed='true'],
+.ix-policy-category-filter .seg button[aria-pressed='true'] {
+  background: linear-gradient(110deg, var(--ix-green-600), var(--ix-green-500));
+  color: #fff;
+}
+
+.ix-policy-toolbar .search { flex: 1 1 240px; max-width: 420px; }
+.ix-policy-toolbar .input { border-color: #bfdcca; }
+
+.ix-policy-toolbar .input:focus {
+  border-color: #21975e;
+  box-shadow: 0 0 0 3px rgba(33, 151, 94, .14);
+}
+
+.ix-policy-toolbar > .btn:last-child { margin-left: auto; }
+
+/* alert row: icon, text, optional button */
+.ix-policy-alert {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 10px;
+  border-radius: 12px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.ix-policy-alert > svg { flex: none; margin-top: 3px; }
+.ix-policy-alert > span { flex: 1 1 200px; min-width: 0; }
+
+.ix-policy-alert.info {
+  background: var(--ix-green-tint);
+  border-color: var(--ix-line);
+  color: var(--ix-muted);
+}
+
+
+/* ---- M2. Category filter block ---- */
+
+.ix-policy-category-section {
+  margin: 0 0 clamp(14px, 2vw, 18px);
+  animation: ixRise .6s var(--ix-ease) 120ms backwards;
+}
+
+.ix-policy-category-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+  color: var(--ix-deep);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ix-policy-category-heading svg { color: var(--ix-green); }
+
+.ix-policy-category-filter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid var(--ix-line);
+  border-radius: 16px;
+  background: linear-gradient(115deg, #f4fbf6, #fff);
+  box-shadow: var(--ix-shadow-sm);
+}
+
+
+/* ---- M3. Category badges ---- */
+
+.ix-category-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.2;
+  white-space: nowrap;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+
+.ix-category-badge:hover { transform: translateY(-1px); }
+
+.ix-category-health { color: var(--ix-cat-health, #087f5b); background: var(--ix-cat-health-bg, rgba(16, 185, 129, .13)); }
+.ix-category-family { color: var(--ix-cat-family, #2563a6); background: var(--ix-cat-family-bg, rgba(59, 130, 246, .12)); }
+.ix-category-life   { color: var(--ix-cat-life, #6941a5);   background: var(--ix-cat-life-bg, rgba(139, 92, 246, .12)); }
+.ix-category-motor  { color: var(--ix-cat-motor, #a16207);  background: var(--ix-cat-motor-bg, rgba(245, 158, 11, .16)); }
+
+/* identity block: cover line on its own row, badge below it */
+.ix-policy-card-identity .ix-policy-cover { display: block; }
+.ix-policy-card-identity .ix-category-badge,
+.ix-claimed-top .ix-category-badge { margin-top: 8px; }
+
+
+/* ---- M4. Plan summary chips (coverage / premium / term) ---- */
+
+.ix-policy-plan-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+}
+
+.ix-policy-plan-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 8px 12px;
+  border: 1px solid #d0ecda;
+  border-radius: 10px;
+  background: var(--ix-green-soft);
+  font-size: 12px;
+  transition: background-color .25s ease, border-color .25s ease;
+}
+
+.ix-policy-card:hover .ix-policy-plan-chip { background: #d9f3e4; border-color: #a3dbbb; }
+
+.ix-policy-plan-chip svg { flex: none; color: var(--ix-green); }
+.ix-policy-plan-chip span { color: var(--ix-muted); font-weight: 600; }
+.ix-policy-plan-chip strong { color: var(--ix-deep); font-weight: 800; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
+
+/* ---- M5. Extra sections: family · vehicle · beneficiaries ---- */
+
+.ix-policy-extra-section {
+  padding: 14px;
+  border: 1px solid #e0eee5;
+  border-radius: 14px;
+  background: rgba(232, 248, 238, .5);
+}
+
+.ix-policy-extra-heading {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 13px;
+  color: var(--ix-deep);
+  font-size: 13px;
+}
+
+.ix-policy-extra-heading > svg { flex: none; color: var(--ix-green); }
+.ix-policy-extra-heading > strong { min-width: 0; font-weight: 800; }
+
+.ix-policy-extra-heading > span {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #d0ecda;
+  color: #126a42;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.ix-extra-details-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 13px 18px;
+  min-width: 0;
+}
+
+.ix-extra-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 5px;
+  min-width: 0;
+  text-align: left;
+}
+
+.ix-extra-detail span {
+  color: #476b58;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.ix-extra-detail strong {
+  display: block;
+  max-width: 100%;
+  color: #163f2c;
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* member / beneficiary cards */
+
+.ix-family-member-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 250px), 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.ix-family-member-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--ix-line);
+  border-radius: 14px;
+  background: #fff;
+  transition: border-color .25s ease, box-shadow .25s ease, transform .25s ease;
+}
+
+.ix-family-member-card:hover {
+  transform: translateY(-2px);
+  border-color: #8bcaa4;
+  box-shadow: var(--ix-shadow-sm);
+}
+
+.ix-member-name {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--ix-line-soft);
+}
+
+.ix-member-avatar {
+  display: grid;
+  place-items: center;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #d0ecda;
+  border-radius: 11px;
+  color: var(--ix-green);
+  background: var(--ix-green-soft);
+}
+
+.ix-member-name-content { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ix-member-name-content > span { color: #476b58; font-size: 10.5px; font-weight: 650; }
+.ix-member-name-content > strong { color: var(--ix-deep); font-size: 14px; font-weight: 800; overflow-wrap: anywhere; }
+
+.ix-family-member-details {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px 20px;
+  align-items: start;
+  min-width: 0;
+}
+
+.ix-member-coverage-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--ix-line-soft);
+  color: #126a42;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.ix-family-member-details + .ix-member-coverage-status { margin-top: 16px; }
+.ix-member-coverage-status svg { flex: none; }
+
+
+/* ---- M6. Responsive ---- */
+
+@media (max-width: 700px) {
+  .ix-policy-toolbar .search { flex-basis: 100%; max-width: none; }
+  .ix-policy-toolbar > .btn:last-child { margin-left: 0; }
+  .ix-family-member-details { gap: 14px 16px; }
+}
+
+@media (max-width: 460px) {
+  .ix-policy-category-filter { padding: 9px; gap: 7px; }
+
+  .ix-policy-plan-summary {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ix-policy-plan-chip { flex-wrap: wrap; gap: 5px; }
+  .ix-policy-extra-section { padding: 11px; }
+  .ix-family-member-card { padding: 12px; }
+  .ix-family-member-details { gap: 13px 12px; }
+  .ix-extra-detail strong { font-size: 12px; }
+}
+
+@media (max-width: 360px) {
+  .ix-extra-details-grid,
+  .ix-family-member-details { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (pointer: coarse) {
+  .ix-policy-toolbar .seg button,
+  .ix-policy-category-filter .seg button { height: 44px; }
+}
+
+@media (hover: none) {
+  .ix-family-member-card:hover { transform: none; }
+  .ix-category-badge:hover { transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ix-category-badge,
+  .ix-family-member-card,
+  .ix-policy-plan-chip { transition: none; }
+}
