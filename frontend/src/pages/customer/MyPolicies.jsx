@@ -2,34 +2,24 @@
 // =========================================================
 // INSUREX — MY POLICIES
 // =========================================================
-//
 // Features:
-// - Active, claimed, renewed, inactive, expired policies
+// - Health, Family, Life and Motor plan filters
+// - Coverage amount and premium display
+// - Family member details
+// - Vehicle details
+// - Life beneficiary details
+// - Active, claimed, renewed, inactive and expired policies
 // - Refund pending, processing, refunded and failed statuses
-// - Backend-authoritative policy lifecycle handling
-// - Policy renewal navigation
-// - Duplicate renewal prevention
-// - Claim eligibility checks
-// - Pending claim detection
+// - Claim eligibility and pending claim detection
+// - Renewal navigation and duplicate renewal prevention
 // - Automatic refresh for unresolved refunds
-// - Manual refresh
-// - Search and URL-synchronized status/category filters
-// - Health, Family and Vehicle plan categories
-// - Vehicle registration and model details
-// - Responsive policy cards
-// - New category CSS included internally
-//
-// Existing API calls, routes and ClaimForm integration preserved.
-//
+// - Search and URL-synchronized filters
+// - Existing API calls and ClaimForm integration preserved
+// - New CSS included internally
 // =========================================================
 
 import { useMemo, useState } from 'react'
-
-import {
-  Link,
-  useSearchParams,
-} from 'react-router-dom'
-
+import { Link, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 
 import {
@@ -42,6 +32,10 @@ import {
   RotateCcw,
   ShieldCheck,
   Users,
+  UserRound,
+  UserCheck,
+  CalendarDays,
+  IndianRupee,
 } from 'lucide-react'
 
 import {
@@ -62,7 +56,6 @@ import {
 } from '../../components/ui'
 
 import { date, today } from '../../lib/format'
-
 import ClaimForm from './ClaimForm'
 
 /* =========================================================
@@ -80,10 +73,18 @@ const FIELDS = [
   'policyCategory',
   'policyType',
   'planType',
+  'insuranceType',
+  'productType',
   'planName',
   'vehicleRegistrationNumber',
   'registrationNumber',
   'vehicleNumber',
+  'vehicleModel',
+  'sumInsured',
+  'coverageAmount',
+  'premiumAmount',
+  'familyMembers',
+  'beneficiaries',
 ]
 
 const SUCCESSFUL_CLAIM_STATUSES = new Set([
@@ -139,7 +140,8 @@ const VALID_CATEGORIES = new Set([
   'all',
   'health',
   'family',
-  'vehicle',
+  'life',
+  'motor',
 ])
 
 const REFRESH_INTERVAL = 15000
@@ -149,27 +151,24 @@ const REFRESH_INTERVAL = 15000
 ========================================================= */
 
 function normalizedStatus(value) {
-  return String(value ?? '')
-    .trim()
-    .toUpperCase()
+  return String(value ?? '').trim().toUpperCase()
 }
 
 function normalizeRows(data) {
   if (Array.isArray(data)) return data
-
-  if (Array.isArray(data?.content)) {
-    return data.content
-  }
-
-  if (Array.isArray(data?.data)) {
-    return data.data
-  }
-
-  if (Array.isArray(data?.data?.content)) {
-    return data.data.content
-  }
-
+  if (Array.isArray(data?.content)) return data.content
+  if (Array.isArray(data?.data)) return data.data
+  if (Array.isArray(data?.data?.content)) return data.data.content
   return []
+}
+
+function firstValue(...values) {
+  return values.find(
+    (value) =>
+      value !== undefined &&
+      value !== null &&
+      value !== '',
+  ) ?? null
 }
 
 function policyNumberOf(value) {
@@ -209,66 +208,149 @@ function getPurchaseRenewalSource(purchase) {
 }
 
 function isSuccessfulPurchase(purchase) {
-  return (
-    normalizedStatus(purchase?.paymentStatus) ===
-    'PAID'
-  )
+  return normalizedStatus(purchase?.paymentStatus) === 'PAID'
+}
+
+function formatMoney(value) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === '' ||
+    !Number.isFinite(Number(value))
+  ) {
+    return '—'
+  }
+
+  return Number(value).toLocaleString('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    maximumFractionDigits: 2,
+  })
+}
+
+function displayValue(value) {
+  if (value === null || value === undefined || value === '') {
+    return '—'
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No'
+  }
+
+  return String(value)
+}
+
+function getObjectValue(object, keys) {
+  for (const key of keys) {
+    const value = object?.[key]
+
+    if (
+      value !== undefined &&
+      value !== null &&
+      value !== ''
+    ) {
+      return value
+    }
+  }
+
+  return null
 }
 
 /* =========================================================
-   PLAN CATEGORY HELPERS
+   CATEGORY AND PLAN HELPERS
 
-   These helpers inspect common frontend/backend field names.
-   If your backend uses a different field, add it here.
+   Actual plan catalogue:
+   Health: ₹3L, ₹5L, ₹10L
+   Life: ₹10L, ₹25L, ₹50L
+   Motor: ₹1L, ₹5L, ₹10L
+
+   Family is a subtype of Health.
 ========================================================= */
 
-function getPolicyCategory(policy) {
-  const values = [
-    policy?.category,
-    policy?.planCategory,
-    policy?.policyCategory,
-    policy?.policyType,
-    policy?.planType,
-    policy?.insuranceType,
-    policy?.productType,
-    policy?.coverageType,
-    policy?.plan?.category,
-    policy?.plan?.planCategory,
-    policy?.plan?.policyCategory,
-    policy?.plan?.policyType,
-    policy?.plan?.planType,
-    policy?.plan?.name,
-    policy?.planName,
-    policy?.coveredTypes,
-    policy?.coverage,
+function getFamilyMembers(policy, purchase) {
+  const sources = [
+    policy,
+    policy?.plan,
+    policy?.policyDetails,
+    policy?.healthDetails,
+    purchase,
+    purchase?.plan,
+    purchase?.policyDetails,
   ]
+
+  const keys = [
+    'familyMembers',
+    'insuredMembers',
+    'members',
+    'dependents',
+    'coveredMembers',
+    'memberDetails',
+    'familyDetails',
+  ]
+
+  for (const source of sources) {
+    for (const key of keys) {
+      if (Array.isArray(source?.[key]) && source[key].length) {
+        return source[key]
+      }
+    }
+  }
+
+  return []
+}
+
+function getPolicyCategory(policy, purchase) {
+  const sources = [
+    policy,
+    policy?.plan,
+    policy?.policyDetails,
+    purchase,
+    purchase?.plan,
+  ]
+
+  const values = []
+
+  for (const source of sources) {
+    if (!source) continue
+
+    values.push(
+      source.category,
+      source.planCategory,
+      source.policyCategory,
+      source.policyType,
+      source.planType,
+      source.insuranceType,
+      source.productType,
+      source.coverageType,
+      source.planName,
+      source.name,
+      source.coveredTypes,
+    )
+  }
 
   const text = values
     .filter(Boolean)
     .join(' ')
     .toLowerCase()
 
-  // Vehicle identification takes priority when vehicle fields exist.
-  const hasVehicleDetails = Boolean(
-    policy?.vehicleRegistrationNumber ||
-    policy?.registrationNumber ||
-    policy?.vehicleNumber ||
-    policy?.vehicleModel ||
-    policy?.vehicle?.registrationNumber ||
-    policy?.vehicle?.vehicleNumber ||
-    policy?.vehicleDetails?.registrationNumber ||
-    policy?.vehicleDetails?.vehicleNumber
-  )
+  const vehicle = getVehicleDetails(policy, purchase)
+  const familyMembers = getFamilyMembers(policy, purchase)
 
   if (
-    hasVehicleDetails ||
-    /\b(vehicle|motor|car|bike|two wheeler|two-wheeler|four wheeler|four-wheeler|automobile|motorcycle)\b/i.test(text)
+    vehicle.registration ||
+    vehicle.model ||
+    /\b(motor|vehicle|car|bike|two wheeler|two-wheeler|four wheeler|four-wheeler|automobile|motorcycle)\b/i.test(text)
   ) {
-    return 'vehicle'
+    return 'motor'
+  }
+
+  if (/\blife\b/i.test(text)) {
+    return 'life'
   }
 
   if (
-    /\b(family|families|family floater|dependents|dependent)\b/i.test(text)
+    familyMembers.length > 0 ||
+    /\b(family|family floater|dependent|dependents)\b/i.test(text)
   ) {
     return 'family'
   }
@@ -282,39 +364,256 @@ function getPolicyCategory(policy) {
   return 'other'
 }
 
-function getVehicleRegistration(policy) {
-  return (
-    policy?.vehicleRegistrationNumber ??
-    policy?.registrationNumber ??
-    policy?.vehicleNumber ??
-    policy?.vehicle?.registrationNumber ??
-    policy?.vehicle?.vehicleNumber ??
-    policy?.vehicleDetails?.registrationNumber ??
-    policy?.vehicleDetails?.vehicleNumber ??
-    null
-  )
+function getPlanDetails(policy, purchase) {
+  const plan = policy?.plan || purchase?.plan || {}
+  const policyDetails = policy?.policyDetails || {}
+  const purchaseDetails = purchase?.policyDetails || {}
+
+  const sources = [
+    policy,
+    policyDetails,
+    plan,
+    purchase,
+    purchaseDetails,
+  ]
+
+  const find = (keys) => {
+    for (const source of sources) {
+      const value = getObjectValue(source, keys)
+      if (value !== null) return value
+    }
+
+    return null
+  }
+
+  const coverage = find([
+    'sumInsured',
+    'sumInsuredAmount',
+    'coverageAmount',
+    'insuredAmount',
+    'coverageLimit',
+    'maximumCoverage',
+    'coverAmount',
+    'benefitAmount',
+  ])
+
+  const premium = find([
+    'premiumAmount',
+    'totalPremium',
+    'premium',
+    'amountPaid',
+    'purchaseAmount',
+    'price',
+    'planPrice',
+  ])
+
+  const planName = find([
+    'planName',
+    'name',
+    'policyName',
+    'productName',
+  ])
+
+  const duration = find([
+    'durationYears',
+    'policyTerm',
+    'duration',
+    'termYears',
+    'term',
+  ])
+
+  return {
+    coverage,
+    premium,
+    planName,
+    duration,
+  }
 }
 
-function getVehicleModel(policy) {
-  return (
-    policy?.vehicleModel ??
-    policy?.makerModel ??
-    policy?.vehicle?.vehicleModel ??
-    policy?.vehicle?.model ??
-    policy?.vehicleDetails?.vehicleModel ??
-    policy?.vehicleDetails?.model ??
-    null
-  )
+/* =========================================================
+   VEHICLE DETAILS
+
+   Displays only fields available in the API response.
+========================================================= */
+
+function getVehicleDetails(policy, purchase) {
+  const sources = [
+    policy,
+    policy?.vehicle,
+    policy?.vehicleDetails,
+    policy?.insuredVehicle,
+    policy?.motorDetails,
+    purchase,
+    purchase?.vehicle,
+    purchase?.vehicleDetails,
+    purchase?.insuredVehicle,
+  ]
+
+  const find = (keys) => {
+    for (const source of sources) {
+      const value = getObjectValue(source, keys)
+      if (value !== null) return value
+    }
+
+    return null
+  }
+
+  return {
+    registration: find([
+      'vehicleRegistrationNumber',
+      'registrationNumber',
+      'vehicleNumber',
+      'registrationNo',
+      'vehicleRegNumber',
+    ]),
+
+    make: find([
+      'vehicleMake',
+      'make',
+      'manufacturer',
+      'brand',
+    ]),
+
+    model: find([
+      'vehicleModel',
+      'model',
+      'makerModel',
+      'modelName',
+    ]),
+
+    year: find([
+      'vehicleYear',
+      'manufacturingYear',
+      'registrationYear',
+      'year',
+    ]),
+
+    type: find([
+      'vehicleType',
+      'typeOfVehicle',
+      'vehicleCategory',
+    ]),
+
+    fuel: find([
+      'fuelType',
+      'fuel',
+    ]),
+
+    color: find([
+      'vehicleColor',
+      'color',
+    ]),
+
+    chassis: find([
+      'chassisNumber',
+      'chassisNo',
+    ]),
+
+    engine: find([
+      'engineNumber',
+      'engineNo',
+    ]),
+
+    usage: find([
+      'vehicleUsage',
+      'usageType',
+      'usage',
+    ]),
+  }
 }
+
+/* =========================================================
+   FAMILY MEMBER DETAILS
+========================================================= */
+
+function getMemberDetails(member) {
+  return {
+    name: firstValue(
+      member?.fullName,
+      member?.memberName,
+      member?.name,
+      member?.insuredName,
+      member?.customerName,
+    ),
+
+    relationship: firstValue(
+      member?.relationship,
+      member?.relation,
+      member?.relationshipWithPolicyholder,
+    ),
+
+    age: firstValue(
+      member?.age,
+      member?.memberAge,
+    ),
+
+    dateOfBirth: firstValue(
+      member?.dateOfBirth,
+      member?.dob,
+      member?.birthDate,
+    ),
+
+    gender: firstValue(
+      member?.gender,
+      member?.sex,
+    ),
+
+    coverage: firstValue(
+      member?.sumInsured,
+      member?.coverageAmount,
+      member?.insuredAmount,
+      member?.individualCoverage,
+    ),
+  }
+}
+
+/* =========================================================
+   BENEFICIARY DETAILS
+========================================================= */
+
+function getBeneficiaries(policy, purchase) {
+  const sources = [
+    policy,
+    policy?.lifeDetails,
+    policy?.policyDetails,
+    purchase,
+    purchase?.lifeDetails,
+    purchase?.policyDetails,
+  ]
+
+  const keys = [
+    'beneficiaries',
+    'nominees',
+    'nomineeDetails',
+    'beneficiaryDetails',
+    'nomineeList',
+  ]
+
+  for (const source of sources) {
+    for (const key of keys) {
+      if (Array.isArray(source?.[key]) && source[key].length) {
+        return source[key]
+      }
+    }
+  }
+
+  return []
+}
+
+/* =========================================================
+   CATEGORY LABELS
+========================================================= */
 
 function categoryLabel(category) {
   switch (category) {
     case 'health':
       return 'Health Insurance'
     case 'family':
-      return 'Family Insurance'
-    case 'vehicle':
-      return 'Vehicle Insurance'
+      return 'Family Health Insurance'
+    case 'life':
+      return 'Life Insurance'
+    case 'motor':
+      return 'Motor Insurance'
     default:
       return 'Insurance'
   }
@@ -325,17 +624,9 @@ function categoryLabel(category) {
 ========================================================= */
 
 function getRefundStatus(policy, purchase) {
-  const purchaseStatus = normalizedStatus(
-    purchase?.refundStatus,
-  )
-
-  const policyStatus = normalizedStatus(
-    policy?.refundStatus,
-  )
-
-  const lifecycleStatus = normalizedStatus(
-    policy?.lifecycleStatus,
-  )
+  const purchaseStatus = normalizedStatus(purchase?.refundStatus)
+  const policyStatus = normalizedStatus(policy?.refundStatus)
+  const lifecycleStatus = normalizedStatus(policy?.lifecycleStatus)
 
   if (purchaseStatus && purchaseStatus !== 'NOT_REFUNDED') {
     return purchaseStatus
@@ -356,21 +647,15 @@ function getRefundStatus(policy, purchase) {
 }
 
 function isRefundPending(status) {
-  return REFUND_PENDING_STATUSES.has(
-    normalizedStatus(status),
-  )
+  return REFUND_PENDING_STATUSES.has(normalizedStatus(status))
 }
 
 function isRefunded(status) {
-  return REFUNDED_STATUSES.has(
-    normalizedStatus(status),
-  )
+  return REFUNDED_STATUSES.has(normalizedStatus(status))
 }
 
 function isRefundFailed(status) {
-  return REFUND_FAILED_STATUSES.has(
-    normalizedStatus(status),
-  )
+  return REFUND_FAILED_STATUSES.has(normalizedStatus(status))
 }
 
 function refundStatusLabel(status) {
@@ -413,9 +698,7 @@ function isRenewedPolicy(policy, purchase) {
 }
 
 function renewalUrl(policyNumber) {
-  return `/app/renew/${encodeURIComponent(
-    String(policyNumber),
-  )}`
+  return `/app/renew/${encodeURIComponent(String(policyNumber))}`
 }
 
 /* =========================================================
@@ -457,24 +740,16 @@ function hasSuccessfulClaim(policy, relatedClaims) {
 }
 
 function isPendingClaim(policy, relatedClaims) {
-  const embeddedStatuses = Array.isArray(
-    policy?.claims,
-  )
-    ? policy.claims.map((claim) =>
-        normalizedStatus(claim?.status),
-      )
-    : [
-        normalizedStatus(policy?.claimStatus),
-      ]
+  const embeddedStatuses = Array.isArray(policy?.claims)
+    ? policy.claims.map((claim) => normalizedStatus(claim?.status))
+    : [normalizedStatus(policy?.claimStatus)]
 
   return (
     embeddedStatuses.some((status) =>
       PENDING_CLAIM_STATUSES.has(status),
     ) ||
     relatedClaims.some((claim) =>
-      PENDING_CLAIM_STATUSES.has(
-        normalizedStatus(claim?.status),
-      ),
+      PENDING_CLAIM_STATUSES.has(normalizedStatus(claim?.status)),
     )
   )
 }
@@ -483,28 +758,13 @@ function isPendingClaim(policy, relatedClaims) {
    POLICY STATUS
 ========================================================= */
 
-function getPolicyStatus(
-  policy,
-  relatedClaims,
-  relatedPurchase,
-) {
-  const backendStatus = normalizedStatus(
-    policy?.status,
-  )
+function getPolicyStatus(policy, relatedClaims, relatedPurchase) {
+  const backendStatus = normalizedStatus(policy?.status)
+  const lifecycleStatus = normalizedStatus(policy?.lifecycleStatus)
 
-  const lifecycleStatus = normalizedStatus(
-    policy?.lifecycleStatus,
-  )
+  const refundStatus = getRefundStatus(policy, relatedPurchase)
 
-  const refundStatus = getRefundStatus(
-    policy,
-    relatedPurchase,
-  )
-
-  if (
-    isRefunded(refundStatus) ||
-    lifecycleStatus === 'REFUNDED'
-  ) {
+  if (isRefunded(refundStatus) || lifecycleStatus === 'REFUNDED') {
     return 'REFUNDED'
   }
 
@@ -551,21 +811,14 @@ function getPolicyStatus(
 
   if (
     lifecycleStatus &&
-    ![
-      'ACTIVE',
-      'INACTIVE',
-      'NEW',
-    ].includes(lifecycleStatus)
+    !['ACTIVE', 'INACTIVE', 'NEW'].includes(lifecycleStatus)
   ) {
     return lifecycleStatus
   }
 
   if (
     backendStatus &&
-    ![
-      'ACTIVE',
-      'INACTIVE',
-    ].includes(backendStatus)
+    !['ACTIVE', 'INACTIVE'].includes(backendStatus)
   ) {
     return backendStatus
   }
@@ -585,26 +838,20 @@ function getPolicyStatus(
     return 'INACTIVE'
   }
 
-  return policy?.isActive === true ||
-    backendStatus === 'ACTIVE'
+  return policy?.isActive === true || backendStatus === 'ACTIVE'
     ? 'ACTIVE'
     : 'INACTIVE'
 }
 
 /* =========================================================
-   STATUS BADGE
+   BADGES
 ========================================================= */
 
 function PolicyStatusBadge({ policy }) {
   const status = policy.displayStatus
 
   if (status === 'REFUNDED') {
-    return (
-      <StatusBadge
-        value="REFUNDED"
-        label="Refunded"
-      />
-    )
+    return <StatusBadge value="REFUNDED" label="Refunded" />
   }
 
   if (isRefundPending(status)) {
@@ -617,22 +864,11 @@ function PolicyStatusBadge({ policy }) {
   }
 
   if (isRefundFailed(status)) {
-    return (
-      <StatusBadge
-        value="FAILED"
-        label="Refund failed"
-      />
-    )
+    return <StatusBadge value="FAILED" label="Refund failed" />
   }
 
-  return (
-    <StatusBadge value={status} />
-  )
+  return <StatusBadge value={status} />
 }
-
-/* =========================================================
-   CATEGORY BADGE
-========================================================= */
 
 function PolicyCategoryBadge({ category }) {
   const config = {
@@ -642,19 +878,23 @@ function PolicyCategoryBadge({ category }) {
       className: 'ix-category-health',
     },
     family: {
-      label: 'Family',
+      label: 'Family Health',
       icon: Users,
       className: 'ix-category-family',
     },
-    vehicle: {
-      label: 'Vehicle',
+    life: {
+      label: 'Life',
+      icon: ShieldCheck,
+      className: 'ix-category-life',
+    },
+    motor: {
+      label: 'Motor',
       icon: CarFront,
-      className: 'ix-category-vehicle',
+      className: 'ix-category-motor',
     },
   }
 
   const item = config[category]
-
   if (!item) return null
 
   const Icon = item.icon
@@ -668,7 +908,189 @@ function PolicyCategoryBadge({ category }) {
 }
 
 /* =========================================================
-   ACTION COMPONENT
+   REUSABLE DETAIL COMPONENTS
+========================================================= */
+
+function DetailItem({ label, value }) {
+  if (
+    value === null ||
+    value === undefined ||
+    value === ''
+  ) {
+    return null
+  }
+
+  return (
+    <div className="ix-extra-detail">
+      <span>{label}</span>
+      <strong>{displayValue(value)}</strong>
+    </div>
+  )
+}
+
+function FamilyMembersSection({ members }) {
+  if (!members?.length) return null
+
+  return (
+    <section className="ix-policy-extra-section">
+      <div className="ix-policy-extra-heading">
+        <Users size={16} />
+        <strong>Covered family members</strong>
+        <span>{members.length}</span>
+      </div>
+
+      <div className="ix-family-member-grid">
+        {members.map((member, index) => {
+          const details = getMemberDetails(member)
+
+          return (
+            <div
+              className="ix-family-member-card"
+              key={member?.memberId ?? member?.id ?? index}
+            >
+              <div className="ix-member-name">
+                <UserRound size={17} />
+                <strong>
+                  {details.name || `Member ${index + 1}`}
+                </strong>
+              </div>
+
+              <div className="ix-extra-details-grid">
+                <DetailItem
+                  label="Relationship"
+                  value={details.relationship}
+                />
+                <DetailItem
+                  label="Age"
+                  value={details.age}
+                />
+                <DetailItem
+                  label="Date of birth"
+                  value={details.dateOfBirth ? date(details.dateOfBirth) : null}
+                />
+                <DetailItem
+                  label="Gender"
+                  value={details.gender}
+                />
+                <DetailItem
+                  label="Individual coverage"
+                  value={
+                    details.coverage != null
+                      ? formatMoney(details.coverage)
+                      : null
+                  }
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function VehicleDetailsSection({ vehicle }) {
+  const entries = [
+    ['Registration number', vehicle.registration],
+    ['Manufacturer', vehicle.make],
+    ['Model', vehicle.model],
+    ['Manufacturing year', vehicle.year],
+    ['Vehicle type', vehicle.type],
+    ['Fuel type', vehicle.fuel],
+    ['Color', vehicle.color],
+    ['Chassis number', vehicle.chassis],
+    ['Engine number', vehicle.engine],
+    ['Vehicle usage', vehicle.usage],
+  ].filter(([, value]) =>
+    value !== null && value !== undefined && value !== '',
+  )
+
+  if (!entries.length) return null
+
+  return (
+    <section className="ix-policy-extra-section">
+      <div className="ix-policy-extra-heading">
+        <CarFront size={16} />
+        <strong>Insured vehicle details</strong>
+      </div>
+
+      <div className="ix-extra-details-grid">
+        {entries.map(([label, value]) => (
+          <DetailItem
+            key={label}
+            label={label}
+            value={value}
+          />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function BeneficiariesSection({ beneficiaries }) {
+  if (!beneficiaries?.length) return null
+
+  return (
+    <section className="ix-policy-extra-section">
+      <div className="ix-policy-extra-heading">
+        <UserCheck size={16} />
+        <strong>Nominee / Beneficiary details</strong>
+      </div>
+
+      <div className="ix-family-member-grid">
+        {beneficiaries.map((person, index) => {
+          const name = firstValue(
+            person?.fullName,
+            person?.beneficiaryName,
+            person?.nomineeName,
+            person?.name,
+          )
+
+          const relationship = firstValue(
+            person?.relationship,
+            person?.relation,
+          )
+
+          const share = firstValue(
+            person?.percentage,
+            person?.sharePercentage,
+            person?.allocationPercentage,
+          )
+
+          return (
+            <div
+              className="ix-family-member-card"
+              key={person?.id ?? person?.beneficiaryId ?? index}
+            >
+              <div className="ix-member-name">
+                <UserCheck size={17} />
+                <strong>{name || `Beneficiary ${index + 1}`}</strong>
+              </div>
+
+              <div className="ix-extra-details-grid">
+                <DetailItem
+                  label="Relationship"
+                  value={relationship}
+                />
+                <DetailItem
+                  label="Share"
+                  value={share != null ? `${share}%` : null}
+                />
+                <DetailItem
+                  label="Age"
+                  value={person?.age}
+                />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+/* =========================================================
+   POLICY ACTION
 ========================================================= */
 
 function PolicyAction({ policy, onClaim }) {
@@ -720,9 +1142,7 @@ function PolicyAction({ policy, onClaim }) {
                 : 'Claims require an active policy'
       }
       onClick={() => {
-        if (policy.canFileClaim) {
-          onClaim(policy)
-        }
+        if (policy.canFileClaim) onClaim(policy)
       }}
     >
       {policy.displayStatus === 'EXPIRED'
@@ -741,19 +1161,14 @@ function PolicyAction({ policy, onClaim }) {
 ========================================================= */
 
 export default function MyPolicies() {
-  const [searchParams, setSearchParams] =
-    useSearchParams()
+  const [searchParams, setSearchParams] = useSearchParams()
 
-  const requestedFilter =
-    searchParams.get('status') || 'all'
-
+  const requestedFilter = searchParams.get('status') || 'all'
   const status = VALID_FILTERS.has(requestedFilter)
     ? requestedFilter
     : 'all'
 
-  const requestedCategory =
-    searchParams.get('category') || 'all'
-
+  const requestedCategory = searchParams.get('category') || 'all'
   const category = VALID_CATEGORIES.has(requestedCategory)
     ? requestedCategory
     : 'all'
@@ -795,9 +1210,7 @@ export default function MyPolicies() {
     refetchOnReconnect: true,
 
     refetchInterval: (query) => {
-      const purchaseRows = normalizeRows(
-        query.state.data,
-      )
+      const purchaseRows = normalizeRows(query.state.data)
 
       return purchaseRows.some((purchase) =>
         isRefundPending(purchase.refundStatus),
@@ -810,7 +1223,7 @@ export default function MyPolicies() {
   })
 
   /* =======================================================
-     NORMALIZE RESPONSE DATA
+     NORMALIZE DATA
   ======================================================= */
 
   const policyRows = useMemo(
@@ -835,7 +1248,7 @@ export default function MyPolicies() {
   const unlinkedPaidPurchases = useMemo(() => {
     const knownPolicyNumbers = new Set(
       policyRows
-        .map((policy) => policyNumberOf(policy))
+        .map(policyNumberOf)
         .filter((number) => number != null)
         .map(String),
     )
@@ -853,7 +1266,7 @@ export default function MyPolicies() {
   }, [policyRows, purchaseRows])
 
   /* =======================================================
-     INDEX CLAIMS BY POLICY
+     INDEX CLAIMS
   ======================================================= */
 
   const claimsByPolicy = useMemo(() => {
@@ -861,15 +1274,11 @@ export default function MyPolicies() {
 
     for (const claim of claimRows) {
       const number = claimPolicyNumber(claim)
-
       if (number == null) continue
 
       const key = String(number)
 
-      if (!map.has(key)) {
-        map.set(key, [])
-      }
-
+      if (!map.has(key)) map.set(key, [])
       map.get(key).push(claim)
     }
 
@@ -877,7 +1286,7 @@ export default function MyPolicies() {
   }, [claimRows])
 
   /* =======================================================
-     INDEX PURCHASES BY POLICY
+     INDEX PURCHASES
   ======================================================= */
 
   const purchasesByPolicy = useMemo(() => {
@@ -885,7 +1294,6 @@ export default function MyPolicies() {
 
     for (const purchase of purchaseRows) {
       const number = policyNumberOf(purchase)
-
       if (number == null) continue
 
       const key = String(number)
@@ -913,9 +1321,7 @@ export default function MyPolicies() {
     for (const policy of policyRows) {
       const source = getRenewalSourceNumber(policy)
 
-      if (source != null) {
-        set.add(String(source))
-      }
+      if (source != null) set.add(String(source))
     }
 
     for (const purchase of purchaseRows) {
@@ -941,16 +1347,10 @@ export default function MyPolicies() {
       policyRows.map((policy) => {
         const number = String(policy.policyNumber)
 
-        const relatedClaims =
-          claimsByPolicy.get(number) || []
+        const relatedClaims = claimsByPolicy.get(number) || []
+        const relatedPurchase = purchasesByPolicy.get(number) || null
 
-        const relatedPurchase =
-          purchasesByPolicy.get(number) || null
-
-        const refundStatus = getRefundStatus(
-          policy,
-          relatedPurchase,
-        )
+        const refundStatus = getRefundStatus(policy, relatedPurchase)
 
         const baseStatus = getPolicyStatus(
           policy,
@@ -958,8 +1358,7 @@ export default function MyPolicies() {
           relatedPurchase,
         )
 
-        const alreadyRenewed =
-          renewedSourceNumbers.has(number)
+        const alreadyRenewed = renewedSourceNumbers.has(number)
 
         const displayStatus =
           alreadyRenewed &&
@@ -980,19 +1379,11 @@ export default function MyPolicies() {
 
         const claimCount =
           relatedClaims.length ||
-          (Array.isArray(policy.claims)
-            ? policy.claims.length
-            : 0)
+          (Array.isArray(policy.claims) ? policy.claims.length : 0)
 
-        const pendingClaim = isPendingClaim(
-          policy,
-          relatedClaims,
-        )
+        const pendingClaim = isPendingClaim(policy, relatedClaims)
 
-        const renewalChild = isRenewedPolicy(
-          policy,
-          relatedPurchase,
-        )
+        const renewalChild = isRenewedPolicy(policy, relatedPurchase)
 
         const refundPending =
           !isRefundFailed(refundStatus) &&
@@ -1041,7 +1432,27 @@ export default function MyPolicies() {
           !refunded &&
           !refundFailed
 
-        const policyCategory = getPolicyCategory(policy)
+        const policyCategory = getPolicyCategory(
+          policy,
+          relatedPurchase,
+        )
+
+        const planDetails = getPlanDetails(policy, relatedPurchase)
+
+        const familyMembers = getFamilyMembers(
+          policy,
+          relatedPurchase,
+        )
+
+        const vehicleDetails = getVehicleDetails(
+          policy,
+          relatedPurchase,
+        )
+
+        const beneficiaries = getBeneficiaries(
+          policy,
+          relatedPurchase,
+        )
 
         return {
           ...policy,
@@ -1059,8 +1470,10 @@ export default function MyPolicies() {
           canFileClaim,
           canRequestRenewal,
           policyCategory,
-          vehicleRegistration: getVehicleRegistration(policy),
-          vehicleModel: getVehicleModel(policy),
+          planDetails,
+          familyMembers,
+          vehicleDetails,
+          beneficiaries,
         }
       }),
     [
@@ -1075,11 +1488,10 @@ export default function MyPolicies() {
      SEARCH
   ======================================================= */
 
-  const [
-    search,
-    setSearch,
-    searched,
-  ] = useFilter(enrichedPolicies, FIELDS)
+  const [search, setSearch, searched] = useFilter(
+    enrichedPolicies,
+    FIELDS,
+  )
 
   /* =======================================================
      CATEGORY COUNTS
@@ -1087,14 +1499,22 @@ export default function MyPolicies() {
 
   const categoryCounts = useMemo(() => ({
     all: enrichedPolicies.length,
+
     health: enrichedPolicies.filter(
-      (policy) => policy.policyCategory === 'health',
+      (policy) =>
+        ['health', 'family'].includes(policy.policyCategory),
     ).length,
+
     family: enrichedPolicies.filter(
       (policy) => policy.policyCategory === 'family',
     ).length,
-    vehicle: enrichedPolicies.filter(
-      (policy) => policy.policyCategory === 'vehicle',
+
+    life: enrichedPolicies.filter(
+      (policy) => policy.policyCategory === 'life',
+    ).length,
+
+    motor: enrichedPolicies.filter(
+      (policy) => policy.policyCategory === 'motor',
     ).length,
   }), [enrichedPolicies])
 
@@ -1112,8 +1532,12 @@ export default function MyPolicies() {
       label: `Family (${categoryCounts.family})`,
     },
     {
-      value: 'vehicle',
-      label: `Vehicle (${categoryCounts.vehicle})`,
+      value: 'life',
+      label: `Life (${categoryCounts.life})`,
+    },
+    {
+      value: 'motor',
+      label: `Motor (${categoryCounts.motor})`,
     },
   ]
 
@@ -1124,18 +1548,18 @@ export default function MyPolicies() {
   const rows = useMemo(
     () =>
       (searched || []).filter((policy) => {
-        // Category filter
-        if (
+        if (category === 'health') {
+          if (!['health', 'family'].includes(policy.policyCategory)) {
+            return false
+          }
+        } else if (
           category !== 'all' &&
           policy.policyCategory !== category
         ) {
           return false
         }
 
-        // Existing status filter
-        if (status === 'all') {
-          return true
-        }
+        if (status === 'all') return true
 
         if (status === 'renewed') {
           return policy.displayStatus === 'RENEWED'
@@ -1149,9 +1573,7 @@ export default function MyPolicies() {
           return policy.hasClaimHistory
         }
 
-        return (
-          policy.displayStatus === status.toUpperCase()
-        )
+        return policy.displayStatus === status.toUpperCase()
       }),
     [searched, status, category],
   )
@@ -1189,7 +1611,7 @@ export default function MyPolicies() {
   }
 
   /* =======================================================
-     SUMMARY COUNTS
+     SUMMARY
   ======================================================= */
 
   const summary = useMemo(
@@ -1242,13 +1664,9 @@ export default function MyPolicies() {
         purchasesQuery.refetch(),
       ])
 
-      const failure = results.find(
-        (result) => result.error,
-      )
+      const failure = results.find((result) => result.error)
 
-      if (failure) {
-        throw failure.error
-      }
+      if (failure) throw failure.error
     } catch (error) {
       setRefreshError(
         error?.response?.data?.message ||
@@ -1257,10 +1675,6 @@ export default function MyPolicies() {
       )
     }
   }
-
-  /* =======================================================
-     COMBINED QUERY STATUS
-  ======================================================= */
 
   const query = {
     ...policiesQuery,
@@ -1289,8 +1703,6 @@ export default function MyPolicies() {
 
   return (
     <>
-      {/* New category-specific styles.
-          Existing styles.css remains unchanged. */}
       <style>{`
         .ix-policy-category-section {
           margin: 0 0 18px;
@@ -1306,10 +1718,6 @@ export default function MyPolicies() {
           font-weight: 700;
         }
 
-        .ix-policy-category-heading svg {
-          opacity: .8;
-        }
-
         .ix-policy-category-filter {
           display: flex;
           flex-wrap: wrap;
@@ -1319,10 +1727,6 @@ export default function MyPolicies() {
           border: 1px solid var(--border, rgba(128,128,128,.2));
           border-radius: 12px;
           background: var(--surface, transparent);
-        }
-
-        .ix-policy-category-filter > * {
-          max-width: 100%;
         }
 
         .ix-category-badge {
@@ -1341,17 +1745,22 @@ export default function MyPolicies() {
 
         .ix-category-health {
           color: #087f5b;
-          background: rgba(16, 185, 129, .12);
+          background: rgba(16,185,129,.12);
         }
 
         .ix-category-family {
           color: #2563a6;
-          background: rgba(59, 130, 246, .12);
+          background: rgba(59,130,246,.12);
         }
 
-        .ix-category-vehicle {
+        .ix-category-life {
+          color: #6941a5;
+          background: rgba(139,92,246,.12);
+        }
+
+        .ix-category-motor {
           color: #a16207;
-          background: rgba(245, 158, 11, .14);
+          background: rgba(245,158,11,.14);
         }
 
         .ix-policy-card-identity {
@@ -1360,6 +1769,109 @@ export default function MyPolicies() {
 
         .ix-policy-card-identity .ix-category-badge {
           margin-top: 8px;
+        }
+
+        .ix-policy-plan-summary {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 9px;
+          margin-top: 13px;
+        }
+
+        .ix-policy-plan-chip {
+          display: inline-flex;
+          align-items: center;
+          gap: 6px;
+          padding: 7px 10px;
+          border: 1px solid var(--border, rgba(128,128,128,.18));
+          border-radius: 8px;
+          background: var(--surface-soft, rgba(128,128,128,.045));
+          font-size: 12px;
+        }
+
+        .ix-policy-plan-chip span {
+          color: var(--muted, #737373);
+        }
+
+        .ix-policy-plan-chip strong {
+          color: var(--text, inherit);
+        }
+
+        .ix-policy-extra-section {
+          margin-top: 14px;
+          padding: 13px;
+          border: 1px solid var(--border, rgba(128,128,128,.18));
+          border-radius: 10px;
+          background: var(--surface-soft, rgba(128,128,128,.035));
+        }
+
+        .ix-policy-extra-heading {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 11px;
+          font-size: 13px;
+          color: var(--text, inherit);
+        }
+
+        .ix-policy-extra-heading > span {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          min-width: 21px;
+          height: 21px;
+          padding: 0 6px;
+          border-radius: 20px;
+          background: var(--border, rgba(128,128,128,.15));
+          font-size: 11px;
+        }
+
+        .ix-extra-details-grid {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 11px 15px;
+        }
+
+        .ix-extra-detail {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          min-width: 0;
+        }
+
+        .ix-extra-detail span {
+          color: var(--muted, #737373);
+          font-size: 11px;
+        }
+
+        .ix-extra-detail strong {
+          color: var(--text, inherit);
+          font-size: 12px;
+          font-weight: 650;
+          overflow-wrap: anywhere;
+        }
+
+        .ix-family-member-grid {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 10px;
+        }
+
+        .ix-family-member-card {
+          min-width: 0;
+          padding: 11px;
+          border: 1px solid var(--border, rgba(128,128,128,.16));
+          border-radius: 9px;
+          background: var(--surface, transparent);
+        }
+
+        .ix-member-name {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          margin-bottom: 10px;
+          font-size: 13px;
+          color: var(--text, inherit);
         }
 
         .ix-policy-vehicle-details {
@@ -1387,35 +1899,29 @@ export default function MyPolicies() {
           font-weight: 700;
         }
 
-        .ix-policy-category-empty {
-          padding: 28px 16px;
-          text-align: center;
+        @media (max-width: 700px) {
+          .ix-extra-details-grid {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+
+          .ix-family-member-grid {
+            grid-template-columns: 1fr;
+          }
         }
 
-        .ix-policy-category-empty svg {
-          margin-bottom: 9px;
-          opacity: .65;
-        }
-
-        .ix-policy-category-empty h4 {
-          margin: 0 0 6px;
-        }
-
-        .ix-policy-category-empty p {
-          margin: 0;
-          color: var(--muted, #737373);
-          font-size: 13px;
-        }
-
-        @media (max-width: 640px) {
+        @media (max-width: 460px) {
           .ix-policy-category-filter {
             padding: 9px;
             gap: 7px;
           }
 
-          .ix-policy-vehicle-details {
+          .ix-extra-details-grid {
+            grid-template-columns: 1fr 1fr;
+          }
+
+          .ix-policy-plan-summary {
             display: grid;
-            grid-template-columns: 1fr;
+            grid-template-columns: 1fr 1fr;
           }
         }
 
@@ -1435,13 +1941,10 @@ export default function MyPolicies() {
         subtitle={
           claimedSection
             ? 'Review policies with claim history, including policies renewed after a claim.'
-            : 'Manage your health, family and vehicle insurance coverage, claims, refunds and renewals.'
+            : 'Manage your health, family, life and motor insurance coverage, claims, refunds and renewals.'
         }
       >
-        <Link
-          className="btn primary"
-          to="/app/plans"
-        >
+        <Link className="btn primary" to="/app/plans">
           Buy insurance
         </Link>
       </PageHeader>
@@ -1455,9 +1958,7 @@ export default function MyPolicies() {
               <ShieldCheck size={22} />
               <div>
                 <div className="muted">Policies with claims</div>
-                <strong>
-                  {query.isLoading ? '…' : summary.claimed}
-                </strong>
+                <strong>{query.isLoading ? '…' : summary.claimed}</strong>
               </div>
             </div>
           </Panel>
@@ -1467,9 +1968,7 @@ export default function MyPolicies() {
               <CheckCircle2 size={22} />
               <div>
                 <div className="muted">Linked claims</div>
-                <strong>
-                  {query.isLoading ? '…' : summary.linkedClaims}
-                </strong>
+                <strong>{query.isLoading ? '…' : summary.linkedClaims}</strong>
               </div>
             </div>
           </Panel>
@@ -1499,9 +1998,7 @@ export default function MyPolicies() {
               <ShieldCheck size={22} />
               <div>
                 <div className="muted">Total policies</div>
-                <strong>
-                  {query.isLoading ? '…' : summary.total}
-                </strong>
+                <strong>{query.isLoading ? '…' : summary.total}</strong>
               </div>
             </div>
           </Panel>
@@ -1511,9 +2008,7 @@ export default function MyPolicies() {
               <CheckCircle2 size={22} />
               <div>
                 <div className="muted">Active</div>
-                <strong>
-                  {query.isLoading ? '…' : summary.active}
-                </strong>
+                <strong>{query.isLoading ? '…' : summary.active}</strong>
               </div>
             </div>
           </Panel>
@@ -1523,9 +2018,7 @@ export default function MyPolicies() {
               <RefreshCw size={22} />
               <div>
                 <div className="muted">Renewed</div>
-                <strong>
-                  {query.isLoading ? '…' : summary.renewed}
-                </strong>
+                <strong>{query.isLoading ? '…' : summary.renewed}</strong>
               </div>
             </div>
           </Panel>
@@ -1535,9 +2028,7 @@ export default function MyPolicies() {
               <RotateCcw size={22} />
               <div>
                 <div className="muted">Pending refunds</div>
-                <strong>
-                  {query.isLoading ? '…' : summary.refunds}
-                </strong>
+                <strong>{query.isLoading ? '…' : summary.refunds}</strong>
               </div>
             </div>
           </Panel>
@@ -1566,15 +2057,12 @@ export default function MyPolicies() {
         </section>
       )}
 
-      {/* PAID PURCHASE / POLICY SYNCHRONIZATION */}
+      {/* PURCHASE SYNCHRONIZATION */}
 
       {!query.isLoading &&
         !query.isError &&
         unlinkedPaidPurchases.length > 0 && (
-          <div
-            className="alert info ix-policy-alert"
-            role="status"
-          >
+          <div className="alert info ix-policy-alert" role="status">
             <Clock3 size={17} />
             <span>
               {unlinkedPaidPurchases.length} paid{' '}
@@ -1582,15 +2070,10 @@ export default function MyPolicies() {
                 ? 'purchase has'
                 : 'purchases have'}{' '}
               a policy number missing from the policy history response.
-              Refresh after deploying the backend history fix.
-              If this persists, verify policy ownership and the purchase link.
+              Refresh after verifying policy ownership and purchase linking.
             </span>
 
-            <Button
-              size="sm"
-              onClick={refreshAll}
-              disabled={refreshing}
-            >
+            <Button size="sm" onClick={refreshAll} disabled={refreshing}>
               <RefreshCw size={15} />
               Refresh
             </Button>
@@ -1600,10 +2083,7 @@ export default function MyPolicies() {
       {/* REFUND NOTICE */}
 
       {summary.refunds > 0 && (
-        <div
-          className="alert info ix-policy-alert"
-          role="status"
-        >
+        <div className="alert info ix-policy-alert" role="status">
           <Clock3 size={17} />
           <span>
             {summary.refunds} policy
@@ -1615,10 +2095,7 @@ export default function MyPolicies() {
       )}
 
       {refreshError && (
-        <div
-          className="alert error ix-policy-alert"
-          role="alert"
-        >
+        <div className="alert error ix-policy-alert" role="alert">
           <AlertCircle size={17} />
           <span>{refreshError}</span>
         </div>
@@ -1631,7 +2108,7 @@ export default function MyPolicies() {
           <SearchBox
             value={search}
             onChange={setSearch}
-            placeholder="Search by policy number or type"
+            placeholder="Search by policy number or plan"
           />
 
           {!claimedSection && (
@@ -1642,10 +2119,7 @@ export default function MyPolicies() {
             />
           )}
 
-          <Button
-            onClick={refreshAll}
-            disabled={refreshing}
-          >
+          <Button onClick={refreshAll} disabled={refreshing}>
             <RefreshCw size={15} />
             {refreshing ? 'Refreshing…' : 'Refresh'}
           </Button>
@@ -1658,10 +2132,7 @@ export default function MyPolicies() {
             text: 'Once you buy an insurance plan, it will appear here.',
           }}
           emptyAction={
-            <Link
-              className="btn primary"
-              to="/app/plans"
-            >
+            <Link className="btn primary" to="/app/plans">
               Browse plans
             </Link>
           }
@@ -1686,10 +2157,7 @@ export default function MyPolicies() {
                 </p>
               </div>
             ) : claimedSection ? (
-              <div
-                className="ix-claimed-list"
-                aria-label="Claimed policy history"
-              >
+              <div className="ix-claimed-list" aria-label="Claimed policy history">
                 {rows.map((policy) => (
                   <article
                     className="ix-claimed-card"
@@ -1700,9 +2168,7 @@ export default function MyPolicies() {
                         <div className="muted">Insurance policy</div>
                         <strong>#{policy.policyNumber}</strong>
                         <div style={{ marginTop: 7 }}>
-                          <PolicyCategoryBadge
-                            category={policy.policyCategory}
-                          />
+                          <PolicyCategoryBadge category={policy.policyCategory} />
                         </div>
                       </div>
 
@@ -1717,10 +2183,7 @@ export default function MyPolicies() {
 
                       <div>
                         <small>Claims recorded</small>
-                        <b>
-                          {policy.claimCount ||
-                            (policy.hasClaimHistory ? 'Recorded' : '0')}
-                        </b>
+                        <b>{policy.claimCount || 'Recorded'}</b>
                       </div>
 
                       <div>
@@ -1741,10 +2204,7 @@ export default function MyPolicies() {
                           : 'Claim history available'}
                       </span>
 
-                      <Link
-                        className="btn primary ix-policy-action-btn"
-                        to="/app/claims"
-                      >
+                      <Link className="btn primary ix-policy-action-btn" to="/app/claims">
                         View claims
                       </Link>
                     </div>
@@ -1752,110 +2212,152 @@ export default function MyPolicies() {
                 ))}
               </div>
             ) : (
-              <div
-                className="ix-policy-card-grid"
-                aria-label="My policies"
-              >
-                {rows.map((policy) => (
-                  <article
-                    className="ix-policy-card"
-                    key={String(policy.policyNumber)}
-                  >
-                    <div className="ix-policy-card-head">
-                      <div className="ix-policy-card-identity">
-                        <span className="ix-policy-eyebrow">
-                          Insurance policy
-                        </span>
+              <div className="ix-policy-card-grid" aria-label="My policies">
+                {rows.map((policy) => {
+                  const plan = policy.planDetails
+                  const vehicle = policy.vehicleDetails
 
-                        <h3>#{policy.policyNumber}</h3>
+                  const isFamily = policy.policyCategory === 'family'
+                  const isMotor = policy.policyCategory === 'motor'
+                  const isLife = policy.policyCategory === 'life'
 
-                        <span className="ix-policy-cover">
-                          {policy.coveredTypes || 'Insurance cover'}
-                        </span>
+                  return (
+                    <article
+                      className="ix-policy-card"
+                      key={String(policy.policyNumber)}
+                    >
+                      {/* POLICY HEADER */}
 
-                        <PolicyCategoryBadge
-                          category={policy.policyCategory}
-                        />
-                      </div>
+                      <div className="ix-policy-card-head">
+                        <div className="ix-policy-card-identity">
+                          <span className="ix-policy-eyebrow">
+                            Insurance policy
+                          </span>
 
-                      <PolicyStatusBadge policy={policy} />
-                    </div>
+                          <h3>#{policy.policyNumber}</h3>
 
-                    <div className="ix-policy-card-details">
-                      <div>
-                        <span>Start date</span>
-                        <strong>{date(policy.startDate)}</strong>
-                      </div>
+                          <span className="ix-policy-cover">
+                            {plan.planName ||
+                              policy.coveredTypes ||
+                              categoryLabel(policy.policyCategory)}
+                          </span>
 
-                      <div>
-                        <span>Expiry date</span>
-                        <strong>{date(policy.expiryDate)}</strong>
-                      </div>
-
-                      <div>
-                        <span>Policy term</span>
-                        <strong>
-                          {policy.durationYears != null
-                            ? `${policy.durationYears} yr`
-                            : '—'}
-                        </strong>
-                      </div>
-
-                      <div>
-                        <span>Claims recorded</span>
-                        <strong>
-                          {policy.claimCount ||
-                            (policy.hasClaimHistory ? 'Recorded' : '0')}
-                        </strong>
-                      </div>
-                    </div>
-
-                    {/* VEHICLE DETAILS */}
-
-                    {policy.policyCategory === 'vehicle' &&
-                      (policy.vehicleRegistration ||
-                        policy.vehicleModel) && (
-                        <div className="ix-policy-vehicle-details">
-                          {policy.vehicleRegistration && (
-                            <span>
-                              <CarFront size={15} />
-                              Registration:
-                              <strong>
-                                {policy.vehicleRegistration}
-                              </strong>
-                            </span>
-                          )}
-
-                          {policy.vehicleModel && (
-                            <span>
-                              <ShieldCheck size={15} />
-                              Vehicle:
-                              <strong>{policy.vehicleModel}</strong>
-                            </span>
-                          )}
+                          <PolicyCategoryBadge category={policy.policyCategory} />
                         </div>
+
+                        <PolicyStatusBadge policy={policy} />
+                      </div>
+
+                      {/* PLAN COVERAGE AND PREMIUM */}
+
+                      <div className="ix-policy-plan-summary">
+                        {plan.coverage != null && (
+                          <div className="ix-policy-plan-chip">
+                            <ShieldCheck size={15} />
+                            <span>Coverage</span>
+                            <strong>{formatMoney(plan.coverage)}</strong>
+                          </div>
+                        )}
+
+                        {plan.premium != null && (
+                          <div className="ix-policy-plan-chip">
+                            <IndianRupee size={15} />
+                            <span>Premium</span>
+                            <strong>{formatMoney(plan.premium)}</strong>
+                          </div>
+                        )}
+
+                        {plan.duration != null && (
+                          <div className="ix-policy-plan-chip">
+                            <CalendarDays size={15} />
+                            <span>Term</span>
+                            <strong>
+                              {typeof plan.duration === 'number'
+                                ? `${plan.duration} years`
+                                : plan.duration}
+                            </strong>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* COMMON POLICY DETAILS */}
+
+                      <div className="ix-policy-card-details">
+                        <div>
+                          <span>Start date</span>
+                          <strong>{date(policy.startDate)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Expiry date</span>
+                          <strong>{date(policy.expiryDate)}</strong>
+                        </div>
+
+                        <div>
+                          <span>Policy term</span>
+                          <strong>
+                            {policy.durationYears != null
+                              ? `${policy.durationYears} yr`
+                              : plan.duration != null
+                                ? plan.duration
+                                : '—'}
+                          </strong>
+                        </div>
+
+                        <div>
+                          <span>Claims recorded</span>
+                          <strong>
+                            {policy.claimCount ||
+                              (policy.hasClaimHistory ? 'Recorded' : '0')}
+                          </strong>
+                        </div>
+                      </div>
+
+                      {/* FAMILY HEALTH DETAILS */}
+
+                      {isFamily && (
+                        <FamilyMembersSection
+                          members={policy.familyMembers}
+                        />
                       )}
 
-                    <div className="ix-policy-card-footer">
-                      <span className="ix-policy-card-hint">
-                        {policy.alreadyRenewed
-                          ? 'Previous cover renewed'
-                          : policy.refundPending
-                            ? 'Refund pending or processing'
-                            : policy.pendingClaim
-                              ? 'Claim under review'
-                              : policy.displayStatus === 'ACTIVE'
-                                ? 'Coverage currently active'
-                                : 'Policy details'}
-                      </span>
+                      {/* MOTOR DETAILS */}
 
-                      <PolicyAction
-                        policy={policy}
-                        onClaim={setClaimFor}
-                      />
-                    </div>
-                  </article>
-                ))}
+                      {isMotor && (
+                        <VehicleDetailsSection vehicle={vehicle} />
+                      )}
+
+                      {/* LIFE BENEFICIARIES */}
+
+                      {isLife && (
+                        <BeneficiariesSection
+                          beneficiaries={policy.beneficiaries}
+                        />
+                      )}
+
+                      {/* POLICY FOOTER */}
+
+                      <div className="ix-policy-card-footer">
+                        <span className="ix-policy-card-hint">
+                          {policy.alreadyRenewed
+                            ? 'Previous cover renewed'
+                            : policy.refundPending
+                              ? 'Refund pending or processing'
+                              : policy.pendingClaim
+                                ? 'Claim under review'
+                                : policy.displayStatus === 'ACTIVE'
+                                  ? 'Coverage currently active'
+                                  : 'Policy details'}
+                        </span>
+
+                        <PolicyAction
+                          policy={policy}
+                          onClaim={setClaimFor}
+                        />
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             )
           }
